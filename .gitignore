@@ -1,0 +1,33 @@
+# Dependencies and environments
+**/node_modules/
+**/venv/
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+
+# Local databases
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Build output
+**/dist/
+**/build/
+**/coverage/
+**/.nyc_output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*_log.txt

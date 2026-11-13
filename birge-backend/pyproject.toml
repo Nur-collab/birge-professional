@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = ["venv", ".venv", "__pycache__", "alembic/versions"]
+
+[tool.ruff.lint]
+# Start with correctness rules only. Expand the rule set incrementally so the
+# existing codebase can be cleaned up without a noisy all-at-once rewrite.
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
