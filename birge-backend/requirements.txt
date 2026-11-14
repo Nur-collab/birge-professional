@@ -6,7 +6,7 @@ PyJWT==2.15.1
 passlib==1.7.4
 python-multipart==0.0.32
 aiofiles==25.1.0
-psycopg2-binary==2.9.11
+psycopg2-binary==2.9.13
 httpx==0.28.1
 python-dotenv==1.2.2
 alembic==1.20.1
