@@ -248,6 +248,7 @@ export default function Matches({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ color: 'var(--dark)', margin: 0 }}>{t('matches.searching')}</h2>
           <button
+            type="button"
             onClick={onCancel}
             style={{
               background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -271,6 +272,7 @@ export default function Matches({
         <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 6 }}>{t('matches.empty')}</h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>Ищем подходящих попутчиков по маршруту...</p>
         <button
+          type="button"
           onClick={onCancel}
           style={{
             background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -278,7 +280,7 @@ export default function Matches({
             fontSize: '0.88rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
           }}
         >
-          <X size={15} /> Отменить поиск
+          <X size={15} aria-hidden="true" /> Отменить поиск
         </button>
       </div>
     );
@@ -287,7 +289,7 @@ export default function Matches({
   return (
     <div className="matches screen-content">
       {requestError && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 10, padding: '10px 14px', fontSize: '0.84rem', fontWeight: 600, marginBottom: 12 }}>
+        <div role="alert" style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 10, padding: '10px 14px', fontSize: '0.84rem', fontWeight: 600, marginBottom: 12 }}>
           {requestError}
         </div>
       )}
@@ -296,6 +298,7 @@ export default function Matches({
           {isDriver ? 'Запросы пассажиров' : 'Доступные водители'}
         </h2>
         <button
+          type="button"
           onClick={onCancel}
           style={{
             background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -309,18 +312,22 @@ export default function Matches({
 
       {/* Фильтр-чипсы по дате */}
       {uniqueDates.length > 1 && (
-        <div className="date-chips-row">
+        <div className="date-chips-row" role="group" aria-label="Фильтр по дате">
           <button
+            type="button"
             className={`date-chip ${activeDateFilter === null ? 'active' : ''}`}
             onClick={() => setActiveDateFilter(null)}
+            aria-pressed={activeDateFilter === null}
           >
             Все
           </button>
           {uniqueDates.map(d => (
             <button
               key={d || 'null'}
+              type="button"
               className={`date-chip ${activeDateFilter === d ? 'active' : ''}`}
               onClick={() => setActiveDateFilter(d)}
+              aria-pressed={activeDateFilter === d}
             >
               {formatChipLabel(d)}
             </button>
@@ -405,9 +412,11 @@ export default function Matches({
                 </div>
               ) : (
                 <button
+                  type="button"
                   className="primary-btn match-btn"
                   onClick={() => status ? null : handleSendRequest(trip)}
                   disabled={!!status}
+                  aria-busy={status === 'sending'}
                   style={{
                     background: status === 'accepted' ? '#10b981'
                       : status === 'declined' ? '#ef4444'
@@ -419,7 +428,7 @@ export default function Matches({
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}
                 >
-                  {status === 'sending' && <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  {status === 'sending' && <Loader size={16} aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }} />}
                   {status === 'pending' && 'Ожидание ответа водителя...'}
                   {status === 'accepted' && 'Принят. Открываем чат...'}
                   {status === 'declined' && 'Отклонен'}

@@ -12,6 +12,7 @@ os.environ["RENDER_EXTERNAL_URL"] = ""
 os.environ["ENVIRONMENT"] = "test"
 os.environ["ADMIN_PHONES"] = "+996555000001"
 os.environ.pop("IMGBB_API_KEY", None)
+os.environ.pop("SENTRY_DSN", None)
 
 
 def pytest_sessionfinish(session, exitstatus):

@@ -90,15 +90,18 @@ birge-backend/realtime.py         # WebSocket/SSE state + is_trip_participant
 
 Полный список — в `docs/ROADMAP.md`. Ближайшие production-задачи:
 
-1. Redis Pub/Sub для SSE/WebSocket (сейчас состояние в памяти одного процесса).
-2. Redis rate limiting для auth/write-эндпоинтов.
-3. Sentry, структурные логи и request id.
-4. Readiness/liveness probes.
-5. Staging, backup/restore drill.
-6. Dependabot, `pip-audit`, secret scanning.
+1. Redis Pub/Sub, auth rate limiting и write-лимиты внедрены. `REDIS_URL`
+   включает Redis; пустой URL оставляет in-process режим.
+2. DB CHECK-ограничения, partial unique index и audit log внедрены.
+3. `/health` — liveness, `/ready` — readiness (DB + Redis); ответы содержат
+   `X-Request-ID`; JSON-логи включают request id.
+4. Sentry SDK подключён к backend и frontend; нужен DSN и проверка событий.
+5. Render настраивается вручную по `docs/RUNBOOK.md`; выполнить setup и restore drill.
+6. Dependabot, `pip-audit` и gitleaks настроены; нужно проверить в GitHub.
 
-P2: React Router/deep links, TypeScript/OpenAPI-типы, accessibility, i18n,
-аналитика воронки, ETA/коридоры маршрутов, модерация, export/delete данных.
+P2: deep links, OpenAPI-типы и accessibility-baseline готовы; дальше
+automated axe/visual contrast sweep, i18n, аналитика воронки, ETA/маршруты,
+модерация, export/delete данных.
 
 ## 4. Проверки, которые проходят
 
@@ -107,16 +110,18 @@ P2: React Router/deep links, TypeScript/OpenAPI-типы, accessibility, i18n,
 ```text
 backend:
   ruff check .                 -> passed
-  pytest -q                    -> 31 passed
+  pytest -q                    -> 44 passed (Redis multiprocess + write/constraints/audit/readiness/logging/Sentry/trip detail)
 frontend:
-  npm test                     -> 6 passed
+  npm test                     -> 14 passed (routing + API + date + a11y)
   npm run build                -> passed
+  npm run api:types            -> passed (src/types/api.d.ts, 2166 lines)
 database:
   alembic upgrade head         -> passed
   alembic check                -> no new upgrade operations
 live:
   GET /health                  -> 200
-  GET /openapi.json            -> 200 (30 paths)
+  GET /ready                   -> 200
+  GET /openapi.json            -> 200 (31 paths)
 ```
 
 Команды для повторной проверки (Windows):
@@ -154,10 +159,10 @@ npm run dev
 
 /trips/                        POST
 /trips/matches                 GET
+/trips/{trip_id}               GET (driver/accepted participant only), DELETE
 /trips/{trip_id}/ws-ticket     POST
 /trips/{trip_id}/messages      GET, POST
 /trips/{trip_id}/status        PATCH
-/trips/{trip_id}               DELETE
 /trips/{trip_id}/panic         POST
 /trips/{trip_id}/passengers    GET
 /trips/{trip_id}/payment       GET
@@ -171,6 +176,11 @@ npm run dev
 ```
 
 WebSocket `/ws/chat/{trip_id}/{user_id}` зарегистрирован, но в OpenAPI не попадает.
+
+`birge/openapi.json` экспортируется скриптом
+`birge-backend/scripts/export_openapi.py` (31 path, 18 schemas), а
+`npm run api:types` генерирует `birge/src/types/api.d.ts`. JSDoc в
+`birge/src/utils/api.js` использует сгенерированный `Trip`.
 
 Схемы ответов сохранены: `/users/me` → `User`, `/users/{user_id}` →
 `UserPublic`, `POST /trips/` → `Trip`.
@@ -198,6 +208,7 @@ ALLOWED_ORIGINS=https://<frontend>
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_WEBHOOK_SECRET=...
 ADMIN_PHONES=...
+REDIS_URL=redis://<redis-host>:6379/0
 ```
 
 `IMGBB_API_KEY` нужен только для загрузки фото. Без него endpoint корректно
@@ -212,26 +223,41 @@ Frontend production build:
 
 Backend deployment:
 
+- Render настраивается вручную: web service, managed Postgres, Key Value;
+- root directory: `birge-backend`; runtime: Python 3;
 - web-команда: `uvicorn main:app --host 0.0.0.0 --port $PORT`;
-- миграции: `alembic upgrade head` отдельным release/Pre-Deploy шагом;
+- миграции: `alembic upgrade head` отдельным Pre-Deploy шагом;
+- health check: `/ready` (Postgres + Redis);
+- используйте платные Postgres/Key Value для production; проверьте plan/region;
+- staging — отдельные сервисы, БД, Redis и секреты;
+- backup/restore: `docs/RUNBOOK.md`;
 - `Procfile` содержит `release: alembic upgrade head`; на Render продублируйте
   это в **Pre-Deploy Command** сервиса.
 
 ## 7. Важные оговорки
 
-- CI workflow создан, но ещё не запускался на GitHub: в копии нет `.git`/remote.
+- Git-репозиторий создан, но remote ещё не настроен; CI на GitHub не запускался.
+  Локально те же команды проходят.
 - Реальные Telegram, ImgBB, PostgreSQL и Render-сценарии не проверялись.
 - Frontend UI вручную не прокликивался; проверены тесты и production build.
-- `npm audit`: 6 low/moderate в build/PWA-цепочке, high/critical нет.
+- `npm audit`: 6 low/moderate только в dev/build/PWA-цепочке, high/critical нет; `npm audit --omit=dev` — 0.
 - `pytest` предупреждает о будущем `httpx2` в Starlette TestClient; это не ошибка.
-- Realtime остаётся single-process; не масштабировать на несколько воркеров
-  без Redis Pub/Sub.
+- Realtime использует Redis Pub/Sub при `REDIS_URL`; без него работает
+  in-process fallback для локальной разработки.
+- Redis multiprocess-тесты локально используют RESP-заглушку; в CI — реальный
+  сервис `redis:7-alpine`. Write-лимиты и Redis Pub/Sub реализованы.
 
 ## 8. Следующие шаги
 
 1. P0 закрыт: WS/SSE, trip-request и `App.jsx` разделены.
-2. Перейти к P1: Redis Pub/Sub, rate limiting, observability, staging/backup.
-3. После этого — P2 product/UX.
+2. P1-код закрыт: Redis Pub/Sub, rate limiting, write-лимиты, DB constraints,
+   audit log, `/ready`, JSON-логи, Sentry SDK и backup/restore runbook.
+3. Настроить Render вручную по `docs/RUNBOOK.md`, заполнить секреты,
+   проверить `/ready` и провести restore drill.
+4. Проверить Dependabot, gitleaks и CI на GitHub после настройки remote.
+5. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
+   axe/visual contrast sweep, i18n, аналитика, ETA/маршруты, модерация,
+   export/delete.
 
 Перед изменениями API сначала добавляйте/обновляйте HTTP-регрессионный тест,
 затем проверяйте `ruff`, `pytest`, OpenAPI и production frontend build.

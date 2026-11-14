@@ -37,6 +37,14 @@ alembic current
 If the existing database is missing columns from the baseline, do not stamp it.
 Create a dedicated additive migration for the missing columns first.
 
+## P1 constraints and audit migration
+
+The migration `3b8e4c1d9f2a` adds CHECK constraints for trip seats/prices and
+review ratings, a partial unique index for active trip requests, and the
+`audit_logs` table. Before adding the constraints it clamps invalid legacy
+values and declines duplicate active requests. It is safe to run on SQLite
+(batch mode) and PostgreSQL. Always take a backup first.
+
 ## Creating a new migration
 
 ```bash

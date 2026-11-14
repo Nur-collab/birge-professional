@@ -105,7 +105,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
   return (
     <div className="sched-screen">
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '10px 14px', fontSize: '0.85rem' }}>
+        <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '10px 14px', fontSize: '0.85rem' }}>
           {error}
         </div>
       )}
@@ -120,11 +120,14 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           </p>
         </div>
         <button
+          type="button"
           className={`sched-refresh-btn ${refreshing ? 'spinning' : ''}`}
           onClick={() => load(true)}
           title="Обновить"
+          aria-label="Обновить запланированные поездки"
+          aria-busy={refreshing}
         >
-          <RefreshCw size={18} />
+          <RefreshCw size={18} aria-hidden="true" />
         </button>
       </div>
 
@@ -139,8 +142,8 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
             Запланируйте поездку на завтра или следующую неделю —
             она появится здесь автоматически
           </p>
-          <button className="primary-btn sched-cta-btn" onClick={onCancel} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Plus size={16} />
+          <button type="button" className="primary-btn sched-cta-btn" onClick={onCancel} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={16} aria-hidden="true" />
             <span>Запланировать поездку</span>
           </button>
         </div>
@@ -215,11 +218,13 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                         </div>
                         {/* Водитель может оценить пассажира */}
                         <button
+                          type="button"
                           className="sched-review-btn"
                           onClick={() => setReviewTarget(p)}
                           title="Оценить пассажира"
+                          aria-label={`Оценить пассажира ${p.name}`}
                         >
-                          <Star size={11} fill="#f59e0b" color="#f59e0b" />
+                          <Star size={11} fill="#f59e0b" color="#f59e0b" aria-hidden="true" />
                         </button>
                       </div>
                     ))}
@@ -261,11 +266,12 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
               {/* Оценка доступна только после поездки, не для будущих дат */}
               {trip.role === 'passenger' && trip.driver && trip.date && trip.date <= today && (
                 <button
+                  type="button"
                   className="sched-review-btn"
                   onClick={() => setReviewTarget({ ...trip.driver, trip_id: trip.trip_id })}
                   title="Оставить отзыв о водителе"
                 >
-                  <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                  <Star size={12} fill="#f59e0b" color="#f59e0b" aria-hidden="true" />
                   Оценить водителя
                 </button>
               )}
@@ -273,18 +279,22 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
               {/* Действия */}
               <div className="sched-actions">
                 <button
+                  type="button"
                   className="sched-open-btn"
                   onClick={() => onOpenTrip(trip)}
                 >
-                  Открыть поездку <ChevronRight size={15} />
+                  Открыть поездку <ChevronRight size={15} aria-hidden="true" />
                 </button>
                 <button
+                  type="button"
                   className={`sched-cancel-btn ${cancellingId === trip.trip_id ? 'loading' : ''}`}
                   onClick={() => handleCancel(trip)}
                   disabled={cancellingId === trip.trip_id}
                   title={trip.role === 'driver' ? 'Отменить поездку' : 'Отказаться от поездки'}
+                  aria-label={trip.role === 'driver' ? 'Отменить поездку' : 'Отказаться от поездки'}
+                  aria-busy={cancellingId === trip.trip_id}
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={15} aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -327,12 +337,12 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         .sched-title {
           font-size: 1.15rem;
           font-weight: 800;
-          color: #1f2937;
+          color: var(--text-main);
           margin: 0 0 2px 0;
         }
         .sched-subtitle {
           font-size: 0.78rem;
-          color: #9ca3af;
+          color: var(--text-muted);
           margin: 0;
         }
         .sched-review-btn {
@@ -395,7 +405,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           gap: 12px;
         }
         .sched-empty-icon { font-size: 3.5rem; }
-        .sched-empty-title { font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0; }
+        .sched-empty-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
         .sched-empty-text { font-size: 0.83rem; color: #9ca3af; margin: 0; max-width: 260px; line-height: 1.5; }
         .sched-cta-btn {
           margin-top: 8px;

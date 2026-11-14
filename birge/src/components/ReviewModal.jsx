@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Star, X, Send, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,38 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
     const [hover, setHover] = useState(0);
     const [text, setText] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const dialogRef = useRef(null);
+
+    useEffect(() => {
+        const previous = document.activeElement;
+        const dialog = dialogRef.current;
+        dialog?.querySelector('button, textarea')?.focus();
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                onSkip();
+                return;
+            }
+            if (event.key !== 'Tab' || !dialog) return;
+            const focusable = [...dialog.querySelectorAll('button:not([disabled]), textarea, input, select, a[href]')]
+                .filter((element) => element.offsetParent !== null);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            previous?.focus?.();
+        };
+    }, [onSkip]);
 
     const handleSubmit = async () => {
         if (rating === 0) return;
@@ -18,11 +50,11 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
     if (submitted) {
         return (
             <div className="modal-overlay">
-                <div className="review-modal" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+                <div ref={dialogRef} className="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+                    <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
                         <CheckCircle2 size={32} />
                     </div>
-                    <h3 style={{ color: '#10b981', marginBottom: '0.5rem' }}>{t('review.thanks')}</h3>
+                    <h3 id="review-title" role="status" style={{ color: '#10b981', marginBottom: '0.5rem' }}>{t('review.thanks')}</h3>
                     <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('review.community')}</p>
                 </div>
             </div>
@@ -31,12 +63,12 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
 
     return (
         <div className="modal-overlay" onClick={(e) => e.target.className === 'modal-overlay' && onSkip()}>
-            <div className="review-modal">
+            <div ref={dialogRef} className="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
                 {/* Заголовок */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h3 style={{ color: '#1f2937', fontSize: '1.1rem' }}>{t('review.title')}</h3>
-                    <button onClick={onSkip} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                        <X size={20} />
+                    <h3 id="review-title" style={{ color: '#1f2937', fontSize: '1.1rem' }}>{t('review.title')}</h3>
+                    <button type="button" onClick={onSkip} aria-label={t('cancel')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: 4 }}>
+                        <X size={20} aria-hidden="true" />
                     </button>
                 </div>
 
@@ -52,10 +84,13 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                 </div>
 
                 {/* Звёзды */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+                <div role="group" aria-label={t('review.title')} style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '1.5rem' }}>
                     {[1, 2, 3, 4, 5].map((star) => (
                         <button
                             key={star}
+                            type="button"
+                            aria-label={`${star} / 5`}
+                            aria-pressed={rating === star}
                             onClick={() => setRating(star)}
                             onMouseEnter={() => setHover(star)}
                             onMouseLeave={() => setHover(0)}
@@ -80,13 +115,15 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
 
                 {/* Подпись к рейтингу */}
                 {(hover || rating) > 0 && (
-                    <div style={{ textAlign: 'center', color: '#f59e0b', fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>
+                    <div style={{ textAlign: 'center', color: '#b45309', fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>
                         {[t('review.rating.0'), t('review.terrible'), t('review.bad'), t('review.ok'), t('review.good'), t('review.great')][(hover || rating)]}
                     </div>
                 )}
 
                 {/* Комментарий */}
+                <label htmlFor="review-comment" className="sr-only">{t('review.placeholder')}</label>
                 <textarea
+                    id="review-comment"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     placeholder={t('review.placeholder')}
@@ -99,6 +136,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                         fontSize: '0.9rem',
                         resize: 'none',
                         outline: 'none',
+                        color: '#1f2937',
                         background: '#f9fafb',
                         transition: 'border-color 0.2s',
                         boxSizing: 'border-box',
@@ -112,6 +150,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                 {/* Кнопки */}
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
+                        type="button"
                         onClick={onSkip}
                         style={{
                             flex: 1,
@@ -127,6 +166,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                         {t('review.skip')}
                     </button>
                     <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={rating === 0}
                         style={{

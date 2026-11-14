@@ -65,12 +65,12 @@ export default function OfflineIndicator() {
       >
         {isOnline ? (
           <>
-            <CheckCircle2 size={16} />
+            <CheckCircle2 size={16} aria-hidden="true" />
             <span>Соединение восстановлено</span>
           </>
         ) : (
           <>
-            <WifiOff size={16} />
+            <WifiOff size={16} aria-hidden="true" />
             <span>Нет интернета</span>
           </>
         )}

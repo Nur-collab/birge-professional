@@ -63,7 +63,7 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
 
   return (
     <div className="chat glass-panel">
-      <div className="chat-messages">
+      <div className="chat-messages" role="log" aria-live="polite" aria-label={t('trip.chat')}>
         {messages.length === 0 ? (
           <div className="chat-empty">{t('trip.type_message')}</div>
         ) : (
@@ -84,20 +84,21 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
       <form className="chat-input-area" onSubmit={sendMessage}>
         <input
           type="text"
+          aria-label={t('trip.type_message')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={t('trip.type_message')}
           className="chat-input"
         />
-        <button type="submit" className="chat-send-btn" disabled={!input.trim()}>
-          <Send size={18} />
+        <button type="submit" className="chat-send-btn" disabled={!input.trim()} aria-label={t('trip.send')}>
+          <Send size={18} aria-hidden="true" />
         </button>
       </form>
 
       <style>{`
         .chat { display: flex; flex-direction: column; height: 100%; min-height: 250px; max-height: 400px; padding: 0; overflow: hidden; }
         .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
-        .chat-empty { text-align: center; color: #9ca3af; margin-top: auto; margin-bottom: auto; font-size: 0.9rem; }
+        .chat-empty { text-align: center; color: #6b7280; margin-top: auto; margin-bottom: auto; font-size: 0.9rem; }
         .message { display: flex; flex-direction: column; max-width: 85%; }
         .message-sent { align-self: flex-end; align-items: flex-end; }
         .message-received { align-self: flex-start; align-items: flex-start; }
@@ -107,8 +108,9 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
         .message-received .message-bubble { background: #f3f4f6; color: #1f2937; border-bottom-left-radius: 4px; border: 1px solid #e5e7eb; }
         .message-time { font-size: 0.7rem; color: #9ca3af; margin-top: 4px; }
         .chat-input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #f3f4f6; gap: 8px; }
-        .chat-input { flex: 1; border: 1px solid #e5e7eb; border-radius: 20px; padding: 10px 16px; outline: none; background: #f9fafb; font-size: 0.95rem; transition: all 0.2s; }
+        .chat-input { flex: 1; border: 1px solid #e5e7eb; border-radius: 20px; padding: 10px 16px; outline: none; background: #f9fafb; color: #1f2937; font-size: 0.95rem; transition: all 0.2s; }
         .chat-input:focus { background: white; border-color: #10b981; }
+        .chat-input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
         .chat-send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
         .chat-send-btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
       `}</style>

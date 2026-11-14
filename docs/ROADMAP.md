@@ -26,22 +26,22 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 
 ## P1 — production readiness
 
-- [ ] Redis Pub/Sub for SSE/WebSocket; remove single-process assumption
-- [ ] Redis-backed rate limiting for auth and write endpoints
-- [ ] Partial unique index for active trip requests
-- [ ] CHECK constraints for seats, price and rating after legacy data cleanup
-- [ ] Audit log for trip status changes and payment-detail access
-- [ ] Sentry (backend + frontend), structured logs and request IDs
-- [ ] Separate liveness and readiness probes
-- [ ] Staging environment, database backups and restore drill
-- [ ] Render infrastructure-as-code and migration release step
-- [ ] Dependabot, `pip-audit` and secret scanning
+- [x] Redis Pub/Sub for SSE/WebSocket; local fallback when `REDIS_URL` is empty
+- [x] Redis-backed rate limiting for auth and write endpoints
+- [x] Partial unique index for active trip requests
+- [x] CHECK constraints for seats, price and rating after legacy data cleanup
+- [x] Audit log for trip status changes, request decisions and payment-detail access
+- [x] Structured logs with request IDs
+- [~] Sentry SDK wired for backend + frontend (DSN/project validation pending)
+- [x] Separate liveness (`/health`) and readiness (`/ready`) probes
+- [~] Staging environment, database backups and restore drill (runbook ready; manual Render setup/drill pending)
+- [~] Dependabot, `pip-audit` and secret scanning (configured; verify on GitHub)
 
 ## P2 — product and UX
 
-- [ ] React Router with deep links (`/trips/:id`, `/scheduled`, `/profile`)
-- [ ] Incremental TypeScript or OpenAPI-generated frontend types
-- [ ] Accessibility audit (focus management, labels, contrast, keyboard)
+- [x] React Router with deep links (`/trips/:id`, `/scheduled`, `/profile`)
+- [x] Incremental TypeScript or OpenAPI-generated frontend types (`openapi.json` + generated `api.d.ts` + JSDoc client types)
+- [~] Accessibility baseline: labels, keyboard, dialogs, focus and contrast tokens fixed; automated axe/visual contrast sweep remains
 - [ ] Complete Russian/Kyrgyz i18n coverage
 - [ ] Funnel analytics: search → request → accept → trip → review
 - [ ] Route-corridor matching, ETA, recurring trips and cancellation policy

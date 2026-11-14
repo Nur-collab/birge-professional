@@ -22,8 +22,9 @@
   --border-strong: #cbd5e1;
   --border-focus: #10b981;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-subtle: #94a3b8;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --focus-ring: #047857;
   --header-bg: rgba(255, 255, 255, 0.88);
   --header-border: #f1f5f9;
   --nav-bg: rgba(255, 255, 255, 0.92);
@@ -45,8 +46,9 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --border-focus: #10b981;
   --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-subtle: #64748b;
+  --text-muted: #cbd5e1;
+  --text-subtle: #94a3b8;
+  --focus-ring: #6ee7b7;
   --header-bg: rgba(13, 19, 28, 0.88);
   --header-border: rgba(255, 255, 255, 0.07);
   --nav-bg: rgba(19, 27, 38, 0.92);
@@ -68,6 +70,55 @@
 html {
   scroll-behavior: smooth;
   color-scheme: light dark;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 2000;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 2px solid var(--focus-ring);
+  font-weight: 700;
+  transform: translateY(-160%);
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+#main-content {
+  scroll-margin-top: 80px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {

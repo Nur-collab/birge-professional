@@ -3,6 +3,20 @@
 // Единая база данных PostgreSQL + FastAPI бэкенд на Render
 // ==============================================================================
 
+/**
+ * @typedef {import('../types/api').components['schemas']['Trip']} ApiTrip
+ * @typedef {ApiTrip & {
+ *   from: string,
+ *   to: string,
+ *   userId: number,
+ *   user_id: number,
+ *   isDriver: boolean,
+ *   driverCarModel: string | null,
+ *   driverCarPlate: string | null,
+ *   driverCarColor: string | null,
+ * }} TripView
+ */
+
 export const API_URL = import.meta.env.VITE_API_URL || 'https://birge-backend.onrender.com';
 const TOKEN_KEY = 'birge_token';
 const REFRESH_TOKEN_KEY = 'birge_refresh_token';
@@ -312,6 +326,23 @@ export const api = {
 
   getActiveTrip: async () => {
     return authFetch('/users/me/active-trip');
+  },
+
+  /** @returns {Promise<TripView>} */
+  getTrip: async (tripId) => {
+    const trip = await authFetch(`/trips/${tripId}`);
+    const currentUserId = getCurrentUserId();
+    return {
+      ...trip,
+      from: trip.origin,
+      to: trip.destination,
+      userId: trip.user_id,
+      user_id: trip.user_id,
+      isDriver: trip.user_id === currentUserId,
+      driverCarModel: trip.user?.car_model || null,
+      driverCarPlate: trip.user?.car_plate || null,
+      driverCarColor: trip.user?.car_color || null,
+    };
   },
 
   getScheduledTrips: async () => {

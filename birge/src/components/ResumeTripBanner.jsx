@@ -18,7 +18,7 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
   const roleColor = isDriver ? '#f59e0b' : '#10b981';
 
   return (
-    <div style={styles.wrapper}>
+    <div style={styles.wrapper} role="region" aria-label="Незавершённый поиск">
       <div style={styles.card}>
         {/* Иконка */}
         <div style={{ ...styles.iconWrap, background: roleColor + '22', color: roleColor }}>
@@ -46,19 +46,22 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
         {/* Кнопки */}
         <div style={styles.actions}>
           <button
+            type="button"
             style={styles.resumeBtn}
             onClick={onResume}
             title="Возобновить поиск"
           >
-            <Navigation size={15} />
+            <Navigation size={15} aria-hidden="true" />
             Продолжить
           </button>
           <button
+            type="button"
             style={styles.discardBtn}
             onClick={onDiscard}
             title="Удалить и начать заново"
+            aria-label="Удалить незавершённый поиск"
           >
-            <Trash2 size={14} />
+            <Trash2 size={14} aria-hidden="true" />
           </button>
         </div>
       </div>

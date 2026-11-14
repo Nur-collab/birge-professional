@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Users, Map, User, Calendar, Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Dashboard from './screens/Dashboard';
@@ -24,15 +25,29 @@ import useTheme from './hooks/useTheme';
 import useTripActions from './hooks/useTripActions';
 import useTripSearch from './hooks/useTripSearch';
 import { api } from './utils/api';
+import { isKnownPath, pathToTab, tabToPath, tripIdFromPath } from './utils/routes';
 
 function App() {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const { activeTrip, setActiveTrip, clearActiveTrip } = useActiveTrip();
   const { notification, showNotification, closeNotification } = useNotifications();
-  const [activeTab, setActiveTab] = useState(() => (activeTrip ? 'trip' : 'home'));
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = pathToTab(location.pathname);
+  const routeTripId = tripIdFromPath(location.pathname);
+  const initialRouteHandled = useRef(false);
+  const mainRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showReview, setShowReview] = useState(false);
+
+  // Hooks call this immediately after setActiveTrip, when React has not
+  // re-rendered with the new trip yet. Trip navigation therefore goes through
+  // `/scheduled`; the effect above canonicalizes it to `/trips/:id` once the
+  // new activeTrip is available. `handleTabChange` can pass the id directly.
+  const setActiveTab = useCallback((tab, tripId = null) => {
+    navigate(tabToPath(tab, tripId));
+  }, [navigate]);
 
   const {
     isLoggedIn,
@@ -103,13 +118,56 @@ function App() {
 
   // Колбэк из Chat — новое входящее сообщение
   const handleNewChatMessage = useCallback(() => {
-    setActiveTab((current) => {
-      if (current !== 'trip') {
-        setUnreadCount((n) => n + 1);
-      }
-      return current;
-    });
-  }, []);
+    if (activeTab !== 'trip') {
+      setUnreadCount((n) => n + 1);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!isKnownPath(location.pathname)) {
+      navigate('/', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  // SPA route changes should move focus out of the tab bar into the new view.
+  useEffect(() => {
+    if (isLoggedIn) mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname, isLoggedIn]);
+
+  // Preserve the old behavior: a stored active trip wins on a bare `/` load.
+  useEffect(() => {
+    if (initialRouteHandled.current) return;
+    initialRouteHandled.current = true;
+    if (activeTrip && location.pathname === '/') {
+      navigate(`/trips/${activeTrip.id}`, { replace: true });
+    }
+  }, [activeTrip, location.pathname, navigate]);
+
+  // `/scheduled` is the trip tab when there is no active trip. With an active
+  // trip, the canonical URL is `/trips/:id`.
+  useEffect(() => {
+    if (activeTrip && location.pathname === '/scheduled') {
+      navigate(`/trips/${activeTrip.id}`, { replace: true });
+    }
+  }, [activeTrip, location.pathname, navigate]);
+
+  // Deep links load only trips where the current user is the driver or an
+  // accepted participant; the backend returns 404 for everyone else.
+  useEffect(() => {
+    if (!isLoggedIn || !routeTripId || activeTrip?.id === routeTripId) return undefined;
+    let cancelled = false;
+    api.getTrip(routeTripId)
+      .then((trip) => {
+        if (!cancelled) setActiveTrip(trip);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          showNotification('Поездка недоступна', 'Нет доступа или поездка удалена.');
+          navigate('/', { replace: true });
+        }
+      });
+    return () => { cancelled = true; };
+  }, [routeTripId, isLoggedIn, activeTrip?.id, setActiveTrip, showNotification, navigate]);
 
   const handleLogout = async () => {
     await logout();
@@ -118,7 +176,7 @@ function App() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
+      <div role="status" aria-live="polite" style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
         <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>B</div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Инициализация сессии...</p>
       </div>
@@ -127,7 +185,7 @@ function App() {
 
   if (authError) {
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
+      <div role="alert" style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
         <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(239,68,68,0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Sun size={26} />
         </div>
@@ -151,7 +209,7 @@ function App() {
   }
 
   const handleTabChange = (tab) => {
-    setActiveTab(tab);
+    setActiveTab(tab, tab === 'trip' ? activeTrip?.id : null);
     if (tab === 'trip') setUnreadCount(0); // сброс непрочитанных при открытии чата
   };
 
@@ -171,10 +229,18 @@ function App() {
             currentUser={currentUser}
             myTripId={myTripId}
             activeTrip={activeTrip}
-            onGoToActiveTrip={() => setActiveTab('trip')}
+            onGoToActiveTrip={() => setActiveTab('trip', activeTrip?.id)}
           />
         );
       case 'trip':
+        // Deep link is loading, or points at a different trip than the stored one.
+        if (routeTripId && activeTrip?.id !== routeTripId) {
+          return (
+            <div role="status" aria-live="polite" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
+              Загрузка поездки...
+            </div>
+          );
+        }
         // УМНАЯ ВКЛАДКА: если есть активная поездка — показываем её
         // Если нет — показываем список запланированных
         if (activeTrip) {
@@ -226,7 +292,7 @@ function App() {
                 driverCarColor: scheduledTrip.driver?.car_color,
               };
               setActiveTrip(tripData);
-              // Не переключаем таб — Trip уже рендерится в этом же case
+              navigate(`/trips/${scheduledTrip.trip_id}`);
             }}
           />
         );
@@ -261,6 +327,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <a className="skip-link" href="#main-content">Перейти к содержимому</a>
       <PushNotification
         show={notification.show}
         title={notification.title}
@@ -279,13 +346,13 @@ function App() {
 
       <header className="header" style={{ display: (activeTab === 'profile' || activeTab === 'settings' || activeTab === 'history') ? 'none' : 'block' }}>
         <div className="header-inner">
-          <div className="header-brand" onClick={() => handleTabChange('home')}>
-            <div className="header-brand-mark">B</div>
-            <div className="header-brand-text">
+          <button type="button" className="header-brand" onClick={() => handleTabChange('home')} aria-label="На главную">
+            <span className="header-brand-mark" aria-hidden="true">B</span>
+            <span className="header-brand-text">
               <span className="header-brand-title">BIRGE</span>
               <span className="header-brand-subtitle">CARPOOL</span>
-            </div>
-          </div>
+            </span>
+          </button>
           <div className="header-actions">
             {currentUser && (
               <div className="header-user-badge">
@@ -299,6 +366,7 @@ function App() {
               onClick={toggleTheme}
               title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
               aria-label="Сменить тему оформления"
+              aria-pressed={theme === 'dark'}
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
@@ -306,7 +374,8 @@ function App() {
         </div>
       </header>
 
-      <main className="main-content">
+      <main className="main-content" id="main-content" ref={mainRef} tabIndex={-1} aria-label="Основное содержимое">
+        <h1 className="sr-only">БИРГЕ — сервис совместных поездок</h1>
         <ErrorBoundary key={activeTab}>
           {renderScreen()}
         </ErrorBoundary>
@@ -323,26 +392,26 @@ function App() {
         />
       )}
 
-      <nav className="bottom-nav">
-        <button className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => handleTabChange('home')}>
-          <Home size={24} />
+      <nav className="bottom-nav" aria-label="Основная навигация">
+        <button type="button" className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => handleTabChange('home')} aria-current={activeTab === 'home' ? 'page' : undefined} aria-label={t('nav.find')}>
+          <Home size={24} aria-hidden="true" />
           <span>{t('nav.find')}</span>
         </button>
-        <button className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => handleTabChange('matches')}>
-          <Users size={24} />
+        <button type="button" className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => handleTabChange('matches')} aria-current={activeTab === 'matches' ? 'page' : undefined} aria-label={`${t('matches.title')}${pendingRequestCount > 0 ? `, ${pendingRequestCount} новых запросов` : ''}`}>
+          <Users size={24} aria-hidden="true" />
           {/* Для пассажира — кол-во найденных водителей; для водителя — входящие запросы */}
-          {pendingRequestCount > 0 && <span className="badge incoming-badge">{pendingRequestCount}</span>}
-          {pendingRequestCount === 0 && matches.length > 0 && <span className="badge">{matches.length}</span>}
+          {pendingRequestCount > 0 && <span className="badge incoming-badge" aria-hidden="true">{pendingRequestCount}</span>}
+          {pendingRequestCount === 0 && matches.length > 0 && <span className="badge" aria-hidden="true">{matches.length}</span>}
           <span>{t('matches.title')}</span>
         </button>
-        <button className={`nav-item ${activeTab === 'trip' ? 'active' : ''}`} onClick={() => handleTabChange('trip')}>
-          {activeTrip ? <Map size={24} /> : <Calendar size={24} />}
-          {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
-          {activeTrip && unreadCount === 0 && <span className="badge dot" />}
+        <button type="button" className={`nav-item ${activeTab === 'trip' ? 'active' : ''}`} onClick={() => handleTabChange('trip')} aria-current={activeTab === 'trip' ? 'page' : undefined} aria-label={`${activeTrip ? t('nav.on_way') : t('nav.trips')}${unreadCount > 0 ? `, ${unreadCount} непрочитанных` : ''}`}>
+          {activeTrip ? <Map size={24} aria-hidden="true" /> : <Calendar size={24} aria-hidden="true" />}
+          {unreadCount > 0 && <span className="badge" aria-hidden="true">{unreadCount}</span>}
+          {activeTrip && unreadCount === 0 && <span className="badge dot" aria-hidden="true" />}
           <span>{activeTrip ? t('nav.on_way') : t('nav.trips')}</span>
         </button>
-        <button className={`nav-item ${(activeTab === 'profile' || activeTab === 'settings' || activeTab === 'history') ? 'active' : ''}`} onClick={() => handleTabChange('profile')}>
-          <User size={24} />
+        <button type="button" className={`nav-item ${(activeTab === 'profile' || activeTab === 'settings' || activeTab === 'history') ? 'active' : ''}`} onClick={() => handleTabChange('profile')} aria-current={['profile', 'settings', 'history'].includes(activeTab) ? 'page' : undefined} aria-label={t('nav.profile')}>
+          <User size={24} aria-hidden="true" />
           <span>{t('nav.profile')}</span>
         </button>
       </nav>
@@ -382,6 +451,8 @@ function App() {
           border-radius: 12px;
           letter-spacing: 0.02em;
         }
+        .header-brand { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; }
+        #main-content:focus { outline: none; }
         .nav-item:hover { color: var(--text-main); background: var(--bg-subtle); }
         .nav-item.active {
           color: var(--primary);

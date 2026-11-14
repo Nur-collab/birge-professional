@@ -3,7 +3,7 @@ import secrets
 import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
 
 try:
     from dotenv import load_dotenv
@@ -107,7 +107,7 @@ def _decode_token(token: str, expected_type: str) -> Optional[int]:
             return None
         user_id_str = payload.get("sub")
         return int(user_id_str) if user_id_str is not None else None
-    except (JWTError, ValueError):
+    except (jwt.InvalidTokenError, ValueError):
         return None
 
 
@@ -143,7 +143,7 @@ def verify_ws_ticket(token: str, trip_id: int) -> Optional[int]:
             return None
         user_id_str = payload.get("sub")
         return int(user_id_str) if user_id_str is not None else None
-    except (JWTError, ValueError, TypeError):
+    except (jwt.InvalidTokenError, ValueError, TypeError):
         return None
 
 

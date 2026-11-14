@@ -36,6 +36,7 @@ class FlowTests(unittest.TestCase):
 
     def setUp(self):
         self.db = database.SessionLocal()
+        self.db.query(models.AuditLog).delete()
         self.db.query(models.ChatMessage).delete()
         self.db.query(models.TripRequest).delete()
         self.db.query(models.Review).delete()
@@ -194,6 +195,12 @@ class FlowTests(unittest.TestCase):
 
         payment = get_trip_payment(trip.id, current_user=self.passenger, db=self.db)
         self.assertEqual(payment["mbank_phone"], self.driver.mbank_phone)
+        self.assertEqual(
+            self.db.query(models.AuditLog).filter_by(
+                action="payment.view", entity_id=trip.id, actor_id=self.passenger.id
+            ).count(),
+            1,
+        )
 
         with self.assertRaises(HTTPException) as ctx:
             get_trip_payment(trip.id, current_user=self.outsider, db=self.db)
@@ -218,6 +225,12 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(trip.seats_taken, 0)
         self.assertEqual(req.status, "cancelled")
         self.assertEqual(passenger_trip.status, "active")
+        self.assertEqual(
+            self.db.query(models.AuditLog).filter_by(
+                action="trip.status_changed", entity_id=trip.id, actor_id=self.driver.id
+            ).count(),
+            1,
+        )
 
     def test_access_and_refresh_tokens_are_separated(self):
         access = auth.create_access_token({"sub": str(self.driver.id)})

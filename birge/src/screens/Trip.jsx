@@ -185,8 +185,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             </div>
           </div>
           {!isScheduled && (
-            <button className="panic-btn" onClick={onPanic} title="Тревожная кнопка">
-              <AlertTriangle size={20} />
+            <button type="button" className="panic-btn" onClick={onPanic} title="Тревожная кнопка" aria-label="Отправить сигнал тревоги">
+              <AlertTriangle size={20} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -207,7 +207,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             </div>
 
             {passengers.length === 0 ? (
-              <p style={{ color: '#9ca3af', fontSize: '0.82rem', textAlign: 'center', margin: '8px 0' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: '8px 0' }}>
                 Ожидаем пассажиров...
               </p>
             ) : (
@@ -217,7 +217,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                     <img src={p.photo || `https://i.pravatar.cc/40?u=${p.id}`} alt={p.name}
                       style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d1fae5' }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1f2937' }}>{p.name}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-main)' }}>{p.name}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <Star size={10} fill="#f59e0b" color="#f59e0b" />
                         <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{p.trust_rating?.toFixed(1)}</span>
@@ -244,6 +244,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               </div>
             ) : (
               <button
+                type="button"
                 className={`going-btn ${goingNotified ? 'going-btn-done' : ''}`}
                 disabled={goingNotified || passengers.length === 0}
                 onClick={sendGoingMessage}
@@ -265,7 +266,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               )}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1f2937' }}>{partnerName}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>{partnerName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
                 <Star size={11} fill="#f59e0b" color="#f59e0b" />
                 <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>{partnerRating.toFixed(1)}</span>
@@ -452,6 +453,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         {!isDriver && (
           <>
             <button
+              type="button"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -491,7 +493,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
         {/* Завершить — только в день поездки */}
         {!isScheduled && (
-          <button className="primary-btn finish-btn" onClick={onFinish}>
+          <button type="button" className="primary-btn finish-btn" onClick={onFinish}>
             {isDriver ? 'Завершить поездку' : 'Поездка завершена'}
           </button>
         )}

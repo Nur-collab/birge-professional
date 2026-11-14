@@ -1,0 +1,3186 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_profile_photo_users_me_photo_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_profile_photo_users_me_photo_post",
+        "type": "object"
+      },
+      "ChatMessage": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender_id": {
+            "title": "Sender Id",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "timestamp": {
+            "maxLength": 40,
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "trip_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Trip Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trip_id",
+          "text",
+          "timestamp",
+          "id",
+          "sender_id"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "ChatMessageInput": {
+        "properties": {
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ChatMessageInput",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "maxLength": 4096,
+            "minLength": 20,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest",
+        "type": "object"
+      },
+      "Review": {
+        "description": "Ответ API; без input-валидаторов для совместимости со старыми отзывами.",
+        "properties": {
+          "author_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Id"
+          },
+          "author_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Author Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 5,
+            "title": "Rating"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Text"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "user_id"
+        ],
+        "title": "Review",
+        "type": "object"
+      },
+      "ReviewCreate": {
+        "description": "Клиент передаёт target user_id, rating и text. Опционально trip_id.",
+        "properties": {
+          "rating": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "type": "integer"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Text",
+            "type": "string"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          },
+          "user_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rating",
+          "user_id"
+        ],
+        "title": "ReviewCreate",
+        "type": "object"
+      },
+      "SendCodeRequest": {
+        "properties": {
+          "phone": {
+            "maxLength": 32,
+            "minLength": 4,
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone"
+        ],
+        "title": "SendCodeRequest",
+        "type": "object"
+      },
+      "Trip": {
+        "description": "Ответ API. Без input-валидаторов: в БД могут быть legacy-форматы времени.",
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "destination": {
+            "title": "Destination",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "price_per_seat": {
+            "default": 0,
+            "title": "Price Per Seat",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "seats": {
+            "default": 3,
+            "title": "Seats",
+            "type": "integer"
+          },
+          "seats_taken": {
+            "default": 0,
+            "title": "Seats Taken",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "time": {
+            "title": "Time",
+            "type": "string"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "role",
+          "origin",
+          "destination",
+          "time",
+          "status"
+        ],
+        "title": "Trip",
+        "type": "object"
+      },
+      "TripCreate": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "dest_lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Lat"
+          },
+          "dest_lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Lng"
+          },
+          "destination": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Destination",
+            "type": "string"
+          },
+          "origin": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Origin",
+            "type": "string"
+          },
+          "origin_lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Lat"
+          },
+          "origin_lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Lng"
+          },
+          "price_per_seat": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Price Per Seat",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "driver",
+              "passenger"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "seats": {
+            "default": 3,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Seats",
+            "type": "integer"
+          },
+          "time": {
+            "pattern": "^\\d{1,2}:\\d{2}$",
+            "title": "Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "origin",
+          "destination",
+          "time"
+        ],
+        "title": "TripCreate",
+        "type": "object"
+      },
+      "TripRequestCreate": {
+        "properties": {
+          "driver_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "requester_trip_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester Trip Id"
+          },
+          "trip_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Trip Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trip_id"
+        ],
+        "title": "TripRequestCreate",
+        "type": "object"
+      },
+      "TripRequestStatusUpdate": {
+        "properties": {
+          "status": {
+            "enum": [
+              "accepted",
+              "declined"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TripRequestStatusUpdate",
+        "type": "object"
+      },
+      "TripStatusUpdate": {
+        "properties": {
+          "status": {
+            "enum": [
+              "active",
+              "matched",
+              "in_progress",
+              "completed",
+              "cancelled",
+              "passenger_cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TripStatusUpdate",
+        "type": "object"
+      },
+      "User": {
+        "description": "Профиль владельца; допускает NULL в legacy-записях.",
+        "properties": {
+          "car_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Color"
+          },
+          "car_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Model"
+          },
+          "car_plate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Plate"
+          },
+          "elkart_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elkart Number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_verified": {
+            "default": false,
+            "title": "Is Verified",
+            "type": "boolean"
+          },
+          "mbank_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mbank Phone"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Phone"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "https://i.pravatar.cc/150",
+            "title": "Photo"
+          },
+          "registered_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "2024",
+            "title": "Registered Since"
+          },
+          "reviews": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "title": "Reviews",
+            "type": "array"
+          },
+          "trips_today": {
+            "default": 0,
+            "title": "Trips Today",
+            "type": "integer"
+          },
+          "trust_rating": {
+            "default": 5.0,
+            "title": "Trust Rating",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "User",
+        "type": "object"
+      },
+      "UserPublic": {
+        "description": "Публичный профиль без телефона и платёжных реквизитов.",
+        "properties": {
+          "car_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Color"
+          },
+          "car_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Model"
+          },
+          "car_plate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Plate"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_verified": {
+            "default": false,
+            "title": "Is Verified",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "",
+            "title": "Name"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "https://i.pravatar.cc/150",
+            "title": "Photo"
+          },
+          "registered_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "2024",
+            "title": "Registered Since"
+          },
+          "trust_rating": {
+            "default": 5.0,
+            "title": "Trust Rating",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "UserPublic",
+        "type": "object"
+      },
+      "UserUpdate": {
+        "properties": {
+          "car_color": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Color"
+          },
+          "car_model": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Model"
+          },
+          "car_plate": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Plate"
+          },
+          "elkart_number": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elkart Number"
+          },
+          "mbank_phone": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mbank Phone"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          }
+        },
+        "title": "UserUpdate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyCodePayload": {
+        "properties": {
+          "code": {
+            "maxLength": 8,
+            "minLength": 4,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 4,
+            "title": "Phone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ],
+        "title": "VerifyCodePayload",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Birge API - MVP Backend",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/admin/cleanup-trips": {
+      "post": {
+        "description": "Принудительный запуск очистки старых поездок администратором.",
+        "operationId": "run_admin_cleanup_admin_cleanup_trips_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Admin Cleanup"
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Обменивает refresh-токен на новую пару токенов.",
+        "operationId": "refresh_access_token_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Access Token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/send-code": {
+      "post": {
+        "description": "Отправка кода через Telegram Bot. В production без доставки возвращает 503.",
+        "operationId": "send_code_auth_send_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/verify-code": {
+      "post": {
+        "description": "Проверяет SMS-код и выдает JWT токен.",
+        "operationId": "verify_code_auth_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/bot/webhook": {
+      "post": {
+        "description": "Telegram шлёт сюда все входящие сообщения.\nЗащищён проверкой X-Telegram-Bot-Api-Secret-Token.\nОбрабатывает:\n  - Передачу контакта через кнопку «Поделиться номером» (с проверкой ownership)\n  - Команды /status, /check, /test, /help",
+        "operationId": "telegram_webhook_bot_webhook_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Bot-Api-Secret-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Webhook"
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Публичный liveness-эндпоинт для мониторинга (UptimeRobot, etc.).",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check"
+      }
+    },
+    "/internal/get-binding": {
+      "get": {
+        "description": "Внутренний эндпоинт для синхронизации привязок Telegram.\n\nПо умолчанию выключен и в production не должен включаться без отдельного\nсекрета. Секрет webhook для этого не переиспользуется.",
+        "operationId": "internal_get_binding_internal_get_binding_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "required": true,
+            "schema": {
+              "title": "Phone",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Internal-Sync-Secret",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Sync-Secret"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Internal Get Binding"
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Readiness: database is reachable and optional Redis is configured.",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness Check"
+      }
+    },
+    "/reviews/": {
+      "post": {
+        "description": "Сохраняет отзыв о пользователе после поездки.\n\nПравила:\n- Нельзя оставить отзыв самому себе.\n- Один пользователь может оставить только один отзыв конкретному человеку.\n  (защита от накрутки рейтинга)",
+        "operationId": "create_review_reviews__post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Review"
+      }
+    },
+    "/trip-requests/": {
+      "post": {
+        "description": "Пассажир отправляет запрос водителю на поездку.\nrequester_id берётся из JWT (защита от spoofing).\nПосле сохранения в БД немедленно уведомляет водителя через SSE.",
+        "operationId": "send_trip_request_trip_requests__post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Trip Request",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trip-requests/driver-events/{driver_id}": {
+      "get": {
+        "description": "SSE-стрим для водителя.\nОткрывается пока водитель в поиске или в активной поездке;\nпри каждом новом запросе от пассажира водитель получает event мгновенно.\nТокен: Authorization header ИЛИ ?token= (EventSource не поддерживает хедеры).",
+        "operationId": "driver_trip_request_events_trip_requests_driver_events__driver_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "driver_id",
+            "required": true,
+            "schema": {
+              "title": "Driver Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Driver Trip Request Events",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trip-requests/events/{requester_id}": {
+      "get": {
+        "description": "SSE-стрим для пассажира. Открывается на время поиска;\nкогда водитель принимает запрос — пассажир получает event мгновенно.\nТокен: Authorization header (обычные запросы) ИЛИ ?token= (EventSource).",
+        "operationId": "trip_request_events_trip_requests_events__requester_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requester_id",
+            "required": true,
+            "schema": {
+              "title": "Requester Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trip Request Events",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trip-requests/incoming/": {
+      "get": {
+        "description": "Водитель получает входящие запросы (pending).\nВозвращает только запросы адресованные ТЕКУЩЕМУ пользователю.",
+        "operationId": "get_incoming_requests_trip_requests_incoming__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Incoming Requests",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trip-requests/status/{trip_id}": {
+      "get": {
+        "description": "Пассажир проверяет статус своего запроса на поездку водителя (polling).\nrequester_id берётся из JWT — пользователь не может запросить чужой статус.",
+        "operationId": "check_request_status_trip_requests_status__trip_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Request Status",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trip-requests/{request_id}": {
+      "patch": {
+        "description": "Водитель принимает (accepted) или отклоняет (declined) запрос.\nПри accepted — мгновенно уведомляет пассажира через SSE.\nТолько водитель (driver_id == current_user.id) может менять статус своего запроса.",
+        "operationId": "respond_to_request_trip_requests__request_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripRequestStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Respond To Request",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
+    "/trips/": {
+      "post": {
+        "operationId": "create_trip_trips__post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Trip",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/matches": {
+      "get": {
+        "description": "Улучшенный алгоритм поиска попутчиков:\n1. Haversine-расстояние по геокоординатам (радиус 2км)\n2. Fallback: текстовый поиск с нормализацией\n3. Время: разница не более 30 минут",
+        "operationId": "find_matches_trips_matches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "destination",
+            "required": true,
+            "schema": {
+              "title": "Destination",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "time",
+            "required": true,
+            "schema": {
+              "title": "Time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  },
+                  "title": "Response Find Matches Trips Matches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Find Matches",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}": {
+      "delete": {
+        "description": "Отмена/удаление своей поездки с синхронизацией связанных заявок.",
+        "operationId": "cancel_trip_trips__trip_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Trip",
+        "tags": [
+          "trips"
+        ]
+      },
+      "get": {
+        "description": "Return a trip to its driver or an accepted participant.\n\nNon-participants receive 404 rather than 403 to avoid leaking trip IDs.\nThe response uses the existing ``Trip`` schema, so no public fields change.",
+        "operationId": "get_trip_detail_trips__trip_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trip Detail",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/messages": {
+      "get": {
+        "description": "Возвращает историю сообщений поездки с обязательной проверкой прав доступа.",
+        "operationId": "get_trip_messages_trips__trip_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessage"
+                  },
+                  "title": "Response Get Trip Messages Trips  Trip Id  Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trip Messages",
+        "tags": [
+          "trips"
+        ]
+      },
+      "post": {
+        "description": "Отправка сообщения через REST с теми же правами, что и WebSocket.",
+        "operationId": "send_trip_message_trips__trip_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Trip Message",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/panic": {
+      "post": {
+        "description": "Пассажир нажал тревожную кнопку — отправляем уведомление в Telegram поддержки.\nTELEGRAM_ADMIN_CHAT_ID должен быть задан в env (chat_id группы или личного чата поддержки).",
+        "operationId": "send_panic_alert_trips__trip_id__panic_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Panic Alert",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/passengers": {
+      "get": {
+        "description": "Список принятых пассажиров для поездки водителя",
+        "operationId": "get_trip_passengers_trips__trip_id__passengers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trip Passengers",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/payment": {
+      "get": {
+        "description": "Платёжные реквизиты водителя — только участникам конкретной поездки.",
+        "operationId": "get_trip_payment_trips__trip_id__payment_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trip Payment",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/status": {
+      "patch": {
+        "description": "Обновляет статус поездки.\n\nПоддерживаемые переходы:\n  active | matched | in_progress | completed — управляет водитель.\n  passenger_cancelled — пассажир выходит из поездки; водитель получает SSE.",
+        "operationId": "update_trip_status_trips__trip_id__status_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Trip Status",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/{trip_id}/ws-ticket": {
+      "post": {
+        "description": "Выдаёт короткоживущий ticket для WebSocket-чата поездки.",
+        "operationId": "create_trip_ws_ticket_trips__trip_id__ws_ticket_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "title": "Trip Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Trip Ws Ticket",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "description": "Возвращает профиль текущего пользователя по JWT токену.\nEager-load отзывов: без этого Profile.jsx покажет 0 отзывов.",
+        "operationId": "read_current_user_users_me_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Current User",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "description": "Обновляет профиль и данные машины текущего пользователя.",
+        "operationId": "update_current_user_users_me_patch",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Current User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/active-trip": {
+      "get": {
+        "operationId": "get_my_active_trip_users_me_active_trip_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get My Active Trip",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/photo": {
+      "post": {
+        "description": "Загружает фото профиля через сервер, не раскрывая ImgBB-ключ в браузере.",
+        "operationId": "upload_profile_photo_users_me_photo_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_profile_photo_users_me_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Profile Photo",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/scheduled-trips": {
+      "get": {
+        "description": "Возвращает запланированные поездки пользователя (и как водителя, и как пассажира).",
+        "operationId": "read_scheduled_trips_users_me_scheduled_trips_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Scheduled Trips",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/trips": {
+      "get": {
+        "description": "Возвращает историю поездок пользователя (и как водителя, и как пассажира).",
+        "operationId": "read_current_user_trips_users_me_trips_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  },
+                  "title": "Response Read Current User Trips Users Me Trips Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Current User Trips",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/verify": {
+      "post": {
+        "description": "Верификация аккаунта через Telegram.\nЕсли TelegramBinding есть — ставим is_verified=True сразу.\nЕсли нет — возвращаем ссылку на бота.",
+        "operationId": "verify_user_users_me_verify_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{user_id}": {
+      "get": {
+        "description": "Публичный профиль без телефона и платёжных реквизитов.",
+        "operationId": "read_user_public_users__user_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read User Public",
+        "tags": [
+          "users"
+        ]
+      }
+    }
+  }
+}

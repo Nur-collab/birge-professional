@@ -13,6 +13,7 @@ import models
 import schemas
 from database import get_db
 from dependencies import get_current_user
+from rate_limit import enforce_user_limit, enforce_user_limit_sync
 from time_utils import get_bishkek_today_str
 
 logger = logging.getLogger("birge")
@@ -56,6 +57,7 @@ def update_current_user(
     db: Session = Depends(get_db),
 ):
     """Обновляет профиль и данные машины текущего пользователя."""
+    enforce_user_limit_sync(current_user.id, "user.update", 20, 3600)
     update_data = user_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(current_user, key, value)
@@ -84,6 +86,7 @@ async def upload_profile_photo(
     db: Session = Depends(get_db),
 ):
     """Загружает фото профиля через сервер, не раскрывая ImgBB-ключ в браузере."""
+    await enforce_user_limit(current_user.id, "user.photo", 5, 3600)
     api_key = os.environ.get("IMGBB_API_KEY", "").strip()
     if not api_key:
         raise HTTPException(status_code=503, detail="Photo upload is not configured")
@@ -252,6 +255,7 @@ async def verify_user(
     Если TelegramBinding есть — ставим is_verified=True сразу.
     Если нет — возвращаем ссылку на бота.
     """
+    await enforce_user_limit(current_user.id, "user.verify", 5, 3600)
     if current_user.is_verified:
         return {"status": "already_verified"}
 

@@ -16,7 +16,14 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
   // Авто-скрытие через 8 секунд
   useEffect(() => {
     const timer = setTimeout(() => handleDismiss(), 8000);
-    return () => clearTimeout(timer);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') handleDismiss();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   const handleDismiss = () => {
@@ -63,6 +70,9 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Поездка подтверждена"
       style={{
         position: 'fixed',
         inset: 0,
@@ -218,7 +228,9 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
 
         {/* Кнопка закрыть */}
         <button
+          type="button"
           onClick={handleDismiss}
+          aria-label="Закрыть карточку поездки"
           style={{
             position: 'absolute', top: 16, right: 16,
             width: 32, height: 32, borderRadius: '50%',
@@ -231,7 +243,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
           onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
           onMouseLeave={e => e.currentTarget.style.background = '#f3f4f6'}
         >
-          <X size={16} />
+          <X size={16} aria-hidden="true" />
         </button>
 
         {/* Заголовок */}
@@ -439,7 +451,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
           </div>
 
           {/* Кнопки */}
-          <button className="tac-btn-chat" onClick={handleDismiss}>
+          <button type="button" className="tac-btn-chat" onClick={handleDismiss}>
             Открыть чат с водителем
             <ChevronRight size={18} />
           </button>

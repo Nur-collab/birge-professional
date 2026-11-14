@@ -70,30 +70,35 @@ function PhoneStep({ onNext }) {
   return (
     <div className="login-step">
       <div className="login-step-header">
-        <h2 className="login-title">Вход в BIRGE</h2>
+        <h1 className="login-title">Вход в BIRGE</h1>
         <p className="login-desc">Сервис совместных поездок по Кыргызстану</p>
       </div>
 
       <form onSubmit={handleSubmit} className="login-form">
         <div className="field-group">
-          <label className="input-label">Номер телефона</label>
+          <label className="input-label" htmlFor="login-phone">Номер телефона</label>
           <div className={`phone-input-wrap ${error ? 'has-error' : ''}`}>
             <div className="phone-prefix-pill">
-              <KyrgyzstanFlag />
+              <span aria-hidden="true"><KyrgyzstanFlag /></span>
               <span className="prefix-code">+996</span>
             </div>
             <input
+              id="login-phone"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel-national"
               value={phone}
               onChange={(e) => { setError(''); setPhone(formatPhone(e.target.value)); }}
               placeholder="555 123 456"
               className="phone-native-input"
+              aria-invalid={error ? 'true' : 'false'}
+              aria-describedby={error ? 'login-phone-error' : undefined}
               autoFocus
             />
           </div>
           {error && (
-            <div className="auth-error-banner">
-              <AlertCircle size={14} />
+            <div className="auth-error-banner" id="login-phone-error" role="alert">
+              <AlertCircle size={14} aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
@@ -103,9 +108,13 @@ function PhoneStep({ onNext }) {
           type="submit" 
           className="primary-btn submit-btn" 
           disabled={loading || phone.replace(/\D/g, '').length < 9}
+          aria-busy={loading}
         >
           {loading ? (
-            <Loader2 size={18} className="spin" />
+            <>
+              <Loader2 size={18} className="spin" aria-hidden="true" />
+              <span className="sr-only">Отправка кода</span>
+            </>
           ) : (
             <>
               <span>Получить код</span>
@@ -164,7 +173,7 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
   return (
     <div className="login-step">
       <div className="login-step-header">
-        <h2 className="login-title">Подтверждение</h2>
+        <h1 className="login-title">Подтверждение</h1>
         <p className="login-desc">Код отправлен на номер <strong style={{ color: 'var(--text-main)' }}>{phone}</strong></p>
       </div>
 
@@ -179,23 +188,29 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
 
       <form onSubmit={handleSubmit} className="login-form">
         <div className="field-group">
-          <label className="input-label">6-значный код</label>
+          <label className="input-label" htmlFor="login-code">6-значный код</label>
           <input
+            id="login-code"
             type="text"
             inputMode="numeric"
+            autoComplete="one-time-code"
             value={code}
             onChange={(e) => { setError(''); setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); }}
             placeholder="••••••"
             className="code-digit-input"
             maxLength={6}
+            aria-invalid={error ? 'true' : 'false'}
+            aria-describedby={error ? 'login-code-error' : undefined}
             autoFocus
           />
         </div>
 
         <div className="field-group">
-          <label className="input-label">Имя (для новых пользователей)</label>
+          <label className="input-label" htmlFor="login-name">Имя (для новых пользователей)</label>
           <input
+            id="login-name"
             type="text"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ваше имя"
@@ -204,8 +219,8 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
         </div>
 
         {error && (
-          <div className="auth-error-banner">
-            <AlertCircle size={14} />
+          <div className="auth-error-banner" id="login-code-error" role="alert">
+            <AlertCircle size={14} aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
@@ -214,9 +229,13 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
           type="submit" 
           className="primary-btn submit-btn" 
           disabled={loading || code.length < 6}
+          aria-busy={loading}
         >
           {loading ? (
-            <Loader2 size={18} className="spin" />
+            <>
+              <Loader2 size={18} className="spin" aria-hidden="true" />
+              <span className="sr-only">Проверка кода</span>
+            </>
           ) : (
             <>
               <span>Подтвердить и войти</span>
@@ -241,7 +260,7 @@ export default function Login({ onLoggedIn }) {
   const [sendInfo, setSendInfo] = useState(null);
 
   return (
-    <div className="login-screen">
+    <main className="login-screen">
       <div className="auth-card">
         {/* Бренд */}
         <div className="auth-brand">
@@ -253,7 +272,7 @@ export default function Login({ onLoggedIn }) {
         </div>
 
         {/* Индикатор прогресса */}
-        <div className="auth-progress-bar">
+        <div className="auth-progress-bar" aria-hidden="true">
           <div className={`progress-segment ${step === 'phone' ? 'active' : 'completed'}`} />
           <div className={`progress-segment ${step === 'code' ? 'active' : ''}`} />
         </div>
@@ -558,6 +577,6 @@ export default function Login({ onLoggedIn }) {
         @keyframes spin { 100% { transform: rotate(360deg); } }
         .spin { animation: spin 0.8s linear infinite; }
       `}</style>
-    </div>
+    </main>
   );
 }

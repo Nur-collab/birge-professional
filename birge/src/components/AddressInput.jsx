@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { MapPin } from 'lucide-react';
 
 // Список популярных мест Бишкека для автодополнения
@@ -34,15 +34,27 @@ const BISHKEK_PLACES = [
     'Улица Ахунбаева',
 ];
 
-export default function AddressInput({ value, onChange, placeholder, iconColor = '#10b981', name }) {
+export default function AddressInput({
+    value,
+    onChange,
+    placeholder,
+    iconColor = '#10b981',
+    name,
+    invalid = false,
+    describedBy,
+}) {
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [highlighted, setHighlighted] = useState(-1);
     const inputRef = useRef(null);
     const dropdownRef = useRef(null);
+    const listId = useId().replace(/:/g, '');
+    const optionId = (index) => `${listId}-option-${index}`;
 
     const handleChange = (e) => {
         const val = e.target.value;
         onChange(val);
+        setHighlighted(-1);
         if (val.length >= 2) {
             const filtered = BISHKEK_PLACES.filter(p =>
                 p.toLowerCase().includes(val.toLowerCase())
@@ -57,7 +69,30 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
     const handleSelect = (place) => {
         onChange(place);
         setShowDropdown(false);
+        setHighlighted(-1);
         inputRef.current?.blur();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            setShowDropdown(false);
+            setHighlighted(-1);
+            return;
+        }
+        if (!suggestions.length) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            setShowDropdown(true);
+            setHighlighted((current) => {
+                if (e.key === 'ArrowDown') return current < suggestions.length - 1 ? current + 1 : 0;
+                return current > 0 ? current - 1 : suggestions.length - 1;
+            });
+            return;
+        }
+        if (e.key === 'Enter' && showDropdown && highlighted >= 0) {
+            e.preventDefault();
+            handleSelect(suggestions[highlighted]);
+        }
     };
 
     // Закрываем при клике вне
@@ -86,9 +121,18 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
                 name={name}
                 value={value}
                 onChange={handleChange}
+                onKeyDown={handleKeyDown}
                 onFocus={() => {
                     if (suggestions.length > 0) setShowDropdown(true);
                 }}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={showDropdown}
+                aria-controls={showDropdown ? listId : undefined}
+                aria-activedescendant={showDropdown && highlighted >= 0 ? optionId(highlighted) : undefined}
+                aria-label={placeholder || 'Адрес'}
+                aria-invalid={invalid ? 'true' : 'false'}
+                aria-describedby={describedBy}
                 placeholder={placeholder}
                 autoComplete="off"
                 style={{
@@ -110,6 +154,9 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
             {showDropdown && (
                 <div
                     ref={dropdownRef}
+                    id={listId}
+                    role="listbox"
+                    aria-label="Подсказки адресов"
                     style={{
                         position: 'absolute',
                         top: '100%',
@@ -126,9 +173,15 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
                 >
                     {suggestions.map((place, i) => (
                         <button
-                            key={i}
+                            key={place}
+                            id={optionId(i)}
                             type="button"
+                            role="option"
+                            tabIndex={-1}
+                            aria-selected={highlighted === i}
                             onMouseDown={() => handleSelect(place)}
+                            onMouseEnter={() => setHighlighted(i)}
+                            onMouseLeave={() => setHighlighted(-1)}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -136,7 +189,7 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
                                 width: '100%',
                                 padding: '11px 14px',
                                 border: 'none',
-                                background: 'transparent',
+                                background: highlighted === i ? 'var(--bg-subtle)' : 'transparent',
                                 textAlign: 'left',
                                 cursor: 'pointer',
                                 fontSize: '0.9rem',
@@ -144,8 +197,6 @@ export default function AddressInput({ value, onChange, placeholder, iconColor =
                                 transition: 'background 0.15s',
                                 borderBottom: i < suggestions.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-subtle)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                         >
                             <MapPin size={14} color={iconColor} />
                             {place}

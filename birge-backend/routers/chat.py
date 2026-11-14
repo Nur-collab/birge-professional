@@ -8,7 +8,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import auth
 import models
 from database import SessionLocal
-from realtime import is_trip_participant, manager
+from realtime import is_trip_participant, manager, publish_chat_message
 from time_utils import get_bishkek_now
 
 logger = logging.getLogger("birge")
@@ -95,7 +95,7 @@ async def websocket_endpoint(
                 "timestamp": timestamp,
                 "trip_id": trip_int_id,
             }
-            await manager.broadcast(json.dumps(response_data), trip_id)
+            await publish_chat_message(trip_id, json.dumps(response_data))
 
     except WebSocketDisconnect:
         pass

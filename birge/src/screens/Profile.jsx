@@ -99,10 +99,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
   return (
     <div className="profile screen-content">
       <div className="profile-header glass-panel">
-        <div className="avatar-container" onClick={() => fileInputRef.current?.click()}>
+        <button type="button" className="avatar-container" onClick={() => fileInputRef.current?.click()} aria-label="Изменить фото профиля">
           {uploading ? (
             <div className="avatar-loader">
-              <Loader size={24} color="white" className="spin-loader" />
+              <Loader size={24} color="white" className="spin-loader" aria-hidden="true" />
             </div>
           ) : (
             <>
@@ -113,7 +113,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             </>
           )}
           {user.is_verified && (
-            <div className="verified-badge" title="Верифицированный пользователь">
+            <div className="verified-badge" role="img" title="Верифицированный пользователь" aria-label="Верифицированный пользователь">
               <ShieldCheck size={16} color="white" />
             </div>
           )}
@@ -122,9 +122,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             ref={fileInputRef}
             onChange={handlePhotoUpload}
             accept="image/*"
+            aria-label="Выбрать фото профиля"
             style={{ display: 'none' }}
           />
-        </div>
+        </button>
 
         <h2>{user.name}</h2>
         <p className="user-phone">{user.phone}</p>
@@ -157,7 +158,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           </div>
           <div className="limits-count">{user.trips_today} / 3</div>
         </div>
-        <div className="progress-bar">
+        <div className="progress-bar" role="progressbar" aria-label="Поездок водителем сегодня" aria-valuemin="0" aria-valuemax="3" aria-valuenow={Math.min(user.trips_today || 0, 3)}>
           <div
             className="progress-fill"
             style={{ width: `${(user.trips_today / 3) * 100}%`, background: user.trips_today >= 3 ? '#f43f5e' : 'var(--primary)' }}
@@ -167,9 +168,9 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
       </div>
 
       {/* Карточка машины водителя */}
-      <div className="car-card glass-panel" onClick={onShowSettings} style={{ cursor: 'pointer' }}>
+      <button type="button" className="car-card glass-panel" onClick={onShowSettings} style={{ cursor: 'pointer', width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: user.car_model ? '1rem' : 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.95rem', color: '#1f2937' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
             <Car size={18} color={user.car_model ? '#f59e0b' : '#9ca3af'} />
             Моя машина
           </div>
@@ -230,7 +231,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             </p>
           </div>
         )}
-      </div>
+      </button>
 
       {/* ====== КАРТОЧКА ВЕРИФИКАЦИИ ====== */}
       <div className="glass-panel" style={{ padding: '1.2rem' }}>
@@ -259,7 +260,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           <>
             {/* Результат запроса */}
             {verifyResult && (
-              <div style={{
+              <div role="status" aria-live="polite" style={{
                 marginBottom: 10, padding: '10px 14px', borderRadius: 12,
                 background: verifyResult.status === 'verified' ? '#f0fdf4'
                   : verifyResult.status === 'need_telegram' ? '#fffbeb'
@@ -301,8 +302,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             {/* Основная кнопка верификации */}
             {verifyResult?.status !== 'verified' && (
               <button
+                type="button"
                 onClick={handleVerify}
                 disabled={verifyLoading}
+                aria-busy={verifyLoading}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   width: '100%', padding: '12px',
@@ -349,12 +352,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
       </div>
 
       <div className="settings-menu">
-        <button className="menu-item" onClick={onShowHistory}>
+        <button type="button" className="menu-item" onClick={onShowHistory}>
           <Clock size={20} color="#4b5563" />
           <span>{t('profile.history')}</span>
           <ChevronRight size={20} color="#9ca3af" style={{ marginLeft: 'auto' }} />
         </button>
-        <button className="menu-item" onClick={onShowSettings}>
+        <button type="button" className="menu-item" onClick={onShowSettings}>
           <Settings size={20} color="#4b5563" />
           <span>{t('profile.settings')}</span>
           <ChevronRight size={20} color="#9ca3af" style={{ marginLeft: 'auto' }} />
@@ -369,7 +372,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           <span>{t('legal.privacy')}</span>
           <ExternalLink size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
         </a>
-        <button className="menu-item" style={{ color: '#f43f5e' }} onClick={() => {
+        <button type="button" className="menu-item" style={{ color: '#f43f5e' }} onClick={() => {
           localStorage.removeItem('birge_token');
           if (onLogout) onLogout();
           else window.location.reload();
@@ -391,6 +394,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           padding: 2rem 1rem;
         }
         .avatar-container {
+          display: block;
+          padding: 0;
+          border: 0;
+          background: none;
+          font: inherit;
+          color: inherit;
           position: relative;
           width: 90px;
           height: 90px;

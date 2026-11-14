@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 import auth
@@ -12,7 +13,13 @@ import models
 import schemas
 from database import get_db
 from dependencies import _extract_token, get_current_user
-from realtime import driver_sse_manager, sse_manager
+from rate_limit import enforce_user_limit
+from realtime import (
+    driver_sse_manager,
+    publish_driver_event,
+    publish_requester_event,
+    sse_manager,
+)
 from time_utils import get_bishkek_now, get_bishkek_today_str
 
 router = APIRouter(prefix="/trip-requests", tags=["trip-requests"])
@@ -116,6 +123,7 @@ async def send_trip_request(
     requester_id берётся из JWT (защита от spoofing).
     После сохранения в БД немедленно уведомляет водителя через SSE.
     """
+    await enforce_user_limit(current_user.id, "trip_request.create", 20, 600)
     trip_id = req_in.trip_id                     # ID поездки водителя
     requester_trip_id = req_in.requester_trip_id  # ID поездки пассажира
     requester_id = current_user.id               # ID пассажира — только из токена!
@@ -169,7 +177,19 @@ async def send_trip_request(
         created_at=get_bishkek_now().strftime("%Y-%m-%d %H:%M:%S"),
     )
     db.add(req)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent request won the partial unique index race.
+        db.rollback()
+        existing = db.query(models.TripRequest).filter(
+            models.TripRequest.trip_id == trip_id,
+            models.TripRequest.requester_id == requester_id,
+            models.TripRequest.status.in_(["pending", "accepted"]),
+        ).first()
+        if existing:
+            return {"id": existing.id, "status": existing.status, "message": "Already sent"}
+        raise
     db.refresh(req)
 
     # Собираем данные пассажира для SSE-пуша водителю
@@ -193,7 +213,7 @@ async def send_trip_request(
 
     # Мгновенно уведомляем водителя через SSE (если он подписан)
     if driver_id:
-        await driver_sse_manager.push(driver_id, json.dumps(sse_payload))
+        await publish_driver_event(driver_id, json.dumps(sse_payload))
 
     return {"id": req.id, "status": "pending"}
 
@@ -272,6 +292,7 @@ async def respond_to_request(
     При accepted — мгновенно уведомляет пассажира через SSE.
     Только водитель (driver_id == current_user.id) может менять статус своего запроса.
     """
+    await enforce_user_limit(current_user.id, "trip_request.respond", 60, 60)
     req = db.query(models.TripRequest).filter(models.TripRequest.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -346,6 +367,13 @@ async def respond_to_request(
             if p_trip and p_trip.status in ("active", "scheduled", "matched"):
                 p_trip.status = "scheduled" if (p_trip.date and p_trip.date > today) else "matched"
 
+    db.add(models.AuditLog(
+        actor_id=current_user.id,
+        action="trip_request.status_changed",
+        entity_type="trip_request",
+        entity_id=req.id,
+        details=json.dumps({"from": "pending", "to": new_status, "trip_id": req.trip_id}),
+    ))
     db.commit()
 
     response_payload = {
@@ -365,9 +393,9 @@ async def respond_to_request(
     # Мгновенно уведомляем пассажиров через SSE (не ждём polling)
     for user_id, payload in declined_events:
         if user_id:
-            await sse_manager.push(user_id, payload)
+            await publish_requester_event(user_id, payload)
     if new_status in ("accepted", "declined") and req.requester_id:
-        await sse_manager.push(req.requester_id, json.dumps(response_payload))
+        await publish_requester_event(req.requester_id, json.dumps(response_payload))
 
     return response_payload
 

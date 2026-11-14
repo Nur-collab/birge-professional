@@ -12,6 +12,18 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_REDIS_URL: redis://localhost:6379/0
     defaults:
       run:
         working-directory: birge-backend
@@ -28,8 +40,20 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Lint
         run: ruff check .
+      - name: Dependency audit
+        run: python -m pip_audit -r requirements.txt
       - name: Tests
         run: python -m pytest -q
+      - name: Migrations
+        env:
+          DATABASE_URL: sqlite:///./_ci_migration.db
+        run: |
+          alembic upgrade head
+          alembic check
+      - name: Check OpenAPI snapshot
+        run: |
+          python scripts/export_openapi.py
+          git diff --exit-code -- ../birge/openapi.json
 
   frontend:
     name: Frontend
@@ -46,7 +70,13 @@ jobs:
           cache-dependency-path: birge/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
       - name: Tests
         run: npm test
       - name: Build
         run: npm run build
+      - name: Check generated API types
+        run: |
+          npm run api:types
+          git diff --exit-code -- src/types/api.d.ts

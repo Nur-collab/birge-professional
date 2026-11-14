@@ -35,8 +35,8 @@ export default function TripHistory({ currentUser, onBack }) {
   return (
     <div className="history screen-content">
       <div className="history-header">
-        <button className="back-btn" onClick={onBack}>
-          <ArrowLeft size={24} />
+        <button type="button" className="back-btn" onClick={onBack} aria-label={t('back')}>
+          <ArrowLeft size={24} aria-hidden="true" />
         </button>
         <h2>{t('history.title')}</h2>
         <div style={{ width: 24 }}></div>
@@ -44,8 +44,8 @@ export default function TripHistory({ currentUser, onBack }) {
 
       <div className="history-list">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div className="loader" style={{ width: 30, height: 30, borderWidth: 3 }}></div>
+          <div role="status" aria-live="polite" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+            <div className="loader" aria-hidden="true" style={{ width: 30, height: 30, borderWidth: 3 }}></div>
             <p style={{ color: '#6b7280', marginTop: '1rem' }}>{t('loading')}</p>
           </div>
         ) : trips.length === 0 ? (

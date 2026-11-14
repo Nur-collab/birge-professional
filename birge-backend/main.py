@@ -1,14 +1,21 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
+import time
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import Optional
+from uuid import uuid4
 import database, models, schemas, auth
-from config import IS_PRODUCTION
+import redis
+from config import IS_PRODUCTION, REDIS_URL
 from dependencies import get_current_admin, get_current_user
 from time_utils import BISHKEK_TZ, get_bishkek_now, get_bishkek_today_str, parse_time_minutes
-from realtime import is_trip_participant
+from realtime import is_trip_participant, start_realtime, stop_realtime
+from rate_limit import close_rate_limiter, enforce_user_limit_sync
+from logging_config import bind_request_id, configure_logging, reset_request_id
+from sentry_config import init_sentry
 from routers.auth import router as auth_router
 from routers.chat import router as chat_router
 from routers.trip_requests import router as trip_requests_router
@@ -30,7 +37,9 @@ for _stream in (sys.stdout, sys.stderr):
             # Поток может быть уже закрыт или перенаправлен нестандартным хостом.
             pass
 
+configure_logging()
 logger = logging.getLogger("birge")
+init_sentry()
 
 # Схема БД управляется Alembic. Перед запуском приложения выполните:
 # alembic upgrade head
@@ -40,11 +49,53 @@ logger = logging.getLogger("birge")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle: startup → yield → shutdown."""
-    await startup_tasks()
-    yield
-    # shutdown — ничего не делаем
+    await start_realtime()
+    try:
+        await startup_tasks()
+        yield
+    finally:
+        await stop_realtime()
+        await close_rate_limiter()
 
 app = FastAPI(title="Birge API - MVP Backend", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def request_id_middleware(request, call_next):
+    """Attach a stable request id to every response and log record."""
+    incoming = request.headers.get("X-Request-ID", "").strip()
+    request_id = incoming[:128] if incoming else uuid4().hex
+    request.state.request_id = request_id
+    token = bind_request_id(request_id)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        logger.info(
+            "request.complete",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        return response
+    except Exception:
+        logger.exception(
+            "request.failed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        raise
+    finally:
+        reset_request_id(token)
+
+
 app.include_router(auth_router)
 app.include_router(trips_router)
 app.include_router(users_router)
@@ -53,8 +104,38 @@ app.include_router(chat_router)
 
 @app.get("/health")
 def health_check():
-    """Публичный эндпоинт для мониторинга (UptimeRobot, etc.). Без авторизации."""
+    """Публичный liveness-эндпоинт для мониторинга (UptimeRobot, etc.)."""
     return {"status": "ok"}
+
+
+@app.get("/ready")
+def readiness_check():
+    """Readiness: database is reachable and optional Redis is configured."""
+    try:
+        with database.engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        logger.exception("[Readiness] Database check failed")
+        raise HTTPException(status_code=503, detail="Database is not ready") from exc
+
+    if REDIS_URL:
+        client = None
+        try:
+            client = redis.Redis.from_url(
+                REDIS_URL,
+                protocol=2,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+            )
+            client.ping()
+        except Exception as exc:
+            logger.warning("[Readiness] Redis check failed: %s", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Redis is not ready") from exc
+        finally:
+            if client is not None:
+                client.close()
+
+    return {"status": "ready"}
 
 # Разрешаем запросы с нашего React приложения (CORS).
 # В production задайте точный список через ALLOWED_ORIGINS; regex-послабление
@@ -85,6 +166,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 # Dependency импортируется напрямую из database.py
@@ -111,6 +193,7 @@ def create_review(
     - Один пользователь может оставить только один отзыв конкретному человеку.
       (защита от накрутки рейтинга)
     """
+    enforce_user_limit_sync(current_user.id, "review.create", 10, 3600)
     if review.user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot review yourself")
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { captureException } from '../sentry';
 import { AlertTriangle, RotateCcw, RefreshCw, ChevronDown, Copy, Check } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
@@ -20,6 +21,9 @@ class ErrorBoundary extends React.Component {
     this.setState({ errorInfo });
     // Keep error logging for telemetry/diagnostics
     console.error('[Birge ErrorBoundary caught error]:', error, errorInfo);
+    captureException(error, {
+      extra: { componentStack: errorInfo?.componentStack },
+    });
   }
 
   handleReset = () => {

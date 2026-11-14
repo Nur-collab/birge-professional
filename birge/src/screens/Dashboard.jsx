@@ -154,7 +154,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
     <div className="dashboard screen-content">
       {/* Селектор роли (iOS / Linear Segmented Pill) */}
       <div className="role-switch-container">
-        <div className="role-switch">
+        <div className="role-switch" role="group" aria-label="Роль в поездке">
           <button
             type="button"
             className={`role-option ${role === 'passenger' ? 'active' : ''}`}
@@ -162,8 +162,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               if ('vibrate' in navigator) navigator.vibrate?.(10);
               setRole('passenger');
             }}
+            aria-pressed={role === 'passenger'}
           >
-            <User size={16} />
+            <User size={16} aria-hidden="true" />
             <span>Пассажир</span>
           </button>
           <button
@@ -173,8 +174,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               if ('vibrate' in navigator) navigator.vibrate?.(10);
               setRole('driver');
             }}
+            aria-pressed={role === 'driver'}
           >
-            <Car size={16} />
+            <Car size={16} aria-hidden="true" />
             <span>Водитель</span>
           </button>
         </div>
@@ -182,16 +184,16 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
 
       {/* Предупреждение: водитель без данных машины */}
       {role === 'driver' && currentUser && !currentUser.car_model && (
-        <div className="driver-warning-card" onClick={onShowSettings}>
+        <button type="button" className="driver-warning-card" onClick={onShowSettings}>
           <div className="warning-icon-wrap">
-            <AlertTriangle size={18} />
+            <AlertTriangle size={18} aria-hidden="true" />
           </div>
           <div className="warning-content">
             <div className="warning-title">Данные автомобиля не указаны</div>
             <div className="warning-desc">Пассажиры не увидят марку и номер машины</div>
           </div>
-          <ArrowRight size={16} className="warning-arrow" />
-        </div>
+          <ArrowRight size={16} className="warning-arrow" aria-hidden="true" />
+        </button>
       )}
 
       {/* Интерактивная карта маршрута */}
@@ -211,8 +213,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             className="swap-route-btn"
             onClick={handleSwapAddresses}
             title="Поменять местами"
+            aria-label="Поменять местами точки отправления и назначения"
           >
-            <ArrowUpDown size={15} />
+            <ArrowUpDown size={15} aria-hidden="true" />
           </button>
         </div>
 
@@ -232,18 +235,21 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 placeholder="Откуда едем..."
                 iconColor={errors.from ? '#ef4444' : '#10b981'}
                 name="from"
+                invalid={Boolean(errors.from)}
+                describedBy={errors.from ? 'dashboard-from-error' : undefined}
               />
               <button
                 type="button"
                 onClick={handleGeolocate}
                 disabled={geoLoading}
                 title="Определить мое местоположение"
+                aria-label="Определить мое местоположение"
                 className="inline-geo-btn"
               >
-                <Navigation size={15} className={geoLoading ? 'spin' : ''} />
+                <Navigation size={15} className={geoLoading ? 'spin' : ''} aria-hidden="true" />
               </button>
             </div>
-            {errors.from && <p className="input-err-msg">{errors.from}</p>}
+            {errors.from && <p className="input-err-msg" id="dashboard-from-error" role="alert">{errors.from}</p>}
 
             <div className="route-input-cell">
               <AddressInput
@@ -252,9 +258,11 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 placeholder="Куда направляемся..."
                 iconColor={errors.to ? '#ef4444' : '#64748b'}
                 name="to"
+                invalid={Boolean(errors.to)}
+                describedBy={errors.to ? 'dashboard-to-error' : undefined}
               />
             </div>
-            {errors.to && <p className="input-err-msg">{errors.to}</p>}
+            {errors.to && <p className="input-err-msg" id="dashboard-to-error" role="alert">{errors.to}</p>}
           </div>
         </div>
 
@@ -262,11 +270,12 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         <div className="hubs-section">
           <div className="hubs-top">
             <div className="section-label">Популярные точки</div>
-            <div className="target-toggle">
+            <div className="target-toggle" role="group" aria-label="Куда применить популярную точку">
               <button
                 type="button"
                 className={`target-pill ${tagTarget === 'from' ? 'active' : ''}`}
                 onClick={() => setTagTarget('from')}
+                aria-pressed={tagTarget === 'from'}
               >
                 Откуда
               </button>
@@ -274,6 +283,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 type="button"
                 className={`target-pill ${tagTarget === 'to' ? 'active' : ''}`}
                 onClick={() => setTagTarget('to')}
+                aria-pressed={tagTarget === 'to'}
               >
                 Куда
               </button>
@@ -281,7 +291,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           </div>
 
           {/* Категории */}
-          <div className="category-scroll">
+          <div className="category-scroll" role="group" aria-label="Категории популярных точек">
             {HUB_CATEGORIES.map((cat) => {
               const IconComp = cat.icon;
               return (
@@ -293,8 +303,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                     if ('vibrate' in navigator) navigator.vibrate?.(10);
                     setSelectedCategory(cat.id);
                   }}
+                  aria-pressed={selectedCategory === cat.id}
                 >
-                  <IconComp size={13} />
+                  <IconComp size={13} aria-hidden="true" />
                   <span>{cat.label}</span>
                 </button>
               );
@@ -302,7 +313,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           </div>
 
           {/* Список хабов */}
-          <div className="hubs-chips-scroll">
+          <div className="hubs-chips-scroll" role="group" aria-label="Популярные точки">
             {BISHKEK_HUBS.filter(h => selectedCategory === 'all' || h.cat === selectedCategory).map((hub) => {
               const isSelected = tagTarget === 'from' ? from === hub.name : to === hub.name;
               return (
@@ -311,6 +322,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                   type="button"
                   className={`hub-chip ${isSelected ? 'selected' : ''}`}
                   onClick={() => handleTagClick(hub.name)}
+                  aria-pressed={isSelected}
                 >
                   {hub.name}
                 </button>
@@ -327,9 +339,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               <span>Дата</span>
             </div>
             <div className="date-picker-box">
-              <span className="date-display">{formatDateLabel(date)}</span>
+              <span className="date-display" aria-hidden="true">{formatDateLabel(date)}</span>
               <input
                 type="date"
+                aria-label="Дата поездки"
                 value={date}
                 min={today}
                 onChange={e => setDate(e.target.value)}
@@ -346,6 +359,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             </div>
             <input
               type="time"
+              aria-label="Время поездки"
               value={time}
               onChange={e => setTime(e.target.value)}
               required
@@ -369,17 +383,19 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                   className="stepper-btn"
                   onClick={() => setSeats(s => Math.max(1, s - 1))}
                   disabled={seats <= 1}
+                  aria-label="Уменьшить количество свободных мест"
                 >
-                  <Minus size={14} />
+                  <Minus size={14} aria-hidden="true" />
                 </button>
-                <span className="stepper-value">{seats}</span>
+                <span className="stepper-value" role="status" aria-live="polite" aria-label={`Свободных мест: ${seats}`}>{seats}</span>
                 <button
                   type="button"
                   className="stepper-btn"
                   onClick={() => setSeats(s => Math.min(8, s + 1))}
                   disabled={seats >= 8}
+                  aria-label="Увеличить количество свободных мест"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -393,6 +409,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               <div className="price-input-wrap">
                 <input
                   type="number"
+                  aria-label="Взнос за место, сом"
                   min="0"
                   max="9999"
                   step="50"
@@ -464,6 +481,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         /* Driver Warning */
         .driver-warning-card {
           display: flex;
+          width: 100%;
+          text-align: left;
+          font: inherit;
+          color: inherit;
           align-items: center;
           gap: 12px;
           padding: 12px 14px;
@@ -760,6 +781,11 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           position: relative;
           display: flex;
           align-items: center;
+          border-radius: 6px;
+        }
+        .date-picker-box:focus-within {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
         }
         .date-display {
           font-size: 0.94rem;
@@ -784,6 +810,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           outline: none;
           padding: 0;
           cursor: pointer;
+        }
+        .time-native-input:focus-visible {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
         }
 
         /* Driver parameters */
@@ -856,6 +886,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           border-radius: 8px;
           padding: 4px 8px;
           gap: 6px;
+        }
+        .price-input-wrap:focus-within {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
         }
         .price-number-input {
           width: 65px;

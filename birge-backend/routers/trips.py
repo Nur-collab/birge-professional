@@ -1,5 +1,6 @@
 """Trip, chat and payment routes."""
 import html
+import json
 import os
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -13,7 +14,13 @@ import models
 import schemas
 from database import get_db
 from dependencies import get_current_user
-from realtime import driver_sse_manager, is_trip_participant, manager, sse_manager
+from rate_limit import enforce_user_limit, enforce_user_limit_sync
+from realtime import (
+    is_trip_participant,
+    publish_chat_message,
+    publish_driver_event,
+    publish_requester_event,
+)
 from time_utils import get_bishkek_now, get_bishkek_today_str, parse_time_minutes
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -21,6 +28,7 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 @router.post("/", response_model=schemas.Trip)
 def create_trip(trip: schemas.TripCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_user_limit_sync(current_user.id, "trip.create", 20, 3600)
     user = current_user
     if not user:
          raise HTTPException(status_code=404, detail="User not found")
@@ -209,6 +217,19 @@ def create_trip_ws_ticket(
         "expires_in": auth_service.WS_TICKET_EXPIRE_SECONDS,
     }
 
+@router.get("/{trip_id}", response_model=schemas.Trip)
+def get_trip_detail(trip_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return a trip to its driver or an accepted participant.
+
+    Non-participants receive 404 rather than 403 to avoid leaking trip IDs.
+    The response uses the existing ``Trip`` schema, so no public fields change.
+    """
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip or not is_trip_participant(db, trip_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return trip
+
+
 @router.get("/{trip_id}/messages", response_model=List[schemas.ChatMessage])
 def get_trip_messages(trip_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Возвращает историю сообщений поездки с обязательной проверкой прав доступа."""
@@ -233,10 +254,12 @@ async def update_trip_status(
     """
     import json as _json
 
+    await enforce_user_limit(current_user.id, "trip.status", 60, 60)
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
+    old_status = trip.status
     new_status = status_update.status
     today = get_bishkek_today_str()
 
@@ -273,9 +296,16 @@ async def update_trip_status(
             trip.status = "scheduled" if (trip.date and trip.date > today) else "active"
 
         _update_passenger_trip(req.requester_trip_id, current_user.id, completed=False)
+        db.add(models.AuditLog(
+            actor_id=current_user.id,
+            action="trip.passenger_cancelled",
+            entity_type="trip",
+            entity_id=trip_id,
+            details=_json.dumps({"from": old_status, "request_id": req.id}),
+        ))
         db.commit()
 
-        await driver_sse_manager.push(trip.user_id, _json.dumps({
+        await publish_driver_event(trip.user_id, _json.dumps({
             "event": "passenger_cancelled",
             "trip_id": trip_id,
             "passenger_name": current_user.name,
@@ -294,6 +324,13 @@ async def update_trip_status(
 
         req.status = "completed"
         _update_passenger_trip(req.requester_trip_id, current_user.id, completed=True)
+        db.add(models.AuditLog(
+            actor_id=current_user.id,
+            action="trip.passenger_completed",
+            entity_type="trip",
+            entity_id=trip_id,
+            details=_json.dumps({"from": old_status, "request_id": req.id}),
+        ))
         db.commit()
         return {"id": trip_id, "status": "passenger_completed"}
 
@@ -335,12 +372,20 @@ async def update_trip_status(
                 notifications.append((r.requester_id, event_data))
         trip.seats_taken = 0
 
+    db.add(models.AuditLog(
+        actor_id=current_user.id,
+        action="trip.status_changed",
+        entity_type="trip",
+        entity_id=trip_id,
+        details=_json.dumps({"from": old_status, "to": new_status, "role": "driver"}),
+    ))
+
     # Сначала фиксируем изменения в БД, затем уведомляем: обрыв SSE не должен
     # откатывать уже принятое пользователем решение.
     db.commit()
 
     for user_id, payload in notifications:
-        await sse_manager.push(user_id, payload)
+        await publish_requester_event(user_id, payload)
 
     return {"id": trip_id, "status": new_status}
 
@@ -354,6 +399,7 @@ async def cancel_trip(
     """Отмена/удаление своей поездки с синхронизацией связанных заявок."""
     import json as _json
 
+    await enforce_user_limit(current_user.id, "trip.cancel", 10, 60)
     trip = db.query(models.Trip).filter(
         models.Trip.id == trip_id,
         models.Trip.user_id == current_user.id,
@@ -412,6 +458,14 @@ async def cancel_trip(
                 }),
             ))
 
+    db.add(models.AuditLog(
+        actor_id=current_user.id,
+        action="trip.deleted",
+        entity_type="trip",
+        entity_id=trip_id,
+        details=_json.dumps({"from": trip.status, "role": trip.role}),
+    ))
+
     # Безопасная очистка зависимых сущностей перед удалением
     db.query(models.ChatMessage).filter(models.ChatMessage.trip_id == trip_id).delete(synchronize_session=False)
     db.query(models.TripRequest).filter(
@@ -421,9 +475,9 @@ async def cancel_trip(
     db.commit()
 
     for user_id, payload in driver_notifications:
-        await driver_sse_manager.push(user_id, payload)
+        await publish_driver_event(user_id, payload)
     for user_id, payload in passenger_notifications:
-        await sse_manager.push(user_id, payload)
+        await publish_requester_event(user_id, payload)
 
     return {"id": trip_id, "deleted": True}
 
@@ -442,6 +496,7 @@ async def send_panic_alert(
     """
     import os, httpx
 
+    await enforce_user_limit(current_user.id, "trip.panic", 5, 60)
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip or not is_trip_participant(db, trip_id, current_user.id):
         raise HTTPException(status_code=403, detail="Только участник поездки может отправить сигнал тревоги")
@@ -559,6 +614,15 @@ def get_trip_payment(
     if not owner:
         raise HTTPException(status_code=404, detail="Driver not found")
 
+    db.add(models.AuditLog(
+        actor_id=current_user.id,
+        action="payment.view",
+        entity_type="trip",
+        entity_id=trip_id,
+        details=json.dumps({"driver_id": owner.id}),
+    ))
+    db.commit()
+
     return {
         "driver_id": owner.id,
         "driver_name": owner.name,
@@ -578,6 +642,7 @@ async def send_trip_message(
     """Отправка сообщения через REST с теми же правами, что и WebSocket."""
     import json as _json
 
+    await enforce_user_limit(current_user.id, "trip.message", 30, 60)
     if not is_trip_participant(db, trip_id, current_user.id):
         raise HTTPException(status_code=403, detail="Access denied to this trip chat")
 
@@ -596,13 +661,13 @@ async def send_trip_message(
     db.commit()
     db.refresh(new_msg)
 
-    await manager.broadcast(_json.dumps({
+    await publish_chat_message(trip_id, _json.dumps({
         "id": new_msg.id,
         "text": text,
         "sender_id": current_user.id,
         "sender_name": current_user.name,
         "timestamp": timestamp,
         "trip_id": trip_id,
-    }), str(trip_id))
+    }))
 
     return new_msg

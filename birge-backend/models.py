@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Float, DateTime, BigInteger
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Float, DateTime, BigInteger, Text, text
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, timezone
@@ -31,6 +31,22 @@ class Trip(Base):
         Index("ix_trips_status_date_role", "status", "date", "role"),
         Index("ix_trips_route_lookup", "role", "origin", "destination", "date"),
         Index("ix_trips_user_status", "user_id", "status"),
+        CheckConstraint(
+            "seats IS NULL OR (seats >= 1 AND seats <= 8)",
+            name="ck_trips_seats_range",
+        ),
+        CheckConstraint(
+            "seats_taken IS NULL OR seats_taken >= 0",
+            name="ck_trips_seats_taken_range",
+        ),
+        CheckConstraint(
+            "seats_taken IS NULL OR seats IS NULL OR seats_taken <= seats",
+            name="ck_trips_seats_taken_le_seats",
+        ),
+        CheckConstraint(
+            "price_per_seat IS NULL OR (price_per_seat >= 0 AND price_per_seat <= 100000)",
+            name="ck_trips_price_range",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -53,6 +69,10 @@ class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (
         Index("ix_reviews_user_author", "user_id", "author_id"),
+        CheckConstraint(
+            "rating IS NULL OR (rating >= 1 AND rating <= 5)",
+            name="ck_reviews_rating_range",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -89,6 +109,14 @@ class TripRequest(Base):
         Index("ix_trip_requests_trip_status", "trip_id", "status"),
         Index("ix_trip_requests_requester_status", "requester_id", "status"),
         Index("ix_trip_requests_driver_status", "driver_id", "status"),
+        Index(
+            "uq_trip_requests_active",
+            "trip_id",
+            "requester_id",
+            unique=True,
+            sqlite_where=text("status IN ('pending', 'accepted')"),
+            postgresql_where=text("status IN ('pending', 'accepted')"),
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -104,6 +132,22 @@ class TripRequest(Base):
 
 
 # SMS-коды: хранятся в БД (не теряются при рестарте)
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("ix_audit_logs_entity", "entity_type", "entity_id"),
+        Index("ix_audit_logs_actor_created", "actor_id", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String, nullable=False)
+    entity_type = Column(String, nullable=False)
+    entity_id = Column(Integer, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.utcnow(), nullable=False)
+
+
 class SmsCode(Base):
     __tablename__ = "sms_codes"
 

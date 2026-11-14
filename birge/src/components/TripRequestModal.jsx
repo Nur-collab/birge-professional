@@ -1,10 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Star, Check, X, MapPin, Clock, User } from 'lucide-react';
 
 const AUTO_DECLINE_SECONDS = 30;
 
 export default function TripRequestModal({ request, onAccept, onDecline }) {
     const [timeLeft, setTimeLeft] = useState(AUTO_DECLINE_SECONDS);
+    const dialogRef = useRef(null);
+
+    useEffect(() => {
+        const previous = document.activeElement;
+        dialogRef.current?.querySelector('[data-autofocus]')?.focus();
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape' && request) {
+                event.preventDefault();
+                onDecline(request.id);
+                return;
+            }
+            if (event.key !== 'Tab' || !dialogRef.current) return;
+            const focusable = [...dialogRef.current.querySelectorAll('button:not([disabled]), [href], input, select, textarea')]
+                .filter((element) => element.offsetParent !== null);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            previous?.focus?.();
+        };
+    }, [request?.id]);
 
     // Таймер: если водитель не ответил за 30 сек — автоотклонение
     useEffect(() => {
@@ -29,14 +60,21 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
     const urgency = timeLeft <= 10;
 
     return (
-        <div style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.65)',
-            zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem',
-            backdropFilter: 'blur(6px)',
-        }}>
+        <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trip-request-title"
+            aria-describedby="trip-request-desc"
+            style={{
+                position: 'fixed', inset: 0,
+                background: 'rgba(0,0,0,0.65)',
+                zIndex: 1000,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '1rem',
+                backdropFilter: 'blur(6px)',
+            }}
+        >
             <div style={{
                 background: 'white', borderRadius: '24px', padding: '1.5rem',
                 width: '100%', maxWidth: '360px',
@@ -89,10 +127,10 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                     }}>
                         <User size={26} color="white" />
                     </div>
-                    <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                    <h3 id="trip-request-title" style={{ color: '#1f2937', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
                         Новый запрос на поездку
                     </h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                    <p id="trip-request-desc" style={{ color: '#4b5563', fontSize: '0.85rem', marginTop: '4px' }}>
                         Пассажир хочет присоединиться
                     </p>
                     {/* Таймер */}
@@ -101,7 +139,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         marginTop: '6px',
                         padding: '4px 12px', borderRadius: '20px',
                         background: urgency ? 'rgba(239,68,68,0.1)' : 'var(--bg-subtle)',
-                        color: urgency ? '#ef4444' : 'var(--primary)',
+                        color: urgency ? '#b91c1c' : '#047857',
                         fontSize: '0.82rem', fontWeight: 700,
                     }}>
                         <Clock size={13} />
@@ -161,6 +199,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                 {/* Кнопки */}
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
+                        type="button"
                         onClick={() => onDecline(request.id)}
                         style={{
                             flex: 1, padding: '13px', border: '1.5px solid #e5e7eb',
@@ -175,6 +214,8 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         <X size={18} /> Отклонить
                     </button>
                     <button
+                        type="button"
+                        data-autofocus
                         onClick={() => onAccept(request.id, request.trip_id, request.requester_id, request.requester_trip_id)}
                         style={{
                             flex: 2, padding: '13px', border: 'none',

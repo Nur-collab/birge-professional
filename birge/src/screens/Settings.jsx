@@ -47,8 +47,8 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
   return (
     <div className="settings screen-content">
       <div className="settings-header">
-        <button className="back-btn" onClick={onBack}>
-          <ArrowLeft size={24} />
+        <button type="button" className="back-btn" onClick={onBack} aria-label={t('back')}>
+          <ArrowLeft size={24} aria-hidden="true" />
         </button>
         <h2>{t('settings.title')}</h2>
         <div style={{ width: 24 }}></div>
@@ -64,6 +64,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
           <div className="form-group">
             <select
+              aria-label={t('settings.language')}
               value={i18n.language}
               onChange={handleLanguageChange}
               className="language-select"
@@ -82,8 +83,9 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
 
           <div className="form-group">
-            <label>{t('settings.name')}</label>
+            <label htmlFor="settings-name">{t('settings.name')}</label>
             <input
+              id="settings-name"
               type="text"
               name="name"
               value={formData.name}
@@ -93,10 +95,11 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
 
           <div className="form-group">
-            <label>{t('settings.photo_url')}</label>
+            <label htmlFor="settings-photo">{t('settings.photo_url')}</label>
             <div className="input-with-icon">
-              <Camera size={18} color="#9ca3af" />
+              <Camera size={18} color="#9ca3af" aria-hidden="true" />
               <input
+                id="settings-photo"
                 type="text"
                 name="photo"
                 value={formData.photo}
@@ -123,8 +126,9 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
 
           <div className="form-group">
-            <label>{t('settings.car_model')}</label>
+            <label htmlFor="settings-car-model">{t('settings.car_model')}</label>
             <input
+              id="settings-car-model"
               type="text"
               name="car_model"
               value={formData.car_model}
@@ -135,8 +139,9 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
 
           <div className="form-group" style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 1 }}>
-              <label>{t('settings.car_color')}</label>
+              <label htmlFor="settings-car-color">{t('settings.car_color')}</label>
               <input
+                id="settings-car-color"
                 type="text"
                 name="car_color"
                 value={formData.car_color}
@@ -145,8 +150,9 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label>{t('settings.car_plate')}</label>
+              <label htmlFor="settings-car-plate">{t('settings.car_plate')}</label>
               <input
+                id="settings-car-plate"
                 type="text"
                 name="car_plate"
                 value={formData.car_plate}
@@ -166,10 +172,11 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
 
           <div className="form-group">
-            <label>{t('settings.mbank_phone')}</label>
+            <label htmlFor="settings-mbank-phone">{t('settings.mbank_phone')}</label>
             <div className="input-with-icon">
-              <Smartphone size={18} color="#9ca3af" />
+              <Smartphone size={18} color="#9ca3af" aria-hidden="true" />
               <input
+                id="settings-mbank-phone"
                 type="tel"
                 name="mbank_phone"
                 value={formData.mbank_phone}
@@ -183,10 +190,11 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </div>
 
           <div className="form-group">
-            <label>{t('settings.elkart_number')}</label>
+            <label htmlFor="settings-elkart-number">{t('settings.elkart_number')}</label>
             <div className="input-with-icon">
-              <CreditCard size={18} color="#9ca3af" />
+              <CreditCard size={18} color="#9ca3af" aria-hidden="true" />
               <input
+                id="settings-elkart-number"
                 type="text"
                 name="elkart_number"
                 value={formData.elkart_number}
@@ -212,14 +220,15 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           </p>
         </div>
 
-        {error && <div className="error-msg">{error}</div>}
+        {error && <div className="error-msg" role="alert">{error}</div>}
 
         <button
           type="submit"
           className="primary-btn save-btn"
           disabled={loading || saved}
+          aria-busy={loading}
         >
-          {loading ? <div className="loader-small"></div> : <Save size={20} />}
+          {loading ? <div className="loader-small" aria-hidden="true"></div> : <Save size={20} aria-hidden="true" />}
           <span>{saved ? t('settings.saved_success') : t('save')}</span>
         </button>
 
@@ -237,7 +246,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         }
         .settings-header h2 {
           font-size: 1.2rem;
-          color: var(--dark);
+          color: var(--text-main);
           margin: 0;
         }
         .back-btn {

@@ -1,6 +1,5 @@
 """Authentication endpoints: phone code delivery, verification and refresh."""
 import secrets
-import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,6 +11,7 @@ import models
 import schemas
 from config import IS_PRODUCTION
 from database import get_db
+from rate_limit import get_rate_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -22,11 +22,9 @@ class VerifyCodePayload(schemas.VerifyCodeRequest):
 
 _SEND_CODE_WINDOW_SECONDS = 600
 _SEND_CODE_MAX_PER_WINDOW = 10
-_send_code_attempts: dict[str, list[float]] = {}
 
 _VERIFY_CODE_WINDOW_SECONDS = 60
 _VERIFY_CODE_MAX_PER_WINDOW = 15
-_verify_code_attempts: dict[str, list[float]] = {}
 
 
 def _client_ip(request: Request) -> str:
@@ -37,39 +35,30 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _prune_rate_dict(d: dict[str, list[float]], window_seconds: int) -> None:
-    """Очищает устаревшие IP из словаря лимитов, предотвращая утечку памяти."""
-    now = time.time()
-    if len(d) > 200:
-        expired_keys = [k for k, timestamps in d.items() if not timestamps or (now - timestamps[-1] > window_seconds)]
-        for k in expired_keys:
-            d.pop(k, None)
-
-
-def _check_send_code_rate(ip: str) -> None:
-    now = time.time()
-    _prune_rate_dict(_send_code_attempts, _SEND_CODE_WINDOW_SECONDS)
-    attempts = [t for t in _send_code_attempts.get(ip, []) if now - t < _SEND_CODE_WINDOW_SECONDS]
-    if len(attempts) >= _SEND_CODE_MAX_PER_WINDOW:
+async def _check_send_code_rate(ip: str) -> None:
+    allowed = await get_rate_limiter().hit(
+        f"auth:send-code:{ip}",
+        _SEND_CODE_MAX_PER_WINDOW,
+        _SEND_CODE_WINDOW_SECONDS,
+    )
+    if not allowed:
         raise HTTPException(status_code=429, detail="Слишком много запросов кода. Попробуйте позже.")
-    attempts.append(now)
-    _send_code_attempts[ip] = attempts
 
 
-def _check_verify_code_rate(ip: str) -> None:
-    now = time.time()
-    _prune_rate_dict(_verify_code_attempts, _VERIFY_CODE_WINDOW_SECONDS)
-    attempts = [t for t in _verify_code_attempts.get(ip, []) if now - t < _VERIFY_CODE_WINDOW_SECONDS]
-    if len(attempts) >= _VERIFY_CODE_MAX_PER_WINDOW:
+async def _check_verify_code_rate(ip: str) -> None:
+    allowed = await get_rate_limiter().hit(
+        f"auth:verify-code:{ip}",
+        _VERIFY_CODE_MAX_PER_WINDOW,
+        _VERIFY_CODE_WINDOW_SECONDS,
+    )
+    if not allowed:
         raise HTTPException(status_code=429, detail="Слишком много попыток ввода кода. Подождите минуту.")
-    attempts.append(now)
-    _verify_code_attempts[ip] = attempts
 
 
 @router.post("/send-code")
 async def send_code(req: schemas.SendCodeRequest, request: Request, db: Session = Depends(get_db)):
     """Отправка кода через Telegram Bot. В production без доставки возвращает 503."""
-    _check_send_code_rate(_client_ip(request))
+    await _check_send_code_rate(_client_ip(request))
 
     raw_phone = req.phone.strip()
     if not raw_phone:
@@ -114,9 +103,9 @@ async def send_code(req: schemas.SendCodeRequest, request: Request, db: Session 
 
 
 @router.post("/verify-code")
-def verify_code(req: VerifyCodePayload, request: Request, db: Session = Depends(get_db)):
+async def verify_code(req: VerifyCodePayload, request: Request, db: Session = Depends(get_db)):
     """Проверяет SMS-код и выдает JWT токен."""
-    _check_verify_code_rate(_client_ip(request))
+    await _check_verify_code_rate(_client_ip(request))
     raw_phone = req.phone.strip()
     code = req.code.strip()
     name = (req.name or "").strip()

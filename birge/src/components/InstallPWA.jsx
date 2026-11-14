@@ -43,20 +43,20 @@ export default function InstallPWA() {
     if (!showInstallBtn || isInstalled) return null;
 
     return (
-        <div className="install-banner glass-panel">
+        <div className="install-banner glass-panel" role="region" aria-label="Установка приложения">
             <div className="install-content">
-                <div className="install-icon">Б</div>
+                <div className="install-icon" aria-hidden="true">Б</div>
                 <div className="install-text">
                     <p className="install-title">Установите БИРГЕ</p>
                     <p className="install-desc">Добавьте на главный экран для быстрого доступа</p>
                 </div>
             </div>
             <div className="install-actions">
-                <button className="primary-btn install-btn" onClick={handleInstallClick}>
-                    <Download size={14} /> Установить
+                <button type="button" className="primary-btn install-btn" onClick={handleInstallClick}>
+                    <Download size={14} aria-hidden="true" /> Установить
                 </button>
-                <button className="close-btn" onClick={() => setShowInstallBtn(false)}>
-                    <X size={16} />
+                <button type="button" className="close-btn" onClick={() => setShowInstallBtn(false)} aria-label="Закрыть предложение установки">
+                    <X size={16} aria-hidden="true" />
                 </button>
             </div>
 
@@ -104,12 +104,12 @@ export default function InstallPWA() {
           margin: 0;
           font-weight: 600;
           font-size: 0.9rem;
-          color: var(--dark);
+          color: #1f2937;
         }
         .install-desc {
           margin: 0;
           font-size: 0.75rem;
-          color: #6b7280;
+          color: #4b5563;
           line-height: 1.2;
           margin-top: 2px;
         }
@@ -130,7 +130,7 @@ export default function InstallPWA() {
         .close-btn {
           background: none;
           border: none;
-          color: #9ca3af;
+          color: #4b5563;
           padding: 4px;
           display: flex;
           align-items: center;

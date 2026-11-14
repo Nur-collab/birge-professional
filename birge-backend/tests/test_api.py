@@ -1,5 +1,7 @@
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 import auth
 import database
@@ -95,7 +97,7 @@ def test_openapi_includes_trip_routes(client):
         "/trips/{trip_id}/ws-ticket": {"post"},
         "/trips/{trip_id}/messages": {"get", "post"},
         "/trips/{trip_id}/status": {"patch"},
-        "/trips/{trip_id}": {"delete"},
+        "/trips/{trip_id}": {"get", "delete"},
         "/trips/{trip_id}/panic": {"post"},
         "/trips/{trip_id}/passengers": {"get"},
         "/trips/{trip_id}/payment": {"get"},
@@ -154,6 +156,15 @@ def test_trip_request_http_flow(client, db):
     assert sent.json()["status"] == "pending"
     request_id = sent.json()["id"]
 
+    duplicate = client.post(
+        "/trip-requests/",
+        headers=_headers(passenger),
+        json={"trip_id": driver_trip.id, "requester_trip_id": passenger_trip.id},
+    )
+    assert duplicate.status_code == 200
+    assert duplicate.json()["id"] == request_id
+    assert duplicate.json()["status"] == "pending"
+
     incoming = client.get("/trip-requests/incoming/", headers=_headers(driver))
     assert incoming.status_code == 200
     assert [item["id"] for item in incoming.json()] == [request_id]
@@ -165,6 +176,10 @@ def test_trip_request_http_flow(client, db):
     )
     assert accepted.status_code == 200
     assert accepted.json()["status"] == "accepted"
+    request_audit = db.query(models.AuditLog).filter_by(
+        action="trip_request.status_changed", entity_id=request_id, actor_id=driver.id
+    ).all()
+    assert len(request_audit) == 1
 
     status = client.get(f"/trip-requests/status/{driver_trip.id}", headers=_headers(passenger))
     assert status.status_code == 200
@@ -210,6 +225,10 @@ def test_payment_and_ws_ticket_are_participant_only(client, db):
     payment = client.get(f"/trips/{trip.id}/payment", headers=_headers(passenger))
     assert payment.status_code == 200
     assert payment.json()["mbank_phone"] == driver.mbank_phone
+    audit = db.query(models.AuditLog).filter_by(
+        action="payment.view", entity_id=trip.id, actor_id=passenger.id
+    ).all()
+    assert len(audit) == 1
 
     denied_payment = client.get(f"/trips/{trip.id}/payment", headers=_headers(outsider))
     assert denied_payment.status_code == 403
@@ -276,7 +295,125 @@ def test_trip_create_matches_status_and_delete_flow(client, db):
     )
     assert updated.status_code == 200
     assert updated.json()["status"] == "in_progress"
+    audit = db.query(models.AuditLog).filter_by(
+        action="trip.status_changed", entity_id=trip_id, actor_id=driver.id
+    ).all()
+    assert len(audit) == 1
+    assert audit[0].details is not None
 
     deleted = client.delete(f"/trips/{trip_id}", headers=_headers(driver))
     assert deleted.status_code == 200
     assert deleted.json()["deleted"] is True
+
+
+def test_auth_rate_limit_returns_429(client, monkeypatch):
+    class DeniedLimiter:
+        async def hit(self, key: str, limit: int, window_seconds: int) -> bool:
+            return False
+
+    monkeypatch.setattr("routers.auth.get_rate_limiter", lambda: DeniedLimiter())
+    response = client.post(
+        "/auth/verify-code",
+        json={"phone": "+996555000077", "code": "123456"},
+    )
+    assert response.status_code == 429
+
+
+def test_readiness_and_request_id(client):
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.headers.get("X-Request-ID")
+
+    explicit = client.get("/health", headers={"X-Request-ID": "client-request-1"})
+    assert explicit.headers["X-Request-ID"] == "client-request-1"
+
+    ready = client.get("/ready")
+    assert ready.status_code == 200
+    assert ready.json() == {"status": "ready"}
+    assert "/ready" in client.get("/openapi.json").json()["paths"]
+
+
+def test_write_rate_limit_returns_429(client, db, monkeypatch):
+    user = _user(db, "+996555000078", "Лимит")
+
+    def deny(*args, **kwargs):
+        raise HTTPException(status_code=429, detail="Too many writes")
+
+    monkeypatch.setattr("routers.trips.enforce_user_limit_sync", deny)
+    response = client.post(
+        "/trips/",
+        headers=_headers(user),
+        json={
+            "role": "passenger",
+            "origin": "Ала-Арча",
+            "destination": "ЦУМ",
+            "time": "08:15",
+            "date": main.get_bishkek_today_str(),
+            "seats": 1,
+            "price_per_seat": 100,
+        },
+    )
+    assert response.status_code == 429
+
+
+def test_trip_detail_is_participant_only(client, db):
+    driver = _user(db, "+996555000070", "Водитель")
+    passenger = _user(db, "+996555000071", "Пассажир")
+    outsider = _user(db, "+996555000072", "Чужой")
+    trip = _driver_trip(db, driver)
+    _accepted_request(db, trip, passenger)
+
+    driver_view = client.get(f"/trips/{trip.id}", headers=_headers(driver))
+    assert driver_view.status_code == 200
+    assert driver_view.json()["id"] == trip.id
+    assert driver_view.json()["origin"] == "Ала-Арча"
+    assert "phone" not in driver_view.json().get("user", {})
+
+    passenger_view = client.get(f"/trips/{trip.id}", headers=_headers(passenger))
+    assert passenger_view.status_code == 200
+
+    denied = client.get(f"/trips/{trip.id}", headers=_headers(outsider))
+    assert denied.status_code == 404
+
+    missing = client.get("/trips/999999", headers=_headers(outsider))
+    assert missing.status_code == 404
+
+
+def test_trip_check_constraints_reject_invalid_values(client, db):
+    user = _user(db, "+996555000079", "Проверка")
+    trip = models.Trip(
+        user_id=user.id,
+        role="driver",
+        origin="Ала-Арча",
+        destination="ЦУМ",
+        time="08:15",
+        seats=0,
+    )
+    db.add(trip)
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+
+
+def test_active_trip_request_is_unique(client, db):
+    driver = _user(db, "+996555000080", "Водитель")
+    passenger = _user(db, "+996555000081", "Пассажир")
+    trip = _driver_trip(db, driver)
+    first = models.TripRequest(
+        trip_id=trip.id,
+        requester_id=passenger.id,
+        driver_id=driver.id,
+        status="pending",
+    )
+    db.add(first)
+    db.commit()
+    second = models.TripRequest(
+        trip_id=trip.id,
+        requester_id=passenger.id,
+        driver_id=driver.id,
+        status="pending",
+    )
+    db.add(second)
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
