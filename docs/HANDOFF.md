@@ -1,6 +1,6 @@
 # Birge — handoff
 
-Дата среза: **2026-11-13**
+Дата среза: **2026-11-15**
 
 Этот документ описывает состояние рабочей копии, все выполненные изменения,
 команды проверки и следующие шаги. Он предназначен для продолжения работы
@@ -29,8 +29,8 @@ C:\Users\User\.gemini\antigravity\scratch\birge\
 C:\Users\User\.gemini\antigravity\scratch\birge-backend\
 ```
 
-Копия специально отделена от оригиналов. В копии нет `.git`, поэтому она
-не связана с исходными репозиториями. При переносе на другой компьютер
+Копия специально отделена от оригиналов. Это отдельный Git-репозиторий
+с remote `origin`; исходные папки не затрагиваются. При переносе на другой компьютер
 достаточно скопировать папку `birge-professional` целиком, кроме локальных
 `venv`, `node_modules`, `.env*`, `dist` и `*.db` (их лучше пересоздать).
 
@@ -53,7 +53,7 @@ C:\Users\User\.gemini\antigravity\scratch\birge-backend\
 | Отдельная рабочая копия | готово |
 | README и `.env.example` | готово |
 | Зафиксированные зависимости | готово |
-| CI для backend lint/tests и frontend build | готово (workflow создан, но на GitHub ещё не запускался) |
+| CI для backend lint/tests и frontend build | готово (GitHub Actions CI/Security зелёные на `89db8ab`) |
 | Удалён мёртвый frontend-код | готово |
 | Защита admin/internal endpoints и CORS | готово |
 | Серверная загрузка фото | готово (код и тесты; реальный ImgBB не проверялся без ключа) |
@@ -96,8 +96,8 @@ birge-backend/realtime.py         # WebSocket/SSE state + is_trip_participant
 3. `/health` — liveness, `/ready` — readiness (DB + Redis); ответы содержат
    `X-Request-ID`; JSON-логи включают request id.
 4. Sentry SDK подключён к backend и frontend; нужен DSN и проверка событий.
-5. Render настраивается вручную по `docs/RUNBOOK.md`; выполнить setup и restore drill.
-6. Dependabot, `pip-audit` и gitleaks настроены; нужно проверить в GitHub.
+5. Production задеплоен на Render/Vercel; Telegram-токен и webhook настроены, осталось проверить вход с привязанным номером.
+6. Dependabot, `pip-audit` и gitleaks настроены; CI/Security проверены на `89db8ab`.
 
 P2: deep links, OpenAPI-типы и accessibility-baseline готовы; дальше
 automated axe/visual contrast sweep, i18n, аналитика воронки, ETA/маршруты,
@@ -119,9 +119,11 @@ database:
   alembic upgrade head         -> passed
   alembic check                -> no new upgrade operations
 live:
-  GET /health                  -> 200
-  GET /ready                   -> 200
-  GET /openapi.json            -> 200 (31 paths)
+  GET https://birge-api.onrender.com/health -> 200
+  GET https://birge-api.onrender.com/ready -> 200
+  GET https://birge-api.onrender.com/openapi.json -> 200 (31 paths)
+telegram:
+  getWebhookInfo -> url https://birge-api.onrender.com/bot/webhook, pending 0, no errors
 ```
 
 Команды для повторной проверки (Windows):
@@ -211,6 +213,11 @@ ADMIN_PHONES=...
 REDIS_URL=redis://<redis-host>:6379/0
 ```
 
+В текущем деплое `TELEGRAM_BOT_TOKEN` задан, webhook зарегистрирован; для
+успешного `/auth/send-code` номер всё ещё нужно привязать через
+`@BirgeAuthBot`. `TELEGRAM_WEBHOOK_SECRET` задан; порядок проверки — в
+`docs/RUNBOOK.md`, §3.
+
 `IMGBB_API_KEY` нужен только для загрузки фото. Без него endpoint корректно
 возвращает `503`.
 
@@ -221,27 +228,50 @@ Frontend production build:
 - `vite.config.js` намеренно падает, если production `VITE_API_URL` указывает
   на `localhost`, `127.0.0.1` или `0.0.0.0`.
 
+### Фактический production-деплой (2026-11-15)
+
+| Компонент | Значение |
+| --- | --- |
+| Frontend | https://birge-professional.vercel.app |
+| Backend | https://birge-api.onrender.com |
+| Render web | `birge-api`, free, Oregon, root `birge-backend` |
+| Postgres | `birge-postgres`, free, удалится 2026-12-14 |
+| Key Value | `birge-redis`, free 25 MB, persistence off |
+| CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
+| Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` set; webhook registered |
+
+Free-план: web засыпает после простоя; Pre-Deploy недоступен; миграции
+выполняются в start command; у Postgres нет PITR/автобэкапов; база будет
+удалена 14.12.2026. Для production без этих ограничений нужен платный план.
+
+Frontend deployment:
+
+- Vercel project `birge-professional`, root `birge`, framework Vite;
+- production alias `https://birge-professional.vercel.app`;
+- `VITE_API_URL=https://birge-api.onrender.com` задан в Vercel Environment.
+
 Backend deployment:
 
 - Render настраивается вручную: web service, managed Postgres, Key Value;
 - root directory: `birge-backend`; runtime: Python 3;
-- web-команда: `uvicorn main:app --host 0.0.0.0 --port $PORT`;
-- миграции: `alembic upgrade head` отдельным Pre-Deploy шагом;
+- web-команда (free): `alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT`;
+- миграции: на free-плане Pre-Deploy недоступен, поэтому `alembic upgrade head` уже стоит в start command;
 - health check: `/ready` (Postgres + Redis);
-- используйте платные Postgres/Key Value для production; проверьте plan/region;
+- текущие Postgres/Key Value — free (Postgres до 14.12.2026, Redis 25 MB без persistence); для production нужен платный план;
 - staging — отдельные сервисы, БД, Redis и секреты;
 - backup/restore: `docs/RUNBOOK.md`;
-- `Procfile` содержит `release: alembic upgrade head`; на Render продублируйте
-  это в **Pre-Deploy Command** сервиса.
+- `Procfile` содержит `release: alembic upgrade head`; на free-плане Render это
+  не используется — миграции уже включены в start command.
 
 ## 7. Важные оговорки
 
-- Git-репозиторий создан, но remote ещё не настроен; CI на GitHub не запускался.
-  Локально те же команды проходят.
-- Реальные Telegram, ImgBB, PostgreSQL и Render-сценарии не проверялись.
-- Frontend UI вручную не прокликивался; проверены тесты и production build.
+- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `89db8ab`; GitHub Actions CI/Security зелёные.
+  Локальные проверки также проходят.
+- Render/Vercel/Postgres/CORS проверены: `/health` и `/ready` — 200; Telegram webhook зарегистрирован, но успешная доставка кода требует привязки номера; ImgBB, Sentry и `ADMIN_PHONES` не настроены.
+- Frontend login-экран открыт; полный вход, поездки и чат вручную не прокликивались.
 - `npm audit`: 6 low/moderate только в dev/build/PWA-цепочке, high/critical нет; `npm audit --omit=dev` — 0.
 - `pytest` предупреждает о будущем `httpx2` в Starlette TestClient; это не ошибка.
+- Free Postgres не имеет PITR/автобэкапов и удалится 14.12.2026; до этой даты нужен upgrade или ручной `pg_dump`.
 - Realtime использует Redis Pub/Sub при `REDIS_URL`; без него работает
   in-process fallback для локальной разработки.
 - Redis multiprocess-тесты локально используют RESP-заглушку; в CI — реальный
@@ -252,9 +282,9 @@ Backend deployment:
 1. P0 закрыт: WS/SSE, trip-request и `App.jsx` разделены.
 2. P1-код закрыт: Redis Pub/Sub, rate limiting, write-лимиты, DB constraints,
    audit log, `/ready`, JSON-логи, Sentry SDK и backup/restore runbook.
-3. Настроить Render вручную по `docs/RUNBOOK.md`, заполнить секреты,
-   проверить `/ready` и провести restore drill.
-4. Проверить Dependabot, gitleaks и CI на GitHub после настройки remote.
+3. Проверить вход по коду с номером, привязанным через `@BirgeAuthBot`, по `docs/RUNBOOK.md`, §3,
+   затем решить вопрос upgrade Postgres до 14.12.2026.
+4. CI/Security уже проверены; повторить после следующего push.
 5. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
    axe/visual contrast sweep, i18n, аналитика, ETA/маршруты, модерация,
    export/delete.
