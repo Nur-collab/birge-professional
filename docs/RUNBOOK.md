@@ -304,3 +304,70 @@ staging at it.
 
 Render setup, secret entry and the first restore drill require dashboard access
 and are intentionally manual steps.
+
+## 9. Postgres protection plan until 2026-12-14
+
+`birge-postgres` is a free instance and will be deleted on **2026-12-14 at
+08:11 UTC**. It has no PITR and no automatic backups. Treat the dates below as
+gates, not suggestions.
+
+### Recommended path: upgrade to a paid plan
+
+Upgrade the existing `birge-postgres` in place so the data and hostname stay
+the same. Choose the smallest paid plan that provides PITR/Recovery; verify that
+the Recovery page is active after the upgrade. If in-place upgrade is not
+available, create a paid instance, restore the latest dump there, update
+`DATABASE_URL`, redeploy, verify, and only then remove the free instance.
+
+### Timeline
+
+| Dates | Action |
+| --- | --- |
+| 15–17 Nov | Baseline `pg_dump`, checksum, restore into a temporary database, record row counts and Alembic revision. |
+| 18–24 Nov | Upgrade `birge-postgres` to paid (or provision a paid replacement); enable PITR/Recovery and take a post-upgrade dump. |
+| 25 Nov–1 Dec | Daily encrypted logical dumps with 30-day retention; weekly restore drill; rotate the database credential. |
+| 2–7 Dec | Final cutover if a new instance was created; run login, trips, chat and photo smoke checks; freeze schema changes. |
+| 8–13 Dec | Final dump and restore verification; confirm no service uses the old `DATABASE_URL`; update this runbook. |
+| 14 Dec | Free instance expires. Confirm production is running only on the paid database. |
+
+Targets: RPO ≤ 15 minutes once PITR is active; RTO ≤ 2 hours for a full
+restore and smoke test. Keep at least 30 days of logical dumps even after PITR
+is enabled; PITR protects from operator error, not from account/provider loss.
+
+### If paid is not possible
+
+Move the data to another managed Postgres before 14 Dec using the same dump and
+restore procedure. The free Render database will be deleted regardless. Daily
+dumps without a managed target are only a temporary measure, with up to 24
+hours of data loss.
+
+### Baseline dump and restore
+
+External access to Postgres is blocked; temporarily add the operator IP in
+**Networking → Inbound IP Rules** and remove it immediately after the dump.
+
+```bash
+pg_dump "$DATABASE_URL" \
+  --format=custom --no-owner --no-acl \
+  --file "birge-$(date +%Y%m%d-%H%M).dump"
+
+pg_restore --list "birge-YYYYMMDD-HHMM.dump" >/dev/null
+
+pg_restore --clean --if-exists --no-owner --no-acl \
+  -d "$RESTORE_DATABASE_URL" "birge-YYYYMMDD-HHMM.dump"
+```
+
+Verify at minimum: restore exits 0, `alembic_version` matches production, core
+tables have rows, `/ready` passes against the restored database, and a read-only
+trip/login query succeeds. Record the dump timestamp, SHA-256 checksum, row
+counts and restore duration in the deployment notes.
+
+### Security rules
+
+- Encrypt dumps before storing them off Render and restrict access to the
+  backup location; do not commit dumps to Git.
+- Keep Postgres external access blocked outside the short dump window.
+- Do not run migrations concurrently from multiple instances.
+- Alert on backup failure and on `/ready` failure.
+- Test the restore path before 10 Dec so the 14 Dec deletion is not the first
+  time the dump is exercised.
