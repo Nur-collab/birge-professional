@@ -13,7 +13,7 @@ birge-professional/
 ## Requirements
 
 - Node.js 20.19+
-- Python 3.10+
+- Python 3.12+
 - PostgreSQL for production; SQLite is supported for local development and tests
 
 ## Local setup
@@ -37,6 +37,24 @@ For local Redis-backed tests (Docker required):
 docker compose up -d redis
 cd birge-backend
 TEST_REDIS_URL=redis://localhost:6379/0 ./venv/Scripts/python.exe -m pytest -q
+```
+
+For a real PostgreSQL migration check without Docker, install the E2E
+requirements and run the ephemeral PostgreSQL 16 helper:
+
+```bash
+cd birge-backend
+pip install -r requirements.txt -r requirements-e2e.txt
+python scripts/check_postgres_migrations.py
+```
+
+Alternatively, use the Compose service:
+
+```bash
+docker compose up -d postgres
+cd birge-backend
+DATABASE_URL=postgresql://birge:birge@localhost:5432/birge_test alembic upgrade head
+DATABASE_URL=postgresql://birge:birge@localhost:5432/birge_test alembic check
 ```
 
 The API is available at `http://127.0.0.1:8000`. Interactive docs:
@@ -87,9 +105,16 @@ ruff check .
 cd birge
 npm test
 npm run build
+
+# browser E2E (Playwright Chromium; install once with npm run e2e:install)
+# starts ephemeral PostgreSQL 16, applies Alembic and seeds the test user
+npm run e2e
 ```
 
-CI runs the same checks on every push and pull request.
+CI runs backend tests, SQLite migration checks, a real PostgreSQL 16
+migration check, frontend tests/build and the browser E2E workflow on every
+push and pull request. The E2E backend also uses PostgreSQL 16 (ephemeral
+`pgserver`), not SQLite.
 
 ## Environment variables
 
@@ -99,6 +124,8 @@ Backend (see `birge-backend/.env.example`):
 |---|---|---|
 | `ENVIRONMENT` | production | `development`, `test` or `production` |
 | `SECRET_KEY` | yes | JWT signing key; generate a long random value |
+| `PII_ENCRYPTION_KEY` | production | Encrypts MBank phone and ElKart number at rest; required in production |
+| `OTP_HASH_KEY` | no | Optional separate HMAC key for OTP hashes; defaults to `SECRET_KEY` |
 | `DATABASE_URL` | yes | PostgreSQL URL in production, SQLite locally |
 | `ALLOWED_ORIGINS` | production | Comma-separated exact frontend origins |
 | `TELEGRAM_BOT_TOKEN` | production | Telegram code delivery and bot |
@@ -141,7 +168,8 @@ are templates only.
 ## Architecture rules
 
 - Routers own HTTP concerns; services own business rules; models own persistence.
-- All schema changes go through Alembic; do not use `create_all` in production.
+- All schema changes go through Alembic; do not use `create_all` in production. The isolated Playwright seed script refuses production databases and runs only after Alembic has created the schema.
+- Payment PII is encrypted with a versioned Fernet format. Set `PII_ENCRYPTION_KEY` before deploying; do not rotate it without a re-encryption migration. OTP codes are stored only as HMAC-SHA256 hashes; the PII migration invalidates outstanding plaintext codes once.
 - Every new endpoint needs an authorization check and a regression test.
 - Do not add a dependency without a clear need and a pinned version.
 - Realtime uses Redis Pub/Sub when `REDIS_URL` is set; without it, local

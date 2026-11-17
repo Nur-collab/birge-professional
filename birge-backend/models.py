@@ -1,7 +1,22 @@
 from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, String, Float, DateTime, BigInteger, Text, text
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import TypeDecorator
 from database import Base
 from datetime import datetime, timezone
+from pii_crypto import decrypt_if_needed, encrypt_if_needed
+
+
+class EncryptedString(TypeDecorator):
+    """Transparently encrypt payment PII while keeping the existing VARCHAR schema."""
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        return encrypt_if_needed(value)
+
+    def process_result_value(self, value, dialect):
+        return decrypt_if_needed(value)
 
 class User(Base):
     __tablename__ = "users"
@@ -15,12 +30,14 @@ class User(Base):
     trips_today = Column(Integer, default=0)
     registered_since = Column(String, default="2024")
     last_trip_date = Column(String) # For daily reset: 'YYYY-MM-DD'
+    # Incrementing this value revokes every access/refresh token of the user.
+    token_version = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
     car_model = Column(String)
     car_color = Column(String)
     car_plate = Column(String)
-    mbank_phone = Column(String)
-    elkart_number = Column(String)
+    mbank_phone = Column(EncryptedString)
+    elkart_number = Column(EncryptedString)
 
     trips = relationship("Trip", back_populates="user")
     reviews = relationship("Review", foreign_keys="[Review.user_id]", back_populates="user")
@@ -153,11 +170,36 @@ class SmsCode(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phone = Column(String, index=True)
-    code = Column(String)
+    code = Column(String)                              # HMAC-SHA256, never plaintext
     expires_at = Column(DateTime(timezone=True))       # Когда код истекает (5 минут)
     last_sent_at = Column(DateTime(timezone=True))     # Когда последний раз отправляли (rate limit)
     is_used = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)             # Счётчик неверных попыток (защита от brute-force)
+
+
+class RefreshSession(Base):
+    """One issued refresh token; rotation revokes the previous JTI."""
+
+    __tablename__ = "refresh_sessions"
+    __table_args__ = (
+        Index("ix_refresh_sessions_user_revoked", "user_id", "revoked_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    jti_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
 
 
 # Telegram: привязка номера телефона к chat_id

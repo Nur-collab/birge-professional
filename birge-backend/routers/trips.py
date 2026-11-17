@@ -213,7 +213,9 @@ def create_trip_ws_ticket(
     if not is_trip_participant(db, trip_id, current_user.id):
         raise HTTPException(status_code=403, detail="Access denied to this trip chat")
     return {
-        "ticket": auth_service.create_ws_ticket(current_user.id, trip_id),
+        "ticket": auth_service.create_ws_ticket(
+            current_user.id, trip_id, current_user.token_version or 0
+        ),
         "expires_in": auth_service.WS_TICKET_EXPIRE_SECONDS,
     }
 

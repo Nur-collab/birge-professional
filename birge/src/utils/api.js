@@ -17,7 +17,8 @@
  * }} TripView
  */
 
-export const API_URL = import.meta.env.VITE_API_URL || 'https://birge-backend.onrender.com';
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+export const API_URL = configuredApiUrl || 'https://birge-api.onrender.com';
 const TOKEN_KEY = 'birge_token';
 const REFRESH_TOKEN_KEY = 'birge_refresh_token';
 
@@ -192,7 +193,13 @@ export const api = {
     return data;
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      // Revoke the refresh token on the server too, not only in this browser.
+      await authFetch('/auth/logout', { method: 'POST' });
+    } catch (_) {
+      // Local logout must still work when the network or API is unavailable.
+    }
     tokenStorage.clear();
     if (activeChatWs) {
       try { activeChatWs.close(); } catch (_) {}
@@ -453,6 +460,14 @@ export const api = {
 
   createWsTicket: async (tripId) => {
     return authFetch(`/trips/${tripId}/ws-ticket`, { method: 'POST' });
+  },
+
+  /** @returns {Promise<{ticket: string, expires_in: number}>} */
+  createSseTicket: async (stream) => {
+    return authFetch(
+      `/trip-requests/sse-ticket?stream=${encodeURIComponent(stream)}`,
+      { method: 'POST' },
+    );
   },
 
   subscribeTripMessages: (tripId, callback) => {

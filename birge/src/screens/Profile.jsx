@@ -373,9 +373,13 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           <ExternalLink size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
         </a>
         <button type="button" className="menu-item" style={{ color: '#f43f5e' }} onClick={() => {
-          localStorage.removeItem('birge_token');
-          if (onLogout) onLogout();
-          else window.location.reload();
+          if (onLogout) {
+            void onLogout();
+          } else {
+            localStorage.removeItem('birge_token');
+            localStorage.removeItem('birge_refresh_token');
+            window.location.reload();
+          }
         }}>
           <LogOut size={20} color="#f43f5e" />
           <span>{t('profile.logout')}</span>

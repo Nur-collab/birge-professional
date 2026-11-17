@@ -98,6 +98,12 @@ birge-backend/realtime.py         # WebSocket/SSE state + is_trip_participant
 4. Sentry SDK подключён к backend и frontend; нужен DSN и проверка событий.
 5. Production задеплоен на Render/Vercel; Telegram-токен и webhook настроены, осталось проверить вход с привязанным номером.
 6. Dependabot, `pip-audit` и gitleaks настроены; CI/Security проверены на `89db8ab`.
+7. P1 hardening (2026-11-15): добавлены server-side revocation через `User.token_version`,
+   `/auth/logout`, проверка версии в HTTP/SSE/WS, SSE-ticket вместо access token
+   в query, экранирование HTML в карте, security headers и безопасный API fallback.
+   PostgreSQL migration check and browser SSE-ticket E2E added. P1 encryption/OTP
+   (migration `5c8f1a2b9d4e`), one-time refresh rotation (`6e2b7c4d1a3f`) and
+   Python 3.12 runtime/CI are now in place.
 
 P2: deep links, OpenAPI-типы и accessibility-baseline готовы; дальше
 automated axe/visual contrast sweep, i18n, аналитика воронки, ETA/маршруты,
@@ -110,18 +116,22 @@ automated axe/visual contrast sweep, i18n, аналитика воронки, ET
 ```text
 backend:
   ruff check .                 -> passed
-  pytest -q                    -> 44 passed (Redis multiprocess + write/constraints/audit/readiness/logging/Sentry/trip detail)
+  pytest -q                    -> 53 passed (Redis multiprocess + write/constraints/audit/readiness/logging/Sentry/trip detail/security/logout/SSE ticket/PII/OTP/refresh rotation/refresh cleanup)
 frontend:
-  npm test                     -> 14 passed (routing + API + date + a11y)
+  npm test                     -> 19 passed (routing + API + date + a11y + XSS escaping + SSE ticket)
   npm run build                -> passed
-  npm run api:types            -> passed (src/types/api.d.ts, 2166 lines)
+  npm run api:types            -> passed (src/types/api.d.ts, updated for /auth/logout and /trip-requests/sse-ticket)
+browser E2E:
+  npm run e2e                  -> 3 passed on PostgreSQL 16.2 (ticket issuance + EventSource; ?token rejection; logout revocation)
 database:
-  alembic upgrade head         -> passed
+  alembic upgrade head         -> passed (fresh SQLite)
   alembic check                -> no new upgrade operations
+  PostgreSQL migration check   -> passed locally against ephemeral PostgreSQL 16.2 with migrations 5c8f1a2b9d4e and 6e2b7c4d1a3f; CI postgres:16 step added
+  Python 3.12.10               -> 53 passed; ruff passed; PostgreSQL migration check passed
 live:
   GET https://birge-api.onrender.com/health -> 200
   GET https://birge-api.onrender.com/ready -> 200
-  GET https://birge-api.onrender.com/openapi.json -> 200 (31 paths)
+  GET https://birge-api.onrender.com/openapi.json -> 200 (production still 32 paths; local snapshot has 33 and needs deployment)
 telegram:
   getWebhookInfo -> url https://birge-api.onrender.com/bot/webhook, pending 0, no errors
 ```
@@ -140,6 +150,7 @@ cd C:\Users\User\.gemini\antigravity\scratch\birge-professional\birge-backend
 cd C:\Users\User\.gemini\antigravity\scratch\birge-professional\birge
 npm test
 npm run build
+npm run e2e
 npm run dev
 ```
 
@@ -151,6 +162,11 @@ npm run dev
 Проверено, что в OpenAPI присутствуют:
 
 ```text
+/auth/send-code           POST
+/auth/verify-code         POST
+/auth/refresh             POST
+/auth/logout              POST (revokes all sessions)
+
 /users/me                 GET, PATCH
 /users/{user_id}          GET
 /users/me/photo           POST
@@ -173,15 +189,16 @@ npm run dev
 /trip-requests/incoming/            GET
 /trip-requests/{request_id}         PATCH
 /trip-requests/status/{trip_id}     GET
-/trip-requests/driver-events/{driver_id} GET (SSE)
-/trip-requests/events/{requester_id}     GET (SSE)
+/trip-requests/driver-events/{driver_id} GET (SSE, ?ticket=)
+/trip-requests/events/{requester_id}     GET (SSE, ?ticket=)
+/trip-requests/sse-ticket                POST
 ```
 
 WebSocket `/ws/chat/{trip_id}/{user_id}` зарегистрирован, но в OpenAPI не попадает.
 
 `birge/openapi.json` экспортируется скриптом
-`birge-backend/scripts/export_openapi.py` (31 path, 18 schemas), а
-`npm run api:types` генерирует `birge/src/types/api.d.ts`. JSDoc в
+`birge-backend/scripts/export_openapi.py` (33 paths, 18 schemas), а
+`npm run api:types` генерирует `birge/src/types/api.d.ts` (2217 lines). JSDoc в
 `birge/src/utils/api.js` использует сгенерированный `Trip`.
 
 Схемы ответов сохранены: `/users/me` → `User`, `/users/{user_id}` →
@@ -205,6 +222,8 @@ HTTP-проверки trips добавлены в `tests/test_api.py`, вклю�
 ```text
 ENVIRONMENT=production
 SECRET_KEY=<long random>
+PII_ENCRYPTION_KEY=<long random, do not rotate without re-encryption>
+OTP_HASH_KEY=<optional separate random key>
 DATABASE_URL=postgresql://...
 ALLOWED_ORIGINS=https://<frontend>
 TELEGRAM_BOT_TOKEN=...
@@ -265,7 +284,9 @@ Backend deployment:
 
 ## 7. Важные оговорки
 
-- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `89db8ab`; GitHub Actions CI/Security зелёные.
+- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `1ea03ea`;
+  P1 hardening от 2026-11-15 пока не закоммичен. GitHub Actions CI/Security
+  проверялись на `89db8ab` — после push нужно повторить.
   Локальные проверки также проходят.
 - Render/Vercel/Postgres/CORS проверены: `/health` и `/ready` — 200; Telegram webhook зарегистрирован, но успешная доставка кода требует привязки номера; ImgBB, Sentry и `ADMIN_PHONES` не настроены.
 - Frontend login-экран открыт; полный вход, поездки и чат вручную не прокликивались.
@@ -282,10 +303,14 @@ Backend deployment:
 1. P0 закрыт: WS/SSE, trip-request и `App.jsx` разделены.
 2. P1-код закрыт: Redis Pub/Sub, rate limiting, write-лимиты, DB constraints,
    audit log, `/ready`, JSON-логи, Sentry SDK и backup/restore runbook.
-3. Проверить вход по коду с номером, привязанным через `@BirgeAuthBot`, по `docs/RUNBOOK.md`, §3,
+3. P1 hardening 2026-11-15: revocation/logout, XSS escaping, security headers,
+   API fallback, SSE-ticket, PostgreSQL migration CI and browser E2E. P1 encryption/OTP,
+   one-time refresh rotation and Python 3.12 runtime/CI are complete; GitHub Actions
+   still needs a run after the next push.
+4. Проверить вход по коду с номером, привязанным через `@BirgeAuthBot`, по `docs/RUNBOOK.md`, §3,
    затем решить вопрос upgrade Postgres до 14.12.2026.
-4. CI/Security уже проверены; повторить после следующего push.
-5. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
+5. CI/Security уже проверены; повторить после следующего push.
+6. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
    axe/visual contrast sweep, i18n, аналитика, ETA/маршруты, модерация,
    export/delete.
 

@@ -45,8 +45,18 @@ async def websocket_endpoint(
         await websocket.close(code=1008, reason="Invalid or forbidden ticket")
         return
 
-    # Проверяем права доступа к чату поездки (точечная сессия, не блокирующая пул)
+    # Проверяем права доступа к чату поездки и актуальность сессии
+    # (точечная сессия, не блокирующая пул).
     with SessionLocal() as db:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        ticket_version = auth.get_token_version(ticket, "ws")
+        if (
+            not user
+            or ticket_version is None
+            or ticket_version != (user.token_version or 0)
+        ):
+            await websocket.close(code=1008, reason="Session has been revoked")
+            return
         if not is_trip_participant(db, trip_int_id, user_id):
             await websocket.close(code=1008, reason="Access denied to this trip chat")
             return

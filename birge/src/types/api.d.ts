@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke every token issued to the user, including other devices.
+         */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -230,7 +250,7 @@ export interface paths {
          * @description SSE-стрим для водителя.
          *     Открывается пока водитель в поиске или в активной поездке;
          *     при каждом новом запросе от пассажира водитель получает event мгновенно.
-         *     Токен: Authorization header ИЛИ ?token= (EventSource не поддерживает хедеры).
+         *     Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
          */
         get: operations["driver_trip_request_events_trip_requests_driver_events__driver_id__get"];
         put?: never;
@@ -252,7 +272,7 @@ export interface paths {
          * Trip Request Events
          * @description SSE-стрим для пассажира. Открывается на время поиска;
          *     когда водитель принимает запрос — пассажир получает event мгновенно.
-         *     Токен: Authorization header (обычные запросы) ИЛИ ?token= (EventSource).
+         *     Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
          */
         get: operations["trip_request_events_trip_requests_events__requester_id__get"];
         put?: never;
@@ -278,6 +298,26 @@ export interface paths {
         get: operations["get_incoming_requests_trip_requests_incoming__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trip-requests/sse-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue Sse Ticket
+         * @description Issue a 60-second ticket for the current user's SSE stream.
+         */
+        post: operations["issue_sse_ticket_trip_requests_sse_ticket_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1000,9 +1040,38 @@ export type $defs = Record<string, never>;
 export interface operations {
     run_admin_cleanup_admin_cleanup_trips_post: {
         parameters: {
-            query?: {
-                token?: string | null;
+            query?: never;
+            header?: {
+                authorization?: string | null;
             };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1242,9 +1311,7 @@ export interface operations {
     };
     create_review_reviews__post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1279,9 +1346,7 @@ export interface operations {
     };
     send_trip_request_trip_requests__post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1317,11 +1382,9 @@ export interface operations {
     driver_trip_request_events_trip_requests_driver_events__driver_id__get: {
         parameters: {
             query?: {
-                token?: string | null;
+                ticket?: string | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 driver_id: number;
             };
@@ -1352,11 +1415,9 @@ export interface operations {
     trip_request_events_trip_requests_events__requester_id__get: {
         parameters: {
             query?: {
-                token?: string | null;
+                ticket?: string | null;
             };
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 requester_id: number;
             };
@@ -1386,8 +1447,39 @@ export interface operations {
     };
     get_incoming_requests_trip_requests_incoming__get: {
         parameters: {
-            query?: {
-                token?: string | null;
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_sse_ticket_trip_requests_sse_ticket_post: {
+        parameters: {
+            query: {
+                stream: "driver" | "requester";
             };
             header?: {
                 authorization?: string | null;
@@ -1419,9 +1511,7 @@ export interface operations {
     };
     check_request_status_trip_requests_status__trip_id__get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1454,9 +1544,7 @@ export interface operations {
     };
     respond_to_request_trip_requests__request_id__patch: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1493,9 +1581,7 @@ export interface operations {
     };
     create_trip_trips__post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1536,7 +1622,6 @@ export interface operations {
                 destination: string;
                 time: string;
                 date?: string | null;
-                token?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -1568,9 +1653,7 @@ export interface operations {
     };
     get_trip_detail_trips__trip_id__get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1603,9 +1686,7 @@ export interface operations {
     };
     cancel_trip_trips__trip_id__delete: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1638,9 +1719,7 @@ export interface operations {
     };
     get_trip_messages_trips__trip_id__messages_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1673,9 +1752,7 @@ export interface operations {
     };
     send_trip_message_trips__trip_id__messages_post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1712,9 +1789,7 @@ export interface operations {
     };
     send_panic_alert_trips__trip_id__panic_post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1747,9 +1822,7 @@ export interface operations {
     };
     get_trip_passengers_trips__trip_id__passengers_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1782,9 +1855,7 @@ export interface operations {
     };
     get_trip_payment_trips__trip_id__payment_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1817,9 +1888,7 @@ export interface operations {
     };
     update_trip_status_trips__trip_id__status_patch: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1856,9 +1925,7 @@ export interface operations {
     };
     create_trip_ws_ticket_trips__trip_id__ws_ticket_post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1891,9 +1958,7 @@ export interface operations {
     };
     read_current_user_users_me_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1924,9 +1989,7 @@ export interface operations {
     };
     update_current_user_users_me_patch: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1961,9 +2024,7 @@ export interface operations {
     };
     get_my_active_trip_users_me_active_trip_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -1994,9 +2055,7 @@ export interface operations {
     };
     upload_profile_photo_users_me_photo_post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -2031,9 +2090,7 @@ export interface operations {
     };
     read_scheduled_trips_users_me_scheduled_trips_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -2064,9 +2121,7 @@ export interface operations {
     };
     read_current_user_trips_users_me_trips_get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -2097,9 +2152,7 @@ export interface operations {
     };
     verify_user_users_me_verify_post: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -2130,9 +2183,7 @@ export interface operations {
     };
     read_user_public_users__user_id__get: {
         parameters: {
-            query?: {
-                token?: string | null;
-            };
+            query?: never;
             header?: {
                 authorization?: string | null;
             };

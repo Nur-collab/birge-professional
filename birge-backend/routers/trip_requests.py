@@ -1,9 +1,9 @@
 """Trip-request routes and server-sent event streams."""
 import asyncio
 import json
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -12,7 +12,7 @@ import auth
 import models
 import schemas
 from database import get_db
-from dependencies import _extract_token, get_current_user
+from dependencies import get_current_user
 from rate_limit import enforce_user_limit
 from realtime import (
     driver_sse_manager,
@@ -25,29 +25,56 @@ from time_utils import get_bishkek_now, get_bishkek_today_str
 router = APIRouter(prefix="/trip-requests", tags=["trip-requests"])
 
 
+def _authorize_sse_ticket(
+    ticket: Optional[str],
+    stream: str,
+    target_id: int,
+    db: Session,
+) -> None:
+    """Validate a short-lived SSE ticket and its session version."""
+    if not ticket:
+        raise HTTPException(status_code=401, detail="SSE ticket required")
+
+    user_id = auth.verify_sse_ticket(ticket, stream, target_id)
+    if not user_id or user_id != target_id:
+        raise HTTPException(status_code=403, detail="Invalid or expired SSE ticket")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    ticket_version = auth.get_token_version(ticket, "sse")
+    if ticket_version is None or ticket_version != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Session has been revoked")
+
+
+@router.post("/sse-ticket")
+def issue_sse_ticket(
+    stream: Literal["driver", "requester"],
+    current_user: models.User = Depends(get_current_user),
+):
+    """Issue a 60-second ticket for the current user's SSE stream."""
+    ticket = auth.create_sse_ticket(
+        current_user.id,
+        stream,
+        current_user.id,
+        current_user.token_version or 0,
+    )
+    return {"ticket": ticket, "expires_in": auth.SSE_TICKET_EXPIRE_SECONDS}
+
+
 @router.get("/driver-events/{driver_id}")
 async def driver_trip_request_events(
     driver_id: int,
-    authorization: Optional[str] = Header(None),
-    token: Optional[str] = None,
+    ticket: Optional[str] = None,
+    db: Session = Depends(get_db),
 ):
     """SSE-стрим для водителя.
     Открывается пока водитель в поиске или в активной поездке;
     при каждом новом запросе от пассажира водитель получает event мгновенно.
-    Токен: Authorization header ИЛИ ?token= (EventSource не поддерживает хедеры).
+    Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
     """
-    raw_token: str = ""
-    if authorization and authorization.startswith("Bearer "):
-        raw_token = _extract_token(authorization)
-    elif token:
-        raw_token = token
-
-    if not raw_token:
-        raise HTTPException(status_code=401, detail="Authentication token required")
-
-    token_user_id = auth.verify_token(raw_token)
-    if not token_user_id or token_user_id != driver_id:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    _authorize_sse_ticket(ticket, "driver", driver_id, db)
 
     q = driver_sse_manager.subscribe(driver_id)
 
@@ -72,25 +99,14 @@ async def driver_trip_request_events(
 @router.get("/events/{requester_id}")
 async def trip_request_events(
     requester_id: int,
-    authorization: Optional[str] = Header(None),
-    token: Optional[str] = None,
+    ticket: Optional[str] = None,
+    db: Session = Depends(get_db),
 ):
     """SSE-стрим для пассажира. Открывается на время поиска;
     когда водитель принимает запрос — пассажир получает event мгновенно.
-    Токен: Authorization header (обычные запросы) ИЛИ ?token= (EventSource).
+    Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
     """
-    raw_token: str = ""
-    if authorization and authorization.startswith("Bearer "):
-        raw_token = _extract_token(authorization)
-    elif token:
-        raw_token = token
-
-    if not raw_token:
-        raise HTTPException(status_code=401, detail="Authentication token required")
-
-    token_user_id = auth.verify_token(raw_token)
-    if not token_user_id or token_user_id != requester_id:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    _authorize_sse_ticket(ticket, "requester", requester_id, db)
 
     q = sse_manager.subscribe(requester_id)
 

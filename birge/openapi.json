@@ -919,22 +919,6 @@
         "operationId": "run_admin_cleanup_admin_cleanup_trips_post",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -972,6 +956,54 @@
           }
         },
         "summary": "Run Admin Cleanup"
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Revoke every token issued to the user, including other devices.",
+        "operationId": "logout_auth_logout_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/refresh": {
@@ -1245,22 +1277,6 @@
         "operationId": "create_review_reviews__post",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -1318,22 +1334,6 @@
         "operationId": "send_trip_request_trip_requests__post",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -1388,7 +1388,7 @@
     },
     "/trip-requests/driver-events/{driver_id}": {
       "get": {
-        "description": "SSE-стрим для водителя.\nОткрывается пока водитель в поиске или в активной поездке;\nпри каждом новом запросе от пассажира водитель получает event мгновенно.\nТокен: Authorization header ИЛИ ?token= (EventSource не поддерживает хедеры).",
+        "description": "SSE-стрим для водителя.\nОткрывается пока водитель в поиске или в активной поездке;\nпри каждом новом запросе от пассажира водитель получает event мгновенно.\nАвторизация: короткоживущий ?ticket= вместо access-токена в URL.",
         "operationId": "driver_trip_request_events_trip_requests_driver_events__driver_id__get",
         "parameters": [
           {
@@ -1402,7 +1402,7 @@
           },
           {
             "in": "query",
-            "name": "token",
+            "name": "ticket",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1413,23 +1413,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
+              "title": "Ticket"
             }
           }
         ],
@@ -1461,7 +1445,7 @@
     },
     "/trip-requests/events/{requester_id}": {
       "get": {
-        "description": "SSE-стрим для пассажира. Открывается на время поиска;\nкогда водитель принимает запрос — пассажир получает event мгновенно.\nТокен: Authorization header (обычные запросы) ИЛИ ?token= (EventSource).",
+        "description": "SSE-стрим для пассажира. Открывается на время поиска;\nкогда водитель принимает запрос — пассажир получает event мгновенно.\nАвторизация: короткоживущий ?ticket= вместо access-токена в URL.",
         "operationId": "trip_request_events_trip_requests_events__requester_id__get",
         "parameters": [
           {
@@ -1475,7 +1459,7 @@
           },
           {
             "in": "query",
-            "name": "token",
+            "name": "ticket",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1486,23 +1470,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
+              "title": "Ticket"
             }
           }
         ],
@@ -1537,22 +1505,6 @@
         "description": "Водитель получает входящие запросы (pending).\nВозвращает только запросы адресованные ТЕКУЩЕМУ пользователю.",
         "operationId": "get_incoming_requests_trip_requests_incoming__get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -1596,6 +1548,67 @@
         ]
       }
     },
+    "/trip-requests/sse-ticket": {
+      "post": {
+        "description": "Issue a 60-second ticket for the current user's SSE stream.",
+        "operationId": "issue_sse_ticket_trip_requests_sse_ticket_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "stream",
+            "required": true,
+            "schema": {
+              "enum": [
+                "driver",
+                "requester"
+              ],
+              "title": "Stream",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Sse Ticket",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
     "/trip-requests/status/{trip_id}": {
       "get": {
         "description": "Пассажир проверяет статус своего запроса на поездку водителя (polling).\nrequester_id берётся из JWT — пользователь не может запросить чужой статус.",
@@ -1608,22 +1621,6 @@
             "schema": {
               "title": "Trip Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {
@@ -1684,22 +1681,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -1756,22 +1737,6 @@
       "post": {
         "operationId": "create_trip_trips__post",
         "parameters": [
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -1885,22 +1850,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -1964,22 +1913,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2032,22 +1965,6 @@
             "schema": {
               "title": "Trip Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {
@@ -2110,22 +2027,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2184,22 +2085,6 @@
             "schema": {
               "title": "Trip Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {
@@ -2272,22 +2157,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2342,22 +2211,6 @@
             "schema": {
               "title": "Trip Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {
@@ -2418,22 +2271,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2488,22 +2325,6 @@
             "schema": {
               "title": "Trip Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {
@@ -2574,22 +2395,6 @@
             }
           },
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2638,22 +2443,6 @@
         "operationId": "read_current_user_users_me_get",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2701,22 +2490,6 @@
         "description": "Обновляет профиль и данные машины текущего пользователя.",
         "operationId": "update_current_user_users_me_patch",
         "parameters": [
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -2777,22 +2550,6 @@
         "operationId": "get_my_active_trip_users_me_active_trip_get",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2840,22 +2597,6 @@
         "description": "Загружает фото профиля через сервер, не раскрывая ImgBB-ключ в браузере.",
         "operationId": "upload_profile_photo_users_me_photo_post",
         "parameters": [
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -2915,22 +2656,6 @@
         "operationId": "read_scheduled_trips_users_me_scheduled_trips_get",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2978,22 +2703,6 @@
         "description": "Возвращает историю поездок пользователя (и как водителя, и как пассажира).",
         "operationId": "read_current_user_trips_users_me_trips_get",
         "parameters": [
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
           {
             "in": "header",
             "name": "authorization",
@@ -3049,22 +2758,6 @@
         "operationId": "verify_user_users_me_verify_post",
         "parameters": [
           {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
-            }
-          },
-          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -3119,22 +2812,6 @@
             "schema": {
               "title": "User Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token"
             }
           },
           {

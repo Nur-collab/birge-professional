@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -190,7 +192,8 @@ def test_trip_request_http_flow(client, db):
 def test_current_user_and_refresh_token_flow(client, db):
     user = _user(db, "+996555000001", "Водитель")
     access = auth.create_access_token({"sub": str(user.id)})
-    refresh = auth.create_refresh_token({"sub": str(user.id)})
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
 
     response = client.get("/users/me", headers={"Authorization": f"Bearer {access}"})
     assert response.status_code == 200
@@ -202,6 +205,179 @@ def test_current_user_and_refresh_token_flow(client, db):
 
     failed = client.post("/auth/refresh", json={"refresh_token": access})
     assert failed.status_code == 401
+
+
+def test_verify_code_issues_a_rotatable_refresh_token(client, db):
+    phone = "+996555000008"
+    assert auth.save_sms_code(phone, "123456", db)[0] is True
+
+    response = client.post(
+        "/auth/verify-code",
+        json={"phone": phone, "code": "123456", "name": "Новый"},
+    )
+    assert response.status_code == 200
+    issued = response.json()["refresh_token"]
+
+    rotated = client.post("/auth/refresh", json={"refresh_token": issued})
+    assert rotated.status_code == 200
+    assert rotated.json()["refresh_token"] != issued
+
+
+def test_refresh_tokens_are_single_use(client, db):
+    user = _user(db, "+996555000005", "Ротация")
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    first = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert first.status_code == 200
+    rotated = first.json()["refresh_token"]
+    assert rotated != refresh
+
+    replay = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert replay.status_code == 401
+
+    second = client.post("/auth/refresh", json={"refresh_token": rotated})
+    assert second.status_code == 200
+
+
+def test_refresh_cleanup_removes_consumed_and_expired_sessions_only(client, db):
+    user = _user(db, "+996555000009", "Cleanup")
+    active = auth.issue_refresh_token(user, db)
+    db.commit()
+    assert active
+
+    now = datetime.now(timezone.utc)
+    revoked = models.RefreshSession(
+        user_id=user.id,
+        jti_hash="a" * 64,
+        expires_at=now + timedelta(days=1),
+        revoked_at=now,
+    )
+    expired = models.RefreshSession(
+        user_id=user.id,
+        jti_hash="b" * 64,
+        expires_at=now - timedelta(seconds=1),
+    )
+    db.add_all([revoked, expired])
+    db.commit()
+
+    assert auth.purge_refresh_sessions(db, user_id=user.id) == 2
+    db.commit()
+    remaining = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
+    assert len(remaining) == 1
+    assert remaining[0].revoked_at is None
+
+
+def test_refresh_rotation_purges_consumed_session(client, db):
+    user = _user(db, "+996555000010", "Rotation cleanup")
+    original = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    rotated = auth.rotate_refresh_token(original, user, db)
+    assert rotated
+    db.commit()
+
+    remaining = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
+    assert len(remaining) == 1
+    assert auth.rotate_refresh_token(original, user, db) is None
+
+
+def test_payment_pii_is_encrypted_at_rest_but_readable_through_api(client, db):
+    user = _user(db, "+996555000006", "PII")
+    user.elkart_number = "123456"
+    db.commit()
+
+    from sqlalchemy import text
+
+    raw = db.execute(
+        text("SELECT mbank_phone, elkart_number FROM users WHERE id = :user_id"),
+        {"user_id": user.id},
+    ).one()
+    assert raw[0].startswith("enc:v1:")
+    assert raw[0] != "+996555000006"
+    assert raw[1].startswith("enc:v1:")
+    assert raw[1] != "123456"
+
+    db.refresh(user)
+    response = client.get("/users/me", headers=_headers(user))
+    assert response.status_code == 200
+    assert response.json()["mbank_phone"] == "+996555000006"
+    assert response.json()["elkart_number"] == "123456"
+
+
+def test_otp_codes_are_hashed_at_rest(client, db):
+    user = _user(db, "+996555000007", "OTP")
+    phone = "+996555000007"
+    assert auth.save_sms_code(phone, "123456", db)[0] is True
+
+    stored = db.query(models.SmsCode).filter(models.SmsCode.phone == phone).one()
+    assert stored.code != "123456"
+    assert len(stored.code) == 64
+    assert stored.code == auth.hash_sms_code(phone, "123456")
+    assert auth.verify_sms_code(phone, "123456", db) is True
+
+    # A fresh code must be hashed too, and the old hash must not authenticate it.
+    assert auth.save_sms_code(phone, "654321", db)[0] is False
+    db.query(models.SmsCode).filter(models.SmsCode.phone == phone).delete()
+    db.commit()
+    assert auth.save_sms_code(phone, "654321", db)[0] is True
+    assert auth.verify_sms_code(phone, "123456", db) is False
+    assert auth.verify_sms_code(phone, "654321", db) is True
+    assert client.get("/users/me", headers=_headers(user)).status_code == 200
+
+
+def test_logout_revokes_access_and_refresh_tokens(client, db):
+    user = _user(db, "+996555000003", "Сессия")
+    access = auth.create_access_token({"sub": str(user.id)})
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
+    headers = {"Authorization": f"Bearer {access}"}
+
+    assert client.get("/users/me", headers=headers).status_code == 200
+
+    logout = client.post("/auth/logout", headers=headers)
+    assert logout.status_code == 200
+    db.refresh(user)
+    assert user.token_version == 1
+    assert db.query(models.RefreshSession).filter_by(user_id=user.id).count() == 0
+
+    assert client.get("/users/me", headers=headers).status_code == 401
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": refresh}
+    ).status_code == 401
+
+    fresh_access = auth.create_access_token({"sub": str(user.id), "ver": 1})
+    assert client.get(
+        "/users/me", headers={"Authorization": f"Bearer {fresh_access}"}
+    ).status_code == 200
+
+
+def test_sse_ticket_is_bound_to_stream_and_user(client, db):
+    user = _user(db, "+996555000004", "SSE")
+    headers = _headers(user)
+
+    response = client.post(
+        "/trip-requests/sse-ticket?stream=requester", headers=headers
+    )
+    assert response.status_code == 200
+    ticket = response.json()["ticket"]
+    assert response.json()["expires_in"] == 60
+
+    assert auth.verify_sse_ticket(ticket, "requester", user.id) == user.id
+    assert auth.verify_sse_ticket(ticket, "driver", user.id) is None
+    assert auth.verify_sse_ticket(ticket, "requester", user.id + 1) is None
+
+    access = auth.create_access_token({"sub": str(user.id)})
+    legacy_token = client.get(
+        f"/trip-requests/events/{user.id}?token={access}"
+    )
+    assert legacy_token.status_code == 401
+
+    assert client.post("/auth/logout", headers=headers).status_code == 200
+    revoked = client.get(
+        f"/trip-requests/events/{user.id}?ticket={ticket}"
+    )
+    assert revoked.status_code == 401
 
 
 def test_admin_endpoint_requires_admin_allowlist(client, db):
@@ -331,6 +507,27 @@ def test_readiness_and_request_id(client):
     assert ready.status_code == 200
     assert ready.json() == {"status": "ready"}
     assert "/ready" in client.get("/openapi.json").json()["paths"]
+
+
+def test_security_headers_and_current_cors_origin(client):
+    response = client.get("/health")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert "geolocation=(self)" in response.headers["Permissions-Policy"]
+    assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]
+
+    # Локальный .env может переопределять production-список, поэтому
+    # проверяем preflight для фактически разрешённого origin.
+    allowed_origin = main.ALLOWED_ORIGINS[0]
+    preflight = client.options(
+        "/health",
+        headers={
+            "Origin": allowed_origin,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.headers["access-control-allow-origin"] == allowed_origin
 
 
 def test_write_rate_limit_returns_429(client, db, monkeypatch):

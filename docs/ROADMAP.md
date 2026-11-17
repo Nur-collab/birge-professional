@@ -34,8 +34,17 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 - [x] Structured logs with request IDs
 - [~] Sentry SDK wired for backend + frontend (DSN/project validation pending)
 - [x] Separate liveness (`/health`) and readiness (`/ready`) probes
+- [x] Server-side session revocation: `User.token_version`, checked for HTTP, SSE and WS; `/auth/logout` revokes refresh tokens
+- [x] Escape user-controlled map balloon HTML and add baseline security headers
+- [x] Safe production API fallback and no local Telegram webhook registration by default
 - [~] Staging environment, database backups and restore drill (runbook ready; manual Render setup/drill pending)
 - [~] Dependabot, `pip-audit` and secret scanning (configured; verify on GitHub)
+- [x] Short-lived SSE tickets instead of access token in the query string; WS/SSE tickets carry `token_version`
+- [x] Browser E2E for SSE ticket issuance and EventSource auth (Playwright; 3 tests pass locally on PostgreSQL 16.2)
+- [x] Encrypt payment details at rest (Fernet `enc:v1:`) and hash OTP codes (HMAC-SHA256); data migration added
+- [x] One-time refresh-token rotation via persisted hashed JTI; replay is rejected and consumed/expired rows are purged
+- [x] PostgreSQL migration check (local ephemeral PostgreSQL 16.2 passed; CI postgres:16 job added)
+- [x] Python 3.12+ runtime (CI uses Python 3.12; tests pass on 3.12.10 locally)
 
 ## P2 — product and UX
 

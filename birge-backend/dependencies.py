@@ -2,7 +2,7 @@
 import os
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 import auth
@@ -17,15 +17,12 @@ def _extract_token(authorization: Optional[str]) -> str:
 
 def get_current_user(
     authorization: Optional[str] = Header(None),
-    token: Optional[str] = Query(None),  # для SSE (EventSource не шлёт заголовки)
     db: Session = Depends(get_db),
 ) -> models.User:
-    """Возвращает текущего пользователя по JWT-токену."""
+    """Возвращает текущего пользователя по Bearer-токену из заголовка."""
     raw_token: Optional[str] = None
     if authorization and authorization.startswith("Bearer "):
         raw_token = _extract_token(authorization)
-    elif token:
-        raw_token = token
 
     if not raw_token:
         raise HTTPException(
@@ -47,6 +44,14 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
+        )
+
+    token_version = auth.get_token_version(raw_token)
+    if token_version is None or token_version != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return user
 

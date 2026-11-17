@@ -11,6 +11,7 @@ import models
 import schemas
 from config import IS_PRODUCTION
 from database import get_db
+from dependencies import get_current_user
 from rate_limit import get_rate_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -33,6 +34,11 @@ def _client_ip(request: Request) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
+
+
+def _token_payload(user: models.User) -> dict:
+    """Claims for a session that can be revoked via User.token_version."""
+    return {"sub": str(user.id), "ver": int(user.token_version or 0)}
 
 
 async def _check_send_code_rate(ip: str) -> None:
@@ -147,8 +153,10 @@ async def verify_code(req: VerifyCodePayload, request: Request, db: Session = De
 
     # Создаём JWT токены (sub строго строковый). Профиль отдаём сразу,
     # чтобы клиент не делал второй запрос и не зависел от гонки сети.
-    access_token = auth_service.create_access_token({"sub": str(user.id)})
-    refresh_token = auth_service.create_refresh_token({"sub": str(user.id)})
+    token_data = _token_payload(user)
+    access_token = auth_service.create_access_token(token_data)
+    refresh_token = auth_service.issue_refresh_token(user, db)
+    db.commit()
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -173,9 +181,38 @@ def refresh_access_token(req: schemas.RefreshTokenRequest, db: Session = Depends
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
+    token_version = auth_service.get_token_version(req.refresh_token, "refresh")
+    if token_version is None or token_version != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Session has been revoked")
+
+    new_refresh_token = auth_service.rotate_refresh_token(req.refresh_token, user, db)
+    if not new_refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has already been used or revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    db.commit()
+
+    token_data = _token_payload(user)
     return {
-        "access_token": auth_service.create_access_token({"sub": str(user.id)}),
-        "refresh_token": auth_service.create_refresh_token({"sub": str(user.id)}),
+        "access_token": auth_service.create_access_token(token_data),
+        "refresh_token": new_refresh_token,
         "token_type": "bearer",
         "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
+
+
+@router.post("/logout")
+def logout(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke every token issued to the user, including other devices."""
+    current_user.token_version = int(current_user.token_version or 0) + 1
+    # The version bump invalidates every session; remove the now-dead rows too.
+    db.query(models.RefreshSession).filter(
+        models.RefreshSession.user_id == current_user.id
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True}

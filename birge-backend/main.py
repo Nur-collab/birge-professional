@@ -96,6 +96,26 @@ async def request_id_middleware(request, call_next):
         reset_request_id(token)
 
 
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    """Add baseline browser protections to every API response."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(self), camera=(), microphone=(), payment=()"
+    )
+    response.headers["Content-Security-Policy"] = (
+        "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    )
+    if IS_PRODUCTION:
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 app.include_router(auth_router)
 app.include_router(trips_router)
 app.include_router(users_router)
@@ -146,6 +166,7 @@ _DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:4173",
+    "https://birge-professional.vercel.app",
     "https://birge-nine.vercel.app",
     "https://birge.vercel.app",
     "https://birge-5c900.web.app",
@@ -960,7 +981,9 @@ async def startup_tasks():
     # --- Telegram webhook ---
     import os
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    render_url = os.environ.get("RENDER_EXTERNAL_URL", "https://birge-backend.onrender.com")
+    # Не подставляем production-домен: локальный запуск с реальным токеном
+    # не должен перехватывать webhook у задеплоенного backend.
+    render_url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
     if not token or not render_url:
         print("[Telegram] TELEGRAM_BOT_TOKEN или RENDER_EXTERNAL_URL не заданы — webhook не зарегистрирован")
         return

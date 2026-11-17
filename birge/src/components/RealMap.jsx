@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { YMaps, Map, Placemark, GeolocationControl, ZoomControl, Polyline } from '@pbe/react-yandex-maps';
 import { MapPin } from 'lucide-react';
+import { escapeHtml } from '../utils/escapeHtml';
 
 // Центр Бишкека
 const BISHKEK_CENTER = [42.8746, 74.5698];
@@ -175,7 +176,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                                 geometry={fromCoords}
                                 properties={{
                                     hintContent: 'Точка отправления',
-                                    balloonContent: `<b>Откуда:</b> ${from || '—'}`
+                                    balloonContent: `<b>Откуда:</b> ${escapeHtml(from || '—')}`
                                 }}
                                 options={{
                                     preset: 'islands#greenDotIcon',
@@ -188,7 +189,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                                 geometry={toCoords}
                                 properties={{
                                     hintContent: 'Точка назначения',
-                                    balloonContent: `<b>Куда:</b> ${to || '—'}`
+                                    balloonContent: `<b>Куда:</b> ${escapeHtml(to || '—')}`
                                 }}
                                 options={{
                                     preset: 'islands#redDotIcon',

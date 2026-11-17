@@ -124,38 +124,62 @@ export default function Matches({
       }
     };
 
-    // --- SSE: мгновенное уведомление от бэкенда ---
+    // --- SSE: короткоживущий ticket вместо access-токена в URL ---
     let es = null;
-    const token = localStorage.getItem('birge_token');
-    if (token && typeof EventSource !== 'undefined') {
-      // EventSource не поддерживает кастомные заголовки — передаём токен через ?token=
-      es = new EventSource(`${API_URL}/trip-requests/events/${currentUser.id}?token=${encodeURIComponent(token)}`);
+    let reconnectTimer = null;
+    let cancelled = false;
 
-      es.addEventListener('request_update', (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          // Обрабатываем ответ водителя (accepted/declined)
-          handleStatusUpdate(data);
-          // Обрабатываем SSE-событие завершения поездки водителем
-          if (data?.event === 'trip_completed' && !connectedRef.current) {
-            connectedRef.current = true;
-            const currentMatches = matchesRef.current || [];
-            const matchedTrip = currentMatches.find(m => m.id === data.trip_id) || currentMatches[0];
-            if (matchedTrip) {
-              Promise.resolve(onConnectRef.current({
-                ...matchedTrip,
-                id: data.trip_id,
-                requestInfo: { status: 'completed', trip_id: data.trip_id },
-              })).catch(() => { connectedRef.current = false; });
-            }
+    const handleSseEvent = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        // Обрабатываем ответ водителя (accepted/declined)
+        handleStatusUpdate(data);
+        // Обрабатываем SSE-событие завершения поездки водителем
+        if (data?.event === 'trip_completed' && !connectedRef.current) {
+          connectedRef.current = true;
+          const currentMatches = matchesRef.current || [];
+          const matchedTrip = currentMatches.find(m => m.id === data.trip_id) || currentMatches[0];
+          if (matchedTrip) {
+            Promise.resolve(onConnectRef.current({
+              ...matchedTrip,
+              id: data.trip_id,
+              requestInfo: { status: 'completed', trip_id: data.trip_id },
+            })).catch(() => { connectedRef.current = false; });
           }
-        } catch (_) { }
-      });
+        }
+      } catch (_) { }
+    };
 
-      es.onerror = () => {
-        // SSE недоступен или соединение разорвано — fallback polling подхватит
-      };
-    }
+    const connectSse = async () => {
+      if (cancelled || typeof EventSource === 'undefined') return;
+      try {
+        const ticketData = await api.createSseTicket('requester');
+        if (cancelled) return;
+        if (!ticketData?.ticket) throw new Error('SSE ticket is missing');
+
+        const source = new EventSource(
+          `${API_URL}/trip-requests/events/${currentUser.id}?ticket=${encodeURIComponent(ticketData.ticket)}`
+        );
+        es = source;
+        source.addEventListener('request_update', handleSseEvent);
+        source.onerror = () => {
+          // Ticket живёт 60 секунд; после обрыва получаем новый.
+          source.close();
+          if (es === source) es = null;
+          if (!cancelled) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(connectSse, 3000);
+          }
+        };
+      } catch (_) {
+        if (!cancelled) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connectSse, 5000);
+        }
+      }
+    };
+
+    connectSse();
 
     // --- Fallback polling: каждые 15 сек (резервный вариант если SSE не работает) ---
     const pollReqStatus = setInterval(async () => {
@@ -169,6 +193,8 @@ export default function Matches({
     }, 15000);
 
     return () => {
+      cancelled = true;
+      clearTimeout(reconnectTimer);
       es?.close();
       clearInterval(pollReqStatus);
     };

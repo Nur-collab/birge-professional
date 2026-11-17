@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import os
 import secrets
 import httpx
@@ -34,6 +36,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "30"
 
 SMS_CODE_TTL_MINUTES = 5        # Код действителен 5 минут
 SMS_RATE_LIMIT_SECONDS = 60     # Повторная отправка — не чаще 1 раза в 60 сек
+_OTP_HASH_SECRET = os.environ.get("OTP_HASH_KEY", "").strip() or SECRET_KEY
 
 # Telegram Bot (токен должен задаваться в переменных окружения Render / .env)
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -94,20 +97,125 @@ def create_access_token(data: dict):
     return _create_token(data, "access", timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
 
 
-def create_refresh_token(data: dict):
-    return _create_token(data, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+def create_refresh_token(data: dict, jti: Optional[str] = None):
+    payload = data.copy()
+    if jti:
+        payload["jti"] = jti
+    return _create_token(payload, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
 
 
-def _decode_token(token: str, expected_type: str) -> Optional[int]:
+def get_refresh_payload(token: str) -> Optional[dict]:
+    """Return validated refresh claims, including the rotation JTI."""
+    return _decode_payload(token, "refresh")
+
+
+def get_refresh_jti(token: str) -> Optional[str]:
+    payload = get_refresh_payload(token)
+    jti = payload.get("jti") if payload else None
+    return jti if isinstance(jti, str) and jti else None
+
+
+def hash_refresh_jti(jti: str) -> str:
+    return hashlib.sha256(jti.encode("utf-8")).hexdigest()
+
+
+def purge_refresh_sessions(db, user_id: Optional[int] = None, now: Optional[datetime] = None) -> int:
+    """Delete revoked or expired refresh sessions without touching active ones."""
+    from models import RefreshSession
+
+    now = now or datetime.now(timezone.utc)
+    query = db.query(RefreshSession)
+    if user_id is not None:
+        query = query.filter(RefreshSession.user_id == user_id)
+
+    stale_ids: list[int] = []
+    for session in query.all():
+        expires_at = session.expires_at
+        if expires_at is not None and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if session.revoked_at is not None or expires_at is None or expires_at < now:
+            stale_ids.append(session.id)
+
+    if stale_ids:
+        db.query(RefreshSession).filter(RefreshSession.id.in_(stale_ids)).delete(
+            synchronize_session="fetch"
+        )
+    return len(stale_ids)
+
+
+def issue_refresh_token(user, db) -> str:
+    """Issue a refresh token and persist its one-time JTI hash."""
+    from models import RefreshSession
+
+    # Keep the per-user session table bounded; only stale rows are removed.
+    purge_refresh_sessions(db, user_id=user.id)
+
+    jti = secrets.token_urlsafe(32)
+    token = create_refresh_token(
+        {"sub": str(user.id), "ver": int(user.token_version or 0)},
+        jti=jti,
+    )
+    db.add(
+        RefreshSession(
+            user_id=user.id,
+            jti_hash=hash_refresh_jti(jti),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+    )
+    return token
+
+
+def rotate_refresh_token(token: str, user, db) -> Optional[str]:
+    """Consume a refresh JTI and issue its replacement; return None if used/invalid."""
+    from models import RefreshSession
+
+    jti = get_refresh_jti(token)
+    if not jti:
+        return None
+    now = datetime.now(timezone.utc)
+    session = (
+        db.query(RefreshSession)
+        .filter(
+            RefreshSession.jti_hash == hash_refresh_jti(jti),
+            RefreshSession.user_id == user.id,
+            RefreshSession.revoked_at.is_(None),
+        )
+        .with_for_update()
+        .first()
+    )
+    if not session:
+        return None
+    expires_at = session.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at is None or expires_at < now:
+        session.revoked_at = now
+        return None
+    session.revoked_at = now
+    return issue_refresh_token(user, db)
+
+
+def _decode_payload(token: str, expected_type: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # Токены, выданные до разделения access/refresh, не имеют claim typ.
         token_type = payload.get("typ", "access")
         if token_type != expected_type:
             return None
-        user_id_str = payload.get("sub")
-        return int(user_id_str) if user_id_str is not None else None
-    except (jwt.InvalidTokenError, ValueError):
+        if payload.get("sub") is None:
+            return None
+        return payload
+    except (jwt.InvalidTokenError, ValueError, TypeError):
+        return None
+
+
+def _decode_token(token: str, expected_type: str) -> Optional[int]:
+    payload = _decode_payload(token, expected_type)
+    if payload is None:
+        return None
+    try:
+        return int(payload["sub"])
+    except (TypeError, ValueError):
         return None
 
 
@@ -121,13 +229,30 @@ def verify_refresh_token(token: str) -> Optional[int]:
     return _decode_token(token, "refresh")
 
 
+def get_token_version(token: str, expected_type: str = "access") -> Optional[int]:
+    """Возвращает версию сессии из токена; старые токены считаются версией 0."""
+    payload = _decode_payload(token, expected_type)
+    if payload is None:
+        return None
+    try:
+        version = int(payload.get("ver", 0))
+    except (TypeError, ValueError):
+        return None
+    return version if version >= 0 else None
+
+
 WS_TICKET_EXPIRE_SECONDS = 60
+SSE_TICKET_EXPIRE_SECONDS = 60
 
 
-def create_ws_ticket(user_id: int, trip_id: int) -> str:
+def create_ws_ticket(user_id: int, trip_id: int, token_version: int = 0) -> str:
     """Короткоживущий ticket для WebSocket-подключения."""
     return _create_token(
-        {"sub": str(user_id), "trip_id": int(trip_id)},
+        {
+            "sub": str(user_id),
+            "trip_id": int(trip_id),
+            "ver": int(token_version),
+        },
         "ws",
         timedelta(seconds=WS_TICKET_EXPIRE_SECONDS),
     )
@@ -144,6 +269,40 @@ def verify_ws_ticket(token: str, trip_id: int) -> Optional[int]:
         user_id_str = payload.get("sub")
         return int(user_id_str) if user_id_str is not None else None
     except (jwt.InvalidTokenError, ValueError, TypeError):
+        return None
+
+
+def create_sse_ticket(
+    user_id: int,
+    stream: str,
+    target_id: int,
+    token_version: int = 0,
+) -> str:
+    """Короткоживущий ticket для одного SSE-стрима пользователя."""
+    return _create_token(
+        {
+            "sub": str(user_id),
+            "stream": stream,
+            "target_id": int(target_id),
+            "ver": int(token_version),
+        },
+        "sse",
+        timedelta(seconds=SSE_TICKET_EXPIRE_SECONDS),
+    )
+
+
+def verify_sse_ticket(token: str, stream: str, target_id: int) -> Optional[int]:
+    """Проверяет SSE-ticket: пользователь, стрим и target_id должны совпасть."""
+    payload = _decode_payload(token, "sse")
+    if payload is None:
+        return None
+    if payload.get("stream") != stream:
+        return None
+    try:
+        if int(payload.get("target_id", -1)) != int(target_id):
+            return None
+        return int(payload["sub"])
+    except (TypeError, ValueError):
         return None
 
 
@@ -265,6 +424,12 @@ async def send_telegram_message(
 
 # ---------- SMS через БД ----------
 
+def hash_sms_code(phone: str, code: str) -> str:
+    """HMAC-SHA256 OTP; the plaintext code never reaches the database."""
+    message = f"{phone}:{code}".encode("utf-8")
+    return hmac.new(_OTP_HASH_SECRET.encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+
 def save_sms_code(phone: str, code: str, db):
     """
     Сохраняет или обновляет SMS-код в БД.
@@ -287,7 +452,7 @@ def save_sms_code(phone: str, code: str, db):
                 return False, f"Подождите {wait} сек. перед повторной отправкой"
 
         # Обновляем существующую запись
-        existing.code = code
+        existing.code = hash_sms_code(phone, code)
         existing.expires_at = now + timedelta(minutes=SMS_CODE_TTL_MINUTES)
         existing.last_sent_at = now
         existing.is_used = False
@@ -296,7 +461,7 @@ def save_sms_code(phone: str, code: str, db):
         # Первый раз — создаём новую запись
         new_entry = SmsCode(
             phone=phone,
-            code=code,
+            code=hash_sms_code(phone, code),
             expires_at=now + timedelta(minutes=SMS_CODE_TTL_MINUTES),
             last_sent_at=now,
             is_used=False,
@@ -338,7 +503,8 @@ def verify_sms_code(phone: str, code: str, db) -> bool:
     if exp is None or exp < now:
         return False  # Код устарел
 
-    if entry.code != code:
+    expected = hash_sms_code(phone, code)
+    if not entry.code or not hmac.compare_digest(entry.code, expected):
         # Неверный код — увеличиваем попытки
         entry.attempts = current_attempts + 1
         if entry.attempts >= 5:

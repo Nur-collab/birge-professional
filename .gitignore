@@ -24,6 +24,11 @@
 **/coverage/
 **/.nyc_output/
 
+# Browser E2E artifacts
+birge/e2e/.auth.json
+birge/test-results/
+birge/playwright-report/
+
 # OS / editor
 .DS_Store
 Thumbs.db

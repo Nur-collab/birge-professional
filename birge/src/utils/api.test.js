@@ -22,6 +22,34 @@ describe('getCurrentUserId', () => {
   });
 });
 
+describe('SSE tickets', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    tokenStorage.set('access-token');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('requests a short-lived ticket instead of putting access token in SSE URL', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ticket: 'short-ticket', expires_in: 60 }),
+    }));
+
+    await expect(api.createSseTicket('requester')).resolves.toEqual({
+      ticket: 'short-ticket',
+      expires_in: 60,
+    });
+
+    const url = global.fetch.mock.calls[0][0];
+    expect(url).toContain('/trip-requests/sse-ticket?stream=requester');
+    expect(url).not.toContain('token=');
+  });
+});
+
 describe('auth refresh', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -71,5 +99,17 @@ describe('auth refresh', () => {
     expect(tokenStorage.get()).toBeNull();
     expect(tokenStorage.getRefresh()).toBeNull();
     expect(unauthorized).toHaveBeenCalledOnce();
+  });
+
+  it('clears local tokens even when the logout request fails', async () => {
+    global.fetch = vi.fn(async () => {
+      throw new Error('offline');
+    });
+
+    await api.logout();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(tokenStorage.get()).toBeNull();
+    expect(tokenStorage.getRefresh()).toBeNull();
   });
 });

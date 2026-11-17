@@ -88,12 +88,13 @@ export default function useAuth({ clearActiveTrip }) {
   };
 
   const handleLogout = async () => {
-    api.logout();
+    // Do not make the UI wait for the network: local logout is immediate.
     saveTrip(null);
     setCurrentUser(null);
     clearActiveTrip();
     setOrphanedTrip(null);
     setIsLoggedIn(false);
+    await api.logout();
   };
 
   const retryAuth = useCallback(() => {
