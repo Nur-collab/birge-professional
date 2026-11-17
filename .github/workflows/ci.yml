@@ -95,7 +95,7 @@ jobs:
           cache-dependency-path: |
             birge-backend/requirements.txt
             birge-backend/requirements-e2e.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -118,7 +118,7 @@ jobs:
         working-directory: birge
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
