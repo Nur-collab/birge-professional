@@ -17,11 +17,11 @@
   - `npm test`
   - `npm run build`
   - `npm run e2e` (Playwright; starts ephemeral PostgreSQL 16.2, runs Alembic, seeds a user and starts the Vite app)
-- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` currently has 32 paths; local snapshot after P1 changes has 33 and needs deployment.
-- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD `1ea03ea`; P1 hardening from 2026-11-15 is uncommitted.
-- CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks. New PostgreSQL/E2E workflow has not run on GitHub yet (changes uncommitted); CI/Security last verified on `89db8ab`.
+- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` has 33 paths on commit `2748929`.
+- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD `2748929`; P1 hardening is committed and live.
+- CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks. PostgreSQL/E2E workflow and CI/Security are green on `2748929`.
 
-## 2. Current Metrics (2026-11-16)
+## 2. Current Metrics (2026-11-17)
 
 - Backend tests: 53 passed (Sentry + participant-only trip detail + security headers + logout revocation + SSE ticket + encrypted PII + hashed OTP + refresh rotation/cleanup).
 - Frontend tests: 19 passed in 7 files (routing + API + date + a11y + XSS escaping + logout cleanup + SSE ticket).
@@ -29,22 +29,22 @@
 - Production build: passed (~9s); 18 precache entries; main JS 219.20 KB (53.28 KB gzip), CSS 7.73 KB (2.38 KB gzip), vendor-react 226.63 KB (74.21 KB gzip), lazy Sentry chunk 461.58 KB (156.20 KB gzip).
 - `main.py`: 1007 lines; `App.jsx`: 489 lines; `index.css`: 424 lines.
 - OpenAPI: 33 paths, 18 schemas; WS `/ws/chat/{trip_id}/{user_id}` is registered but absent from OpenAPI. Generated `src/types/api.d.ts` is 2217 lines.
-- P0: complete. P1: core code complete; P1 hardening done on 2026-11-15; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation and Python 3.12 runtime/CI are in place. Manual Render setup/restore drill and GitHub workflow run pending. P2: deep links, OpenAPI types and accessibility baseline complete.
+- P0: complete. P1: core code complete; P1 hardening done on 2026-11-15; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation and Python 3.12 runtime/CI are in place. Manual Render restore drill and post-migration backup remain; GitHub CI/Security passed on 2748929. P2: deep links, OpenAPI types and accessibility baseline complete.
 
 ## 3. Active Work State
 
-- Current goal: finish P1 security hardening, then P0 production database/backup work before 2026-12-14; P2 axe/visual contrast and i18n after that.
-- Working tree: P1 hardening changes are uncommitted; remote `origin` exists.
+- Current goal: P1 is deployed; finish production database/backup work before 2026-12-14, then P2 axe/visual contrast and i18n.
+- Working tree: clean at `2748929`; Render and Vercel are live on that commit.
 - P1 done: shared Redis rate limiting for auth and write endpoints; Redis Pub/Sub for SSE and WS chat; CHECK constraints and partial unique index; audit log; `/ready`; `X-Request-ID`; JSON logs with request id; optional Sentry backend/frontend; manual Render setup + backup/restore runbook; Dependabot/pip-audit/gitleaks/Redis compose.
 - P1 hardening 2026-11-15: `User.token_version` + `/auth/logout` revoke all sessions; token version checked in HTTP, SSE and WS; SSE uses a short-lived stream-bound ticket; escaped map balloon HTML; security headers on Vercel/API; current production CORS fallback; safe API URL; local startup no longer registers a production Telegram webhook without `RENDER_EXTERNAL_URL`.
-- Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub Actions run still pending.
+- Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub PostgreSQL/E2E job passed on 2748929.
 - P1 security 2026-11-16: payment PII encrypted at rest via Fernet (`enc:v1:`), OTP HMAC-SHA256, migration `5c8f1a2b9d4e`; refresh sessions/rotation migration `6e2b7c4d1a3f`; CI and docs moved to Python 3.12. 51 backend tests pass on 3.12.10; PostgreSQL migration check passes.
 - P2 done: React Router deep links, participant-only `GET /trips/{trip_id}`, Vercel SPA fallback, deterministic OpenAPI export + generated frontend types, accessibility baseline (labels, skip-link, focus, combobox, dialogs, icon labels, contrast tokens).
 - P1 tests: 53 backend tests; `tests/test_api.py` covers PII encryption, OTP hashing, refresh rotation/cleanup, logout/SSE and payment access. `tests/test_redis_multiprocess.py` covers shared rate limit, SSE and WS across separate OS processes. Local test uses `tests/redis_stub.py`; CI uses real Redis. `tests/test_logging.py` covers JSON formatting and request-id log correlation.
 - Hot files: `auth.py`, `pii_crypto.py`, `dependencies.py`, `rate_limit.py`, `realtime.py`, `logging_config.py`, `sentry_config.py`, `models.py`, `routers/{auth,trips,trip_requests,users}.py`, `birge/src/App.jsx`, `birge/src/index.css`, `birge/src/components/{AddressInput,RealMap,ReviewModal,TripRequestModal}.jsx`, `birge/src/screens/{Login,Dashboard,Profile,Settings,Matches}.jsx`, `birge/src/hooks/useAuth.js`, `birge/src/utils/{api,escapeHtml,routes}.js`, `birge/openapi.json`, `birge/src/types/api.d.ts`, `scripts/export_openapi.py`, `scripts/{seed_e2e,run_e2e_backend,stop_e2e_postgres,check_postgres_migrations}.py`, `birge/e2e/*`, `birge/playwright.config.js`, `tests/test_api.py`, `tests/test_logging.py`, `tests/test_redis_multiprocess.py`, `tests/test_sentry.py`, `alembic/versions/{3b8e4c1d9f2a_p1_constraints_and_audit,4d1e2f3a5b6c_add_token_version_to_users,5c8f1a2b9d4e_encrypt_pii_and_invalidate_plaintext_otp,6e2b7c4d1a3f_add_refresh_sessions}.py`, `docs/RUNBOOK.md`, `docs/MIGRATIONS.md`, `.github/workflows/ci.yml`, `.github/workflows/security.yml`.
-- Not done: Sentry DSN/project validation; manual Render setup/restore drill; verify new PostgreSQL/E2E workflow and Dependabot/gitleaks/real Redis/CI on GitHub; P2 axe/visual contrast sweep, i18n/analytics/moderation/export. PII/OTP encryption, refresh rotation and Python 3.12 are done.
+- Not done: Sentry DSN/project validation; manual Render restore drill and post-migration encrypted backup; Dependabot PR review; P2 axe/visual contrast sweep, i18n/analytics/moderation/export. PII/OTP encryption, refresh rotation, Python 3.12 and GitHub CI/Security are done.
 - Discarded: async Redis Pub/Sub against fakeredis TCP (does not deliver); custom RESP stub is used instead.
-- Immediate next prompt: "P1 security is closed locally; commit/push when authorized, verify the GitHub Actions PostgreSQL/E2E jobs, then continue P2 (axe/visual contrast, i18n, analytics) and the manual Render backup/restore drill."
+- Immediate next prompt: "P1 is deployed on `2748929`; take a post-migration encrypted backup, do the manual restore drill, then continue P2 (axe/visual contrast, i18n, analytics) and Dependabot review."
 
 ## 4. Architecture & Invariants
 
@@ -96,8 +96,7 @@
 
 ## 6. Rolling Changelog (max 5)
 
-- 2026-11-14: Render Blueprints removed by request; manual Render setup + backup/restore runbook retained.
-- 2026-11-14: P2 deep links + trip detail + Vercel fallback + OpenAPI types + accessibility baseline; 44 backend / 14 frontend tests.
 - 2026-11-15: P1 hardening: XSS escaping, security headers, safe API/webhook config, session revocation + `/auth/logout`, SSE ticket + WS version binding, migration `4d1e2f3a5b6c`; 47 backend / 19 frontend tests.
 - 2026-11-15: PostgreSQL 16.2 migration check and Playwright SSE-ticket E2E on PostgreSQL; 3 E2E passed; ephemeral PG cleanup verified.
 - 2026-11-16: PII/OTP hardening, refresh-token rotation/cleanup and Python 3.12 CI/runtime; 53 backend tests on 3.12.10.
+- 2026-11-17: P1 hardening committed/deployed as `2748929`; Render/Vercel live, CI/Security green; production OpenAPI 33 paths.

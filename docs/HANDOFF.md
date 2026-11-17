@@ -97,7 +97,7 @@ birge-backend/realtime.py         # WebSocket/SSE state + is_trip_participant
    `X-Request-ID`; JSON-логи включают request id.
 4. Sentry SDK подключён к backend и frontend; нужен DSN и проверка событий.
 5. Production задеплоен на Render/Vercel; Telegram-токен и webhook настроены, осталось проверить вход с привязанным номером.
-6. Dependabot, `pip-audit` и gitleaks настроены; CI/Security проверены на `89db8ab`.
+6. Dependabot, `pip-audit` и gitleaks настроены; CI/Security проверены на `2748929`.
 7. P1 hardening (2026-11-15): добавлены server-side revocation через `User.token_version`,
    `/auth/logout`, проверка версии в HTTP/SSE/WS, SSE-ticket вместо access token
    в query, экранирование HTML в карте, security headers и безопасный API fallback.
@@ -131,7 +131,7 @@ database:
 live:
   GET https://birge-api.onrender.com/health -> 200
   GET https://birge-api.onrender.com/ready -> 200
-  GET https://birge-api.onrender.com/openapi.json -> 200 (production still 32 paths; local snapshot has 33 and needs deployment)
+  GET https://birge-api.onrender.com/openapi.json -> 200 (33 paths; deployed on 2748929)
 telegram:
   getWebhookInfo -> url https://birge-api.onrender.com/bot/webhook, pending 0, no errors
 ```
@@ -247,7 +247,7 @@ Frontend production build:
 - `vite.config.js` намеренно падает, если production `VITE_API_URL` указывает
   на `localhost`, `127.0.0.1` или `0.0.0.0`.
 
-### Фактический production-деплой (2026-11-15)
+### Фактический production-деплой (2026-11-17, commit `2748929`)
 
 | Компонент | Значение |
 | --- | --- |
@@ -258,6 +258,7 @@ Frontend production build:
 | Key Value | `birge-redis`, free 25 MB, persistence off |
 | CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
 | Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` set; webhook registered |
+| Commit | `2748929`; Render Live, Vercel production Ready |
 
 Free-план: web засыпает после простоя; Pre-Deploy недоступен; миграции
 выполняются в start command; у Postgres нет PITR/автобэкапов; база будет
@@ -284,10 +285,9 @@ Backend deployment:
 
 ## 7. Важные оговорки
 
-- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `1ea03ea`;
-  P1 hardening от 2026-11-15 пока не закоммичен. GitHub Actions CI/Security
-  проверялись на `89db8ab` — после push нужно повторить.
-  Локальные проверки также проходят.
+- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `2748929`;
+  P1 hardening закоммичен и задеплоен. GitHub Actions CI/Security успешно
+  прошли на `2748929`; локальные проверки также проходят.
 - Render/Vercel/Postgres/CORS проверены: `/health` и `/ready` — 200; Telegram webhook зарегистрирован, но успешная доставка кода требует привязки номера; ImgBB, Sentry и `ADMIN_PHONES` не настроены.
 - Frontend login-экран открыт; полный вход, поездки и чат вручную не прокликивались.
 - `npm audit`: 6 low/moderate только в dev/build/PWA-цепочке, high/critical нет; `npm audit --omit=dev` — 0.
@@ -306,10 +306,10 @@ Backend deployment:
 3. P1 hardening 2026-11-15: revocation/logout, XSS escaping, security headers,
    API fallback, SSE-ticket, PostgreSQL migration CI and browser E2E. P1 encryption/OTP,
    one-time refresh rotation and Python 3.12 runtime/CI are complete; GitHub Actions
-   still needs a run after the next push.
+   CI/Security passed on `2748929`.
 4. Проверить вход по коду с номером, привязанным через `@BirgeAuthBot`, по `docs/RUNBOOK.md`, §3,
    затем решить вопрос upgrade Postgres до 14.12.2026.
-5. CI/Security уже проверены; повторить после следующего push.
+5. CI/Security проверены на `2748929`; Render/Vercel задеплоены на этот коммит.
 6. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
    axe/visual contrast sweep, i18n, аналитика, ETA/маршруты, модерация,
    export/delete.
