@@ -1,7 +1,7 @@
 fastapi==0.133.0
 uvicorn[standard]==0.41.0
 SQLAlchemy==2.0.47
-pydantic==2.12.5
+pydantic==2.14.3
 PyJWT==2.15.1
 cryptography==50.0.2
 passlib==1.7.4
