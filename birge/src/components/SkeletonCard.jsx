@@ -20,11 +20,11 @@ export default function SkeletonCard() {
 
             <style>{`
         .skeleton-card {
-          background: white;
+          background: var(--bg-card);
           border-radius: 16px;
           padding: 1rem;
-          border: 1px solid #f3f4f6;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          border: 1px solid var(--bg-subtle);
+          box-shadow: 0 2px 8px var(--shadow-soft);
         }
         .skeleton-header {
           display: flex;
@@ -36,7 +36,7 @@ export default function SkeletonCard() {
           width: 50px;
           height: 50px;
           border-radius: 50%;
-          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           flex-shrink: 0;
@@ -44,25 +44,25 @@ export default function SkeletonCard() {
         .skeleton-line {
           height: 16px;
           border-radius: 8px;
-          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
         }
         .skeleton-rect {
           border-radius: 2px;
-          background: #e5e7eb;
+          background: var(--border-subtle);
         }
         .skeleton-badge {
           width: 52px;
           height: 28px;
           border-radius: 14px;
-          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           flex-shrink: 0;
         }
         .skeleton-route {
-          background: #f9fafb;
+          background: var(--bg-input);
           border-radius: 8px;
           padding: 12px;
           margin-bottom: 1rem;
@@ -70,7 +70,7 @@ export default function SkeletonCard() {
         .skeleton-btn {
           height: 42px;
           border-radius: 8px;
-          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
         }

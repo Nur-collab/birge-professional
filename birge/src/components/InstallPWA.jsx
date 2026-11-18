@@ -66,17 +66,17 @@ export default function InstallPWA() {
           bottom: 70px; /* Над нижним меню */
           left: 15px;
           right: 15px;
-          background: rgba(255, 255, 255, 0.95);
+          background: var(--surface-glass);
           backdrop-filter: blur(10px);
           border-radius: 16px;
           padding: 12px 15px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          box-shadow: 0 10px 25px var(--shadow-medium);
           z-index: 1000;
           animation: slideUp 0.3s ease-out;
-          border: 1px solid rgba(255,255,255,0.4);
+          border: 1px solid var(--border-subtle);
         }
         .install-content {
           display: flex;
@@ -89,7 +89,7 @@ export default function InstallPWA() {
           height: 36px;
           border-radius: 10px;
           background: var(--primary);
-          color: white;
+          color: var(--on-primary);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -104,12 +104,12 @@ export default function InstallPWA() {
           margin: 0;
           font-weight: 600;
           font-size: 0.9rem;
-          color: #1f2937;
+          color: var(--text-main);
         }
         .install-desc {
           margin: 0;
           font-size: 0.75rem;
-          color: #4b5563;
+          color: var(--text-muted);
           line-height: 1.2;
           margin-top: 2px;
         }
@@ -130,7 +130,7 @@ export default function InstallPWA() {
         .close-btn {
           background: none;
           border: none;
-          color: #4b5563;
+          color: var(--text-muted);
           padding: 4px;
           display: flex;
           align-items: center;

@@ -219,51 +219,50 @@ export default function Matches({
   if (activeTrip) {
     return (
       <div className="matches screen-content">
-        <div className="glass-panel" style={{ padding: '24px 20px', borderRadius: 'var(--radius)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--primary)', padding: '6px 14px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, marginBottom: 16 }}>
-            <CheckCircle2 size={14} />
-            <span>{activeTrip.isScheduled ? 'Запланированная поездка' : 'Поездка в процессе'}</span>
-          </div>
-
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>
-            {activeTrip.origin} → {activeTrip.destination}
-          </h3>
-
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: 20, maxWidth: 360, margin: '0 auto 20px auto' }}>
+        <section className="matches-state-card">
+          <span className="matches-state-badge">
+            <CheckCircle2 size={14} aria-hidden="true" />
+            {activeTrip.isScheduled ? 'Запланированная поездка' : 'Поездка в процессе'}
+          </span>
+          <h2 className="matches-state-title">
+            {activeTrip.origin} <span className="matches-state-arrow">→</span> {activeTrip.destination}
+          </h2>
+          <p className="matches-state-text">
             {activeTrip.role === 'passenger'
-              ? `Вы уже едете с водителем ${activeTrip.user?.name || activeTrip.driverName || 'водителем'}. Чат и статус поездки открыты во вкладке «В пути».`
-              : `Поездка сформирована. Занято мест: ${activeTrip.seats_taken || 1} из ${activeTrip.seats || 3}. Управление поездкой доступно во вкладке «В пути».`}
+              ? 'Вы уже едете с водителем ' + (activeTrip.user?.name || activeTrip.driverName || 'водителем') + '. Чат и статус поездки открыты во вкладке «В пути».'
+              : 'Поездка сформирована. Занято мест: ' + (activeTrip.seats_taken || 1) + ' из ' + (activeTrip.seats || 3) + '. Управление поездкой доступно во вкладке «В пути».'}
           </p>
-
           <button
             type="button"
             onClick={onGoToActiveTrip}
-            className="primary-btn"
-            style={{ width: '100%', maxWidth: 320, margin: '0 auto', padding: '12px', borderRadius: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            className="primary-btn matches-state-action"
           >
-            <span>Перейти к поездке</span>
+            Перейти к поездке
           </button>
-        </div>
+        </section>
       </div>
     );
   }
 
   if (!searchCriteria && matches.length === 0) {
     return (
-      <div className="matches screen-content glass-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', borderRadius: 'var(--radius)', border: '1px solid var(--border-subtle)' }}>
-        <Navigation size={42} color="var(--primary)" style={{ margin: '0 auto 1rem auto' }} />
-        <h3 style={{ fontSize: '1.18rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-main)' }}>Нет активного поиска</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem', maxWidth: 320, margin: '0 auto 1.5rem auto' }}>
-          Укажите откуда и куда вы едете на главном экране, чтобы Birge подобрал подходящих попутчиков.
-        </p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="primary-btn"
-          style={{ width: 'auto', padding: '10px 24px', borderRadius: 10, fontWeight: 700, margin: '0 auto' }}
-        >
-          Перейти к поиску
-        </button>
+      <div className="matches screen-content">
+        <section className="matches-state-card">
+          <span className="matches-state-icon">
+            <Navigation size={22} aria-hidden="true" />
+          </span>
+          <h2 className="matches-state-title">Нет активного поиска</h2>
+          <p className="matches-state-text">
+            Укажите откуда и куда вы едете на главном экране, чтобы Birge подобрал подходящих попутчиков.
+          </p>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="secondary-btn matches-state-action"
+          >
+            Перейти к поиску
+          </button>
+        </section>
       </div>
     );
   }
@@ -271,43 +270,39 @@ export default function Matches({
   if (isLoading) {
     return (
       <div className="matches screen-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ color: 'var(--dark)', margin: 0 }}>{t('matches.searching')}</h2>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
-              padding: '7px 14px', borderRadius: 8, fontWeight: 700,
-              fontSize: '0.82rem', cursor: 'pointer', display: 'flex',
-              alignItems: 'center', gap: 5,
-            }}
-          >
-            <X size={14} /> Отмена
+        <header className="matches-heading">
+          <div>
+            <p className="matches-kicker">Подбираем попутчиков</p>
+            <h2 className="matches-title">{t('matches.searching')}</h2>
+          </div>
+          <button type="button" onClick={onCancel} className="matches-cancel">
+            <X size={14} aria-hidden="true" />
+            Отмена
           </button>
+        </header>
+        <div className="matches-list">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
-        <div className="matches-list"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
       </div>
     );
   }
 
   if (matches.length === 0) {
     return (
-      <div className="matches screen-content glass-panel" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-        <Clock size={40} color="var(--text-subtle)" style={{ margin: '0 auto 1rem auto' }} />
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 6 }}>{t('matches.empty')}</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>Ищем подходящих попутчиков по маршруту...</p>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{
-            background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
-            padding: '10px 24px', borderRadius: 10, fontWeight: 700,
-            fontSize: '0.88rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6
-          }}
-        >
-          <X size={15} aria-hidden="true" /> Отменить поиск
-        </button>
+      <div className="matches screen-content">
+        <section className="matches-state-card">
+          <span className="matches-state-icon">
+            <Clock size={22} aria-hidden="true" />
+          </span>
+          <h2 className="matches-state-title">{t('matches.empty')}</h2>
+          <p className="matches-state-text">Ищем подходящих попутчиков по маршруту...</p>
+          <button type="button" onClick={onCancel} className="secondary-btn matches-state-action">
+            <X size={15} aria-hidden="true" />
+            Отменить поиск
+          </button>
+        </section>
       </div>
     );
   }
@@ -315,43 +310,37 @@ export default function Matches({
   return (
     <div className="matches screen-content">
       {requestError && (
-        <div role="alert" style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 10, padding: '10px 14px', fontSize: '0.84rem', fontWeight: 600, marginBottom: 12 }}>
+        <div role="alert" className="matches-error">
           {requestError}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-        <h2 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
-          {isDriver ? 'Запросы пассажиров' : 'Доступные водители'}
-        </h2>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{
-            background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)',
-            padding: '7px 12px', borderRadius: 8, fontWeight: 700,
-            fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
-          }}
-        >
-          <X size={13} /> Отменить
-        </button>
-      </div>
 
-      {/* Фильтр-чипсы по дате */}
+      <header className="matches-heading">
+        <div>
+          <p className="matches-kicker">{isDriver ? 'Попутчики по маршруту' : 'По вашему маршруту'}</p>
+          <h2 className="matches-title">{isDriver ? 'Запросы пассажиров' : 'Доступные водители'}</h2>
+        </div>
+        <button type="button" onClick={onCancel} className="matches-cancel">
+          <X size={14} aria-hidden="true" />
+          Отменить
+        </button>
+      </header>
+
       {uniqueDates.length > 1 && (
         <div className="date-chips-row" role="group" aria-label="Фильтр по дате">
           <button
             type="button"
-            className={`date-chip ${activeDateFilter === null ? 'active' : ''}`}
+            className={'date-chip' + (activeDateFilter === null ? ' active' : '')}
             onClick={() => setActiveDateFilter(null)}
             aria-pressed={activeDateFilter === null}
           >
             Все
           </button>
-          {uniqueDates.map(d => (
+          {uniqueDates.map((d) => (
             <button
               key={d || 'null'}
               type="button"
-              className={`date-chip ${activeDateFilter === d ? 'active' : ''}`}
+              className={'date-chip' + (activeDateFilter === d ? ' active' : '')}
               onClick={() => setActiveDateFilter(d)}
               aria-pressed={activeDateFilter === d}
             >
@@ -362,169 +351,129 @@ export default function Matches({
       )}
 
       <div className="matches-list">
-        {filteredMatches.map(trip => {
+        {filteredMatches.map((trip) => {
           const status = requestStatus[trip.id];
           return (
-            <div key={trip.id} className="match-card glass-panel">
-              {/* Заголовок */}
-              <div className="match-header">
-                <img src={trip.user.photo} alt={trip.user.name} className="user-avatar" />
-                <div className="user-info">
-                  <div className="user-name">
-                    {trip.user.name}
-                    {trip.user.is_verified && <CheckCircle size={14} color="var(--primary)" />}
-                  </div>
-                  <div className="user-rating">
-                    <Star size={14} color="#f59e0b" fill="#f59e0b" />
-                    <span>{(trip.user.trust_rating || 5.0).toFixed(1)}</span>
-                  </div>
-                  {trip.role === 'driver' && trip.user.car_model && (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Car size={12} /> {trip.user.car_model}
+            <article key={trip.id} className="match-card">
+              <div className="match-card-top">
+                <div className="match-person">
+                  <img src={trip.user.photo} alt={trip.user.name} className="user-avatar" />
+                  <div className="match-person-info">
+                    <div className="user-name">
+                      <span>{trip.user.name}</span>
+                      {trip.user.is_verified && (
+                        <CheckCircle size={14} className="match-verified-icon" aria-label="Профиль подтверждён" />
+                      )}
                     </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div className="match-time glass-badge">{trip.time}</div>
-                  {trip.date && (
-                    <div className="date-badge">
-                      <Calendar size={10} />
-                      {formatChipLabel(trip.date)}
-                    </div>
-                  )}
-                  {/* Цена за место */}
-                  {trip.role === 'driver' && (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 3,
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 8, padding: '2px 8px',
-                    }}>
-                      <span style={{
-                        fontSize: '0.72rem', fontWeight: 700,
-                        color: trip.price_per_seat > 0 ? 'var(--primary)' : 'var(--text-muted)',
-                      }}>
-                        {trip.price_per_seat > 0 ? `${trip.price_per_seat} сом` : 'Договориться'}
+                    <div className="user-meta">
+                      <span>
+                        <Star size={13} className="match-rating-icon" fill="currentColor" aria-hidden="true" />
+                        {(trip.user.trust_rating || 5.0).toFixed(1)}
                       </span>
+                      {trip.role === 'driver' && trip.user.car_model && (
+                        <span>
+                          <Car size={13} aria-hidden="true" />
+                          {trip.user.car_model}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                {trip.role === 'driver' ? (
+                  trip.price_per_seat > 0 ? (
+                    <div className="match-price">
+                      <span className="match-price-value">{trip.price_per_seat}</span>
+                      <span className="match-price-unit">сом / место</span>
+                    </div>
+                  ) : (
+                    <span className="match-price-free">По договорённости</span>
+                  )
+                ) : (
+                  <span className="match-role-badge">Пассажир</span>
+                )}
+              </div>
+
+              <div className="match-route-card">
+                <div className="match-route-row">
+                  <span className="match-route-node match-route-node-from" aria-hidden="true" />
+                  <div>
+                    <span className="match-route-label">Откуда</span>
+                    <span className="match-route-place">{trip.from}</span>
+                  </div>
+                </div>
+                <div className="match-route-line" aria-hidden="true" />
+                <div className="match-route-row">
+                  <span className="match-route-node match-route-node-to" aria-hidden="true" />
+                  <div>
+                    <span className="match-route-label">Куда</span>
+                    <span className="match-route-place">{trip.to}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Маршрут */}
-              <div className="match-route">
-                <div className="route-point">
-                  <MapPin size={13} className="text-primary" />
-                  <span>{trip.from}</span>
-                </div>
-                <div className="route-divider"></div>
-                <div className="route-point">
-                  <Navigation size={13} className="text-danger" />
-                  <span>{trip.to}</span>
-                </div>
+              <div className="match-meta-row">
+                <span className="match-meta-chip">
+                  <Clock size={13} aria-hidden="true" />
+                  {trip.time}
+                </span>
+                {trip.date && (
+                  <span className="match-meta-chip">
+                    <Calendar size={13} aria-hidden="true" />
+                    {formatChipLabel(trip.date)}
+                  </span>
+                )}
               </div>
 
-              {/* Кнопка — разная в зависимости от роли */}
               {isDriver ? (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  textAlign: 'left', padding: '10px 12px',
-                  background: 'var(--bg-subtle)', borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 600
-                }}>
-                  <CheckCircle2 size={16} />
+                <div className="match-note">
+                  <CheckCircle2 size={16} aria-hidden="true" />
                   <span>Совпадение найдено. Ожидайте запрос от попутчика.</span>
                 </div>
               ) : (
                 <button
                   type="button"
-                  className="primary-btn match-btn"
-                  onClick={() => status ? null : handleSendRequest(trip)}
+                  className={'primary-btn match-btn' + (status ? ' is-' + status : '')}
+                  onClick={() => { if (!status) handleSendRequest(trip); }}
                   disabled={!!status}
                   aria-busy={status === 'sending'}
-                  style={{
-                    background: status === 'accepted' ? '#10b981'
-                      : status === 'declined' ? '#ef4444'
-                        : status === 'pending' ? '#f59e0b'
-                          : 'var(--primary)',
-                    color: 'white',
-                    opacity: status ? 0.9 : 1,
-                    cursor: status ? 'default' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}
                 >
-                  {status === 'sending' && <Loader size={16} aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }} />}
-                  {status === 'pending' && 'Ожидание ответа водителя...'}
-                  {status === 'accepted' && 'Принят. Открываем чат...'}
-                  {status === 'declined' && 'Отклонен'}
-                  {!status && <><Send size={15} /> Запросить поездку</>}
+                  {status === 'sending' && (
+                    <>
+                      <Loader size={16} className="spin" aria-hidden="true" />
+                      <span>Отправляем запрос...</span>
+                    </>
+                  )}
+                  {status === 'pending' && (
+                    <>
+                      <Clock size={15} aria-hidden="true" />
+                      <span>Ожидаем ответ водителя</span>
+                    </>
+                  )}
+                  {status === 'accepted' && (
+                    <>
+                      <CheckCircle2 size={15} aria-hidden="true" />
+                      <span>Водитель принял — открываем чат</span>
+                    </>
+                  )}
+                  {status === 'declined' && (
+                    <>
+                      <X size={15} aria-hidden="true" />
+                      <span>Запрос отклонён</span>
+                    </>
+                  )}
+                  {!status && (
+                    <>
+                      <Send size={15} aria-hidden="true" />
+                      <span>Запросить поездку</span>
+                    </>
+                  )}
                 </button>
               )}
-            </div>
+            </article>
           );
         })}
       </div>
-
-      <style>{`
-        .matches-list { display: flex; flex-direction: column; gap: 1rem; }
-        .match-card {
-          padding: 1.15rem;
-          background: var(--bg-card);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius);
-          box-shadow: var(--card-shadow);
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .match-card:hover { transform: translateY(-2px); box-shadow: var(--card-shadow-hover); }
-        .match-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
-        .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--bg-app); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .user-info { flex: 1; }
-        .user-name { font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 4px; }
-        .user-rating { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-        .glass-badge { background: rgba(16,185,129,0.15); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.9rem; }
-        .match-route { background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 1rem; }
-        .route-point { font-size: 0.85rem; color: var(--text-muted); }
-        .route-divider { height: 12px; width: 2px; background: var(--border-subtle); margin: 4px 0 4px 6px; }
-        .match-btn { margin-top: 0; padding: 10px; width: 100%; border-radius: 12px; font-weight: 600; font-size: 0.9rem; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* Date chips */
-        .date-chips-row {
-          display: flex; gap: 8px; flex-wrap: wrap;
-          margin-bottom: 1rem; overflow-x: auto;
-          scrollbar-width: none; padding-bottom: 2px;
-        }
-        .date-chips-row::-webkit-scrollbar { display: none; }
-        .date-chip {
-          flex-shrink: 0;
-          padding: 6px 14px;
-          border-radius: 20px;
-          border: 1.5px solid var(--border-subtle);
-          background: var(--bg-card);
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: var(--text-muted);
-          cursor: pointer;
-          transition: all 0.18s;
-          white-space: nowrap;
-        }
-        .date-chip:hover { border-color: var(--primary); color: var(--primary); }
-        .date-chip.active {
-          background: var(--primary);
-          border-color: var(--primary);
-          color: white;
-          box-shadow: 0 2px 8px var(--primary-glow);
-        }
-
-        /* Date badge on card */
-        .date-badge {
-          display: flex; align-items: center; gap: 3px;
-          font-size: 0.7rem; font-weight: 600;
-          color: #6366f1; background: rgba(99,102,241,0.15);
-          padding: 2px 8px; border-radius: 10px;
-        }
-      `}</style>
     </div>
   );
 }

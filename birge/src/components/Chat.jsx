@@ -98,21 +98,21 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
       <style>{`
         .chat { display: flex; flex-direction: column; height: 100%; min-height: 250px; max-height: 400px; padding: 0; overflow: hidden; }
         .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
-        .chat-empty { text-align: center; color: #6b7280; margin-top: auto; margin-bottom: auto; font-size: 0.9rem; }
+        .chat-empty { text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto; font-size: 0.9rem; }
         .message { display: flex; flex-direction: column; max-width: 85%; }
         .message-sent { align-self: flex-end; align-items: flex-end; }
         .message-received { align-self: flex-start; align-items: flex-start; }
-        .message-sender { font-size: 0.75rem; color: #6b7280; margin-bottom: 2px; margin-left: 4px; }
-        .message-bubble { padding: 10px 14px; border-radius: 16px; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .message-sent .message-bubble { background: linear-gradient(135deg, #10b981, #059669); color: white; border-bottom-right-radius: 4px; }
-        .message-received .message-bubble { background: #f3f4f6; color: #1f2937; border-bottom-left-radius: 4px; border: 1px solid #e5e7eb; }
-        .message-time { font-size: 0.7rem; color: #9ca3af; margin-top: 4px; }
-        .chat-input-area { display: flex; padding: 12px; background: white; border-top: 1px solid #f3f4f6; gap: 8px; }
-        .chat-input { flex: 1; border: 1px solid #e5e7eb; border-radius: 20px; padding: 10px 16px; outline: none; background: #f9fafb; color: #1f2937; font-size: 0.95rem; transition: all 0.2s; }
-        .chat-input:focus { background: white; border-color: #10b981; }
+        .message-sender { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; margin-left: 4px; }
+        .message-bubble { padding: 10px 14px; border-radius: 16px; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 5px var(--shadow-soft); }
+        .message-sent .message-bubble { background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border-bottom-right-radius: 4px; }
+        .message-received .message-bubble { background: var(--bg-subtle); color: var(--text-main); border-bottom-left-radius: 4px; border: 1px solid var(--border-subtle); }
+        .message-time { font-size: 0.7rem; color: var(--text-subtle); margin-top: 4px; }
+        .chat-input-area { display: flex; padding: 12px; background: var(--bg-card); border-top: 1px solid var(--bg-subtle); gap: 8px; }
+        .chat-input { flex: 1; border: 1px solid var(--border-subtle); border-radius: 20px; padding: 10px 16px; outline: none; background: var(--bg-input); color: var(--text-main); font-size: 0.95rem; transition: all 0.2s; }
+        .chat-input:focus { background: var(--bg-card); border-color: var(--primary); }
         .chat-input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-        .chat-send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .chat-send-btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+        .chat-send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .chat-send-btn:disabled { background: var(--border-subtle); color: var(--text-subtle); cursor: not-allowed; }
       `}</style>
     </div>
   );

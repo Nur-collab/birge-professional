@@ -51,11 +51,11 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
         return (
             <div className="modal-overlay">
                 <div ref={dialogRef} className="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-                    <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+                    <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--accent-border)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
                         <CheckCircle2 size={32} />
                     </div>
-                    <h3 id="review-title" role="status" style={{ color: '#10b981', marginBottom: '0.5rem' }}>{t('review.thanks')}</h3>
-                    <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('review.community')}</p>
+                    <h3 id="review-title" role="status" style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>{t('review.thanks')}</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('review.community')}</p>
                 </div>
             </div>
         );
@@ -66,8 +66,8 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
             <div ref={dialogRef} className="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
                 {/* Заголовок */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h3 id="review-title" style={{ color: '#1f2937', fontSize: '1.1rem' }}>{t('review.title')}</h3>
-                    <button type="button" onClick={onSkip} aria-label={t('cancel')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: 4 }}>
+                    <h3 id="review-title" style={{ color: 'var(--text-main)', fontSize: '1.1rem' }}>{t('review.title')}</h3>
+                    <button type="button" onClick={onSkip} aria-label={t('cancel')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
                         <X size={20} aria-hidden="true" />
                     </button>
                 </div>
@@ -77,10 +77,10 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                     <img
                         src={partner?.photo || `https://i.pravatar.cc/150?u=${partner?.id}`}
                         alt={partner?.name}
-                        style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', border: '3px solid #d1fae5', marginBottom: '8px' }}
+                        style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-soft)', marginBottom: '8px' }}
                     />
-                    <div style={{ fontWeight: 600, color: '#1f2937' }}>{partner?.name || t('matches.passenger')}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{t('review.how_was_trip')}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{partner?.name || t('matches.passenger')}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('review.how_was_trip')}</div>
                 </div>
 
                 {/* Звёзды */}
@@ -105,8 +105,8 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                         >
                             <Star
                                 size={36}
-                                fill={(hover || rating) >= star ? '#f59e0b' : 'none'}
-                                color={(hover || rating) >= star ? '#f59e0b' : '#d1d5db'}
+                                fill={(hover || rating) >= star ? 'var(--warning)' : 'none'}
+                                color={(hover || rating) >= star ? 'var(--warning)' : 'var(--text-muted)'}
                                 strokeWidth={1.5}
                             />
                         </button>
@@ -115,7 +115,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
 
                 {/* Подпись к рейтингу */}
                 {(hover || rating) > 0 && (
-                    <div style={{ textAlign: 'center', color: '#b45309', fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>
+                    <div style={{ textAlign: 'center', color: 'var(--warning-strong)', fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>
                         {[t('review.rating.0'), t('review.terrible'), t('review.bad'), t('review.ok'), t('review.good'), t('review.great')][(hover || rating)]}
                     </div>
                 )}
@@ -131,20 +131,20 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                     style={{
                         width: '100%',
                         padding: '10px 14px',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid var(--border-subtle)',
                         borderRadius: '10px',
                         fontSize: '0.9rem',
                         resize: 'none',
                         outline: 'none',
-                        color: '#1f2937',
-                        background: '#f9fafb',
+                        color: 'var(--text-main)',
+                        background: 'var(--bg-input)',
                         transition: 'border-color 0.2s',
                         boxSizing: 'border-box',
                         marginBottom: '1rem',
                         fontFamily: 'inherit',
                     }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                    onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
                 />
 
                 {/* Кнопки */}
@@ -155,10 +155,10 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                         style={{
                             flex: 1,
                             padding: '12px',
-                            border: '1px solid #e5e7eb',
+                            border: '1px solid var(--border-subtle)',
                             borderRadius: '10px',
-                            background: 'white',
-                            color: '#6b7280',
+                            background: 'var(--bg-card)',
+                            color: 'var(--text-muted)',
                             fontSize: '0.95rem',
                             cursor: 'pointer',
                         }}
@@ -175,9 +175,9 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                             border: 'none',
                             borderRadius: '10px',
                             background: rating === 0
-                                ? '#e5e7eb'
-                                : 'linear-gradient(135deg, #10b981, #059669)',
-                            color: rating === 0 ? '#9ca3af' : 'white',
+                                ? 'var(--border-subtle)'
+                                : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                            color: rating === 0 ? 'var(--text-subtle)' : 'var(--on-primary)',
                             fontSize: '0.95rem',
                             fontWeight: 600,
                             cursor: rating === 0 ? 'not-allowed' : 'pointer',
@@ -198,7 +198,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
         .modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.5);
+          background: var(--surface-overlay);
           backdrop-filter: blur(4px);
           z-index: 1000;
           display: flex;
@@ -207,7 +207,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
           animation: fadeIn 0.2s ease-out;
         }
         .review-modal {
-          background: white;
+          background: var(--bg-card);
           border-radius: 24px 24px 0 0;
           padding: 1.5rem;
           width: 100%;

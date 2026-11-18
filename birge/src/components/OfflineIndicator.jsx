@@ -52,12 +52,12 @@ export default function OfflineIndicator() {
           padding: '10px 20px',
           borderRadius: 50,
           background: isOnline
-            ? 'linear-gradient(135deg, #10b981, #059669)'
-            : '#1f2937',
-          color: '#fff',
+            ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))'
+            : 'var(--text-main)',
+          color: 'var(--on-primary)',
           fontSize: '0.88rem',
           fontWeight: 600,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.22)',
+          boxShadow: '0 4px 24px var(--shadow-medium)',
           whiteSpace: 'nowrap',
           animation: 'slideUp 0.3s ease',
           fontFamily: 'inherit',

@@ -35,6 +35,14 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
     return `через ${diff} дн.`;
   };
 
+  const tripsCountLabel = (count) => {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${count} предстоящая поездка`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} предстоящие поездки`;
+    return `${count} предстоящих поездок`;
+  };
+
   const load = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
@@ -105,7 +113,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
   return (
     <div className="sched-screen">
       {error && (
-        <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '10px 14px', fontSize: '0.85rem' }}>
+        <div role="alert" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: 12, padding: '10px 14px', fontSize: '0.85rem' }}>
           {error}
         </div>
       )}
@@ -115,7 +123,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           <h2 className="sched-title">Запланированные</h2>
           <p className="sched-subtitle">
             {trips.length > 0
-              ? `${trips.length} предстоящих поездок`
+              ? tripsCountLabel(trips.length)
               : 'Нет запланированных поездок'}
           </p>
         </div>
@@ -167,7 +175,9 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                 <div className="sched-date-chip">
                   <Calendar size={12} />
                   <span>{formatDate(trip.date)}</span>
-                  <span className="sched-days-until">({daysUntil(trip.date)})</span>
+                  {trip.date && trip.date !== today && trip.date !== tomorrow && (
+                    <span className="sched-days-until">({daysUntil(trip.date)})</span>
+                  )}
                 </div>
               </div>
 
@@ -186,11 +196,11 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
 
               {/* Время */}
               <div className="sched-time-row">
-                <Clock size={13} color="#6366f1" />
+                <Clock size={13} color="var(--info)" />
                 <span className="sched-time">{trip.time}</span>
                 {trip.role === 'driver' && (
                   <div className="sched-seats-mini">
-                    <Users size={12} color="#10b981" />
+                    <Users size={12} color="var(--primary)" />
                     <span>{trip.seats_taken} / {trip.seats}</span>
                   </div>
                 )}
@@ -211,9 +221,9 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                         <div className="sched-pass-info">
                           <span className="sched-pass-name">{p.name}</span>
                           <div className="sched-pass-rating">
-                            <Star size={10} fill="#f59e0b" color="#f59e0b" />
+                            <Star size={10} fill="var(--warning)" color="var(--warning)" />
                             <span>{p.trust_rating?.toFixed(1)}</span>
-                            {p.is_verified && <ShieldCheck size={10} color="#10b981" />}
+                            {p.is_verified && <ShieldCheck size={10} color="var(--primary)" />}
                           </div>
                         </div>
                         {/* Водитель может оценить пассажира */}
@@ -224,7 +234,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                           title="Оценить пассажира"
                           aria-label={`Оценить пассажира ${p.name}`}
                         >
-                          <Star size={11} fill="#f59e0b" color="#f59e0b" aria-hidden="true" />
+                          <Star size={11} fill="var(--warning)" color="var(--warning)" aria-hidden="true" />
                         </button>
                       </div>
                     ))}
@@ -243,14 +253,14 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                   <div className="sched-driver-info">
                     <div className="sched-driver-name">{trip.driver.name}</div>
                     <div className="sched-driver-rating">
-                      <Star size={10} fill="#f59e0b" color="#f59e0b" />
+                      <Star size={10} fill="var(--warning)" color="var(--warning)" />
                       <span>{trip.driver.trust_rating?.toFixed(1)}</span>
-                      {trip.driver.is_verified && <ShieldCheck size={10} color="#10b981" />}
+                      {trip.driver.is_verified && <ShieldCheck size={10} color="var(--primary)" />}
                     </div>
                     {trip.driver.car_model && (
                       <div className="sched-car-row">
                         <div className="sched-car-model">
-                          <Car size={10} color="#10b981" />
+                          <Car size={10} color="var(--primary)" />
                           {trip.driver.car_model}
                           {trip.driver.car_color ? ` · ${trip.driver.car_color}` : ''}
                         </div>
@@ -271,7 +281,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                   onClick={() => setReviewTarget({ ...trip.driver, trip_id: trip.trip_id })}
                   title="Оставить отзыв о водителе"
                 >
-                  <Star size={12} fill="#f59e0b" color="#f59e0b" aria-hidden="true" />
+                  <Star size={12} fill="var(--warning)" color="var(--warning)" aria-hidden="true" />
                   Оценить водителя
                 </button>
               )}
@@ -350,10 +360,10 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           align-items: center;
           gap: 5px;
           padding: 5px 12px;
-          background: #fffbeb;
-          border: 1.5px solid #fcd34d;
+          background: var(--warning-soft);
+          border: 1.5px solid var(--warning-border);
           border-radius: 20px;
-          color: #92400e;
+          color: var(--warning-strong);
           font-size: 0.78rem;
           font-weight: 600;
           cursor: pointer;
@@ -361,32 +371,32 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           margin-top: 6px;
         }
         .sched-review-btn:hover {
-          background: #fef3c7;
-          border-color: #f59e0b;
+          background: var(--warning-soft);
+          border-color: var(--warning);
         }
         .sched-refresh-btn {
           width: 38px; height: 38px;
           border-radius: 10px;
-          border: 1.5px solid #e5e7eb;
-          background: white;
+          border: 1.5px solid var(--border-subtle);
+          background: var(--bg-card);
           display: flex; align-items: center; justify-content: center;
           cursor: pointer;
-          color: #6b7280;
+          color: var(--text-muted);
           transition: all 0.2s;
           flex-shrink: 0;
         }
-        .sched-refresh-btn:hover { background: #f3f4f6; color: #374151; }
+        .sched-refresh-btn:hover { background: var(--bg-subtle); color: var(--text-muted); }
         .sched-refresh-btn.spinning svg { animation: spin360 0.7s linear infinite; }
         @keyframes spin360 { to { transform: rotate(360deg); } }
 
         /* Skeleton */
         .sched-skeleton-list { display: flex; flex-direction: column; gap: 12px; }
         .sched-skeleton-card {
-          background: #f9fafb; border-radius: 16px; padding: 18px;
+          background: var(--bg-input); border-radius: 16px; padding: 18px;
           display: flex; flex-direction: column; gap: 10px;
         }
         .skel {
-          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.4s infinite;
           border-radius: 8px;
@@ -406,7 +416,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         }
         .sched-empty-icon { font-size: 3.5rem; }
         .sched-empty-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
-        .sched-empty-text { font-size: 0.83rem; color: #9ca3af; margin: 0; max-width: 260px; line-height: 1.5; }
+        .sched-empty-text { font-size: 0.83rem; color: var(--text-subtle); margin: 0; max-width: 260px; line-height: 1.5; }
         .sched-cta-btn {
           margin-top: 8px;
           width: auto !important;
@@ -419,24 +429,24 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
 
         /* Card */
         .sched-card {
-          background: white;
-          border: 1.5px solid #f0f0f0;
+          background: var(--bg-card);
+          border: 1.5px solid var(--bg-subtle);
           border-radius: 18px;
           padding: 16px;
           display: flex; flex-direction: column; gap: 12px;
           position: relative;
           overflow: hidden;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+          box-shadow: 0 2px 12px var(--shadow-soft);
           transition: transform 0.2s, box-shadow 0.2s;
         }
-        .sched-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .sched-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--shadow-soft); }
 
         .sched-card-accent {
           position: absolute; left: 0; top: 0; bottom: 0;
           width: 4px;
         }
-        .accent-driver { background: linear-gradient(180deg, #10b981, #059669); }
-        .accent-passenger { background: linear-gradient(180deg, #6366f1, #4f46e5); }
+        .accent-driver { background: linear-gradient(180deg, var(--primary), var(--primary-hover)); }
+        .accent-passenger { background: linear-gradient(180deg, var(--info), var(--info)); }
 
         /* Top row */
         .sched-card-top {
@@ -447,37 +457,37 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           display: inline-flex; align-items: center; gap: 4px;
           padding: 3px 10px; border-radius: 20px;
           font-size: 0.72rem; font-weight: 700;
-          background: #f0fdf4; color: #059669;
+          background: var(--accent-soft); color: var(--primary-hover);
         }
         .accent-passenger ~ * .sched-role-badge,
         .sched-card:has(.accent-passenger) .sched-role-badge {
-          background: #eef2ff; color: #4f46e5;
+          background: var(--info-soft); color: var(--info);
         }
         .sched-date-chip {
           display: flex; align-items: center; gap: 4px;
-          background: #f8fafc; border: 1px solid #e5e7eb;
+          background: var(--bg-input); border: 1px solid var(--border-subtle);
           border-radius: 20px; padding: 3px 10px;
-          font-size: 0.72rem; color: #374151; font-weight: 600;
+          font-size: 0.72rem; color: var(--text-muted); font-weight: 600;
         }
-        .sched-days-until { color: #6366f1; font-weight: 700; }
+        .sched-days-until { color: var(--info); font-weight: 700; }
 
         /* Route */
         .sched-route {
-          background: #f9fafb; border-radius: 10px; padding: 10px 12px;
+          background: var(--bg-input); border-radius: 10px; padding: 10px 12px;
           display: flex; flex-direction: column; gap: 0;
         }
         .sched-route-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
         .sched-route-line {
-          height: 1px; background: #e5e7eb;
+          height: 1px; background: var(--border-subtle);
           margin: 0 0 0 7px; /* align with dot center */
         }
         .sched-dot {
           width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
         }
-        .sched-dot.green { background: #10b981; }
-        .sched-dot.red { background: #f43f5e; }
+        .sched-dot.green { background: var(--primary); }
+        .sched-dot.red { background: var(--danger); }
         .sched-loc {
-          font-size: 0.82rem; color: #374151; font-weight: 500;
+          font-size: 0.82rem; color: var(--text-muted); font-weight: 500;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           flex: 1;
         }
@@ -487,53 +497,53 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           display: flex; align-items: center; gap: 6px;
         }
         .sched-time {
-          font-size: 0.9rem; font-weight: 700; color: #1f2937; flex: 1;
+          font-size: 0.9rem; font-weight: 700; color: var(--text-main); flex: 1;
         }
         .sched-seats-mini {
           display: flex; align-items: center; gap: 4px;
-          background: #f0fdf4; border-radius: 8px; padding: 3px 8px;
-          font-size: 0.75rem; font-weight: 600; color: #059669;
+          background: var(--accent-soft); border-radius: 8px; padding: 3px 8px;
+          font-size: 0.75rem; font-weight: 600; color: var(--primary-hover);
         }
 
         /* Passengers (driver view) */
         .sched-passengers { display: flex; flex-direction: column; gap: 6px; }
-        .sched-pass-label { font-size: 0.72rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .sched-pass-label { font-size: 0.72rem; color: var(--text-subtle); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
         .sched-pass-list { display: flex; flex-direction: column; gap: 6px; }
         .sched-pass-row {
           display: flex; align-items: center; gap: 8px;
-          background: #f9fafb; border-radius: 10px; padding: 7px 10px;
+          background: var(--bg-input); border-radius: 10px; padding: 7px 10px;
         }
         .sched-pass-photo {
           width: 32px; height: 32px; border-radius: 50%;
-          object-fit: cover; border: 2px solid #d1fae5; flex-shrink: 0;
+          object-fit: cover; border: 2px solid var(--accent-soft); flex-shrink: 0;
         }
         .sched-pass-info { display: flex; flex-direction: column; gap: 2px; }
-        .sched-pass-name { font-size: 0.82rem; font-weight: 600; color: #1f2937; }
-        .sched-pass-rating { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; color: #6b7280; }
+        .sched-pass-name { font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
+        .sched-pass-rating { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; color: var(--text-muted); }
 
         /* Driver card (passenger view) */
         .sched-driver-card {
           display: flex; align-items: flex-start; gap: 10px;
-          background: #f0f7ff; border: 1px solid #bfdbfe;
+          background: var(--info-soft); border: 1px solid var(--info-border);
           border-radius: 12px; padding: 10px 12px;
         }
         .sched-driver-photo {
           width: 40px; height: 40px; border-radius: 50%;
-          object-fit: cover; border: 2px solid white; flex-shrink: 0;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+          object-fit: cover; border: 2px solid var(--bg-card); flex-shrink: 0;
+          box-shadow: 0 1px 6px var(--shadow-medium);
         }
         .sched-driver-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
-        .sched-driver-name { font-size: 0.88rem; font-weight: 700; color: #1f2937; }
-        .sched-driver-rating { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; color: #6b7280; }
+        .sched-driver-name { font-size: 0.88rem; font-weight: 700; color: var(--text-main); }
+        .sched-driver-rating { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; color: var(--text-muted); }
         .sched-car-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
         .sched-car-model {
           display: flex; align-items: center; gap: 4px;
-          background: #f0fdf4; border: 1px solid #bbf7d0;
+          background: var(--accent-soft); border: 1px solid var(--accent-soft);
           border-radius: 6px; padding: 2px 7px;
-          font-size: 0.72rem; font-weight: 600; color: #065f46;
+          font-size: 0.72rem; font-weight: 600; color: var(--primary);
         }
         .sched-car-plate {
-          background: #1f2937; color: white;
+          background: var(--inverse-surface); color: var(--inverse-text);
           border-radius: 5px; padding: 2px 7px;
           font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;
         }
@@ -543,22 +553,22 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         .sched-open-btn {
           flex: 1;
           display: flex; align-items: center; justify-content: center; gap: 5px;
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
-          color: white; border: none; border-radius: 12px;
+          background: linear-gradient(135deg, var(--info), var(--info));
+          color: var(--on-primary); border: none; border-radius: 12px;
           font-size: 0.85rem; font-weight: 700;
           padding: 10px 14px; cursor: pointer;
           transition: all 0.2s;
-          box-shadow: 0 3px 10px rgba(99,102,241,0.3);
+          box-shadow: 0 3px 10px var(--info-border);
         }
-        .sched-open-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(99,102,241,0.4); }
+        .sched-open-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px var(--info-border); }
         .sched-cancel-btn {
           width: 40px; height: 40px;
-          border: 1.5px solid #fee2e2; border-radius: 12px;
-          background: #fff5f5; color: #dc2626;
+          border: 1.5px solid var(--danger-soft); border-radius: 12px;
+          background: var(--danger-soft); color: var(--danger);
           display: flex; align-items: center; justify-content: center;
           cursor: pointer; transition: all 0.2s; flex-shrink: 0;
         }
-        .sched-cancel-btn:hover:not(:disabled) { background: #fee2e2; }
+        .sched-cancel-btn:hover:not(:disabled) { background: var(--danger-soft); }
         .sched-cancel-btn.loading { opacity: 0.5; cursor: wait; }
       `}</style>
     </div>

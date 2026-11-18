@@ -172,15 +172,15 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{trip.date || 'Сегодня'} · {trip.time}</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              background: isScheduled ? '#ede9fe' : '#d1fae5',
-              color: isScheduled ? '#7c3aed' : '#059669',
+              background: isScheduled ? 'var(--info-soft)' : 'var(--accent-soft)',
+              color: isScheduled ? 'var(--info-strong)' : 'var(--primary-hover)',
               padding: '2px 10px', borderRadius: 20,
               fontSize: '0.72rem', fontWeight: 600, marginTop: 5
             }}>
               {isScheduled ? (
                 <><Calendar size={11} /> Запланировано</>
               ) : (
-                <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> В процессе</>
+                <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block' }} /> В процессе</>
               )}
             </div>
           </div>
@@ -195,8 +195,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         {isDriver ? (
           <div className="passengers-section">
             <div className="seats-counter">
-              <Users size={14} color="#10b981" />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>
+              <Users size={14} color="var(--primary)" />
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                 {passengers.length} / {seats} пассажиров
               </span>
               <div className="seats-dots">
@@ -215,13 +215,13 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 {passengers.map(p => (
                   <div key={p.id} className="passenger-row">
                     <img src={p.photo || `https://i.pravatar.cc/40?u=${p.id}`} alt={p.name}
-                      style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d1fae5' }} />
+                      style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-soft)' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-main)' }}>{p.name}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Star size={10} fill="#f59e0b" color="#f59e0b" />
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{p.trust_rating?.toFixed(1)}</span>
-                        {p.is_verified && <ShieldCheck size={11} color="#10b981" />}
+                        <Star size={10} fill="var(--warning)" color="var(--warning)" />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.trust_rating?.toFixed(1)}</span>
+                        {p.is_verified && <ShieldCheck size={11} color="var(--primary)" />}
                       </div>
                     </div>
                   </div>
@@ -258,41 +258,41 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
           <div className="partner-card">
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img src={partnerPhoto} alt={partnerName}
-                style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--bg-card)', boxShadow: '0 2px 8px var(--shadow-medium)' }} />
               {partnerVerified && (
-                <div style={{ position: 'absolute', bottom: -2, right: -2, background: '#10b981', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid white' }}>
-                  <ShieldCheck size={9} color="white" />
+                <div style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--primary)', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg-card)' }}>
+                  <ShieldCheck size={9} color='var(--on-primary)' />
                 </div>
               )}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>{partnerName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                <Star size={11} fill="#f59e0b" color="#f59e0b" />
-                <span style={{ fontSize: '0.78rem', color: '#6b7280' }}>{partnerRating.toFixed(1)}</span>
+                <Star size={11} fill="var(--warning)" color="var(--warning)" />
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{partnerRating.toFixed(1)}</span>
               </div>
               {carModel && (
                 <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '2px 8px' }}>
-                    <Car size={11} color="#10b981" />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#065f46' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: '1px solid var(--accent-soft)', borderRadius: 8, padding: '2px 8px' }}>
+                    <Car size={11} color="var(--primary)" />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
                       {carModel}{carColor ? ` · ${carColor}` : ''}
                     </span>
                   </div>
                   {carPlate && (
-                    <div style={{ background: '#1f2937', color: 'white', borderRadius: 6, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.5px' }}>
+                    <div style={{ background: 'var(--inverse-surface)', color: 'var(--inverse-text)', borderRadius: 6, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.5px' }}>
                       {carPlate}
                     </div>
                   )}
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.75rem', color: '#6b7280' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <MapPin size={11} color="#10b981" /> {fromLocation}
+                <MapPin size={11} color="var(--primary)" /> {fromLocation}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <Navigation size={11} color="#f43f5e" /> {toLocation}
+                <Navigation size={11} color="var(--danger)" /> {toLocation}
               </div>
             </div>
           </div>
@@ -302,8 +302,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       {/* Баннер запланированной поездки */}
       {isScheduled && (
         <div style={{
-          background: 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
-          border: '1.5px solid #c4b5fd',
+          background: 'linear-gradient(135deg, var(--info-soft), var(--info-border))',
+          border: '1.5px solid var(--info-border)',
           borderRadius: 14,
           padding: '14px 16px',
           display: 'flex',
@@ -312,17 +312,17 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+            background: 'linear-gradient(135deg, var(--info-strong), var(--info-strong))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <Calendar size={22} color="white" />
+            <Calendar size={22} color='var(--on-primary)' />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#4c1d95' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--info-strong)' }}>
               Поездка запланирована
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#6d28d9', marginTop: 2 }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--info-strong)', marginTop: 2 }}>
               {trip.date} в {trip.time} — ждём дня поездки
             </div>
           </div>
@@ -346,8 +346,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       {/* Оплата / компенсация расходов (для пассажира) */}
       {!isDriver && (
         <div style={{
-          background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-          border: '1.5px solid #a7f3d0',
+          background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-soft) 100%)',
+          border: '1.5px solid var(--accent-border)',
           borderRadius: 16,
           padding: '14px 16px',
           display: 'flex',
@@ -358,16 +358,16 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 10,
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0
+                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-primary)', flexShrink: 0
               }}>
                 <CreditCard size={18} />
               </div>
               <div>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#065f46' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>
                   {t('payment.title')}
                 </span>
-                <div style={{ fontSize: '0.75rem', color: '#047857' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--primary-hover)' }}>
                   {(trip.price_per_seat || trip.price || 0) > 0
                     ? `${trip.price_per_seat || trip.price} сом ${t('payment.per_seat')}`
                     : 'Бесплатно / добровольно'}
@@ -375,14 +375,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               </div>
             </div>
             {(trip.price_per_seat || trip.price || 0) > 0 && (
-              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#065f46' }}>
+              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)' }}>
                 {trip.price_per_seat || trip.price} <span style={{ fontSize: '0.82rem' }}>сом</span>
               </span>
             )}
           </div>
 
           {paymentError && (
-            <p style={{ fontSize: '0.78rem', color: '#b45309', margin: '0 0 8px', fontWeight: 500 }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--warning-strong)', margin: '0 0 8px', fontWeight: 500 }}>
               {paymentError}
             </p>
           )}
@@ -399,14 +399,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 justifyContent: 'center',
                 gap: 6,
                 padding: '11px 14px',
-                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                color: 'white',
+                background: 'linear-gradient(135deg, var(--info), var(--info-strong))',
+                color: 'var(--on-primary)',
                 border: 'none',
                 borderRadius: 12,
                 fontSize: '0.88rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 3px 10px rgba(37,99,235,0.25)',
+                boxShadow: '0 3px 10px var(--info-border)',
               }}
             >
               <Smartphone size={16} />
@@ -423,16 +423,16 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                   justifyContent: 'center',
                   gap: 6,
                   padding: '11px 14px',
-                  background: 'white',
-                  color: '#065f46',
-                  border: '1.5px solid #a7f3d0',
+                  background: 'var(--bg-card)',
+                  color: 'var(--primary)',
+                  border: '1.5px solid var(--accent-border)',
                   borderRadius: 12,
                   fontSize: '0.86rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
               >
-                {copiedElkart ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
+                {copiedElkart ? <Check size={16} color="var(--primary)" /> : <Copy size={16} />}
                 <span>{copiedElkart ? 'Скопировано!' : 'Элкарт'}</span>
               </button>
             ) : null}
@@ -462,16 +462,16 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 width: '100%',
                 padding: '13px 20px',
                 background: cancelConfirm
-                  ? '#dc2626'
-                  : 'rgba(239,68,68,0.1)',
-                color: cancelConfirm ? 'white' : '#ef4444',
-                border: `1.5px solid ${cancelConfirm ? '#dc2626' : 'rgba(239,68,68,0.2)'}`,
+                  ? 'var(--danger)'
+                  : 'var(--danger-soft)',
+                color: cancelConfirm ? 'var(--on-primary)' : 'var(--danger)',
+                border: `1.5px solid ${cancelConfirm ? 'var(--danger)' : 'var(--danger-border)'}`,
                 borderRadius: 14,
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 cursor: cancelling ? 'wait' : 'pointer',
                 transition: 'all 0.2s',
-                boxShadow: cancelConfirm ? '0 4px 14px rgba(220,38,38,0.3)' : 'none',
+                boxShadow: cancelConfirm ? '0 4px 14px var(--danger-border)' : 'none',
               }}
               onClick={handleCancelTrip}
               disabled={cancelling}
@@ -484,7 +484,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 : 'Отменить поездку'}
             </button>
             {cancelError && (
-              <p style={{ color: '#ef4444', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>
+              <p style={{ color: 'var(--danger)', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>
                 {cancelError}
               </p>
             )}
@@ -503,13 +503,13 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       <style>{`
         .trip { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 20px; }
         .panic-btn {
-          background: #fee2e2; color: #dc2626; border: none;
+          background: var(--danger-soft); color: var(--danger); border: none;
           width: 40px; height: 40px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-          box-shadow: 0 3px 10px rgba(220,38,38,0.2);
+          box-shadow: 0 3px 10px var(--danger-border);
         }
-        .panic-btn:hover { background: #fca5a5; }
+        .panic-btn:hover { background: var(--danger-border); }
 
         /* Passengers section (driver) */
         .passengers-section { margin-top: 12px; }
@@ -523,7 +523,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
           width: 12px; height: 12px; border-radius: 3px;
           transition: background 0.2s;
         }
-        .seat-dot.taken { background: #10b981; }
+        .seat-dot.taken { background: var(--primary); }
         .seat-dot.free { background: var(--border-strong); }
 
         .passengers-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
@@ -535,16 +535,16 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         /* Going button */
         .going-btn {
           width: 100%; padding: 10px 16px;
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white; border: none; border-radius: 12px;
+          background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+          color: var(--on-primary); border: none; border-radius: 12px;
           font-size: 0.88rem; font-weight: 700;
           cursor: pointer; transition: all 0.2s;
           display: flex; align-items: center; justify-content: center; gap: 7px;
-          box-shadow: 0 3px 12px rgba(16,185,129,0.3);
+          box-shadow: 0 3px 12px var(--primary-glow);
         }
-        .going-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(16,185,129,0.4); }
+        .going-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px var(--primary-glow); }
         .going-btn:disabled:not(.going-btn-done) { background: var(--border-subtle); color: var(--text-subtle); box-shadow: none; cursor: default; }
-        .going-btn-done { background: rgba(16,185,129,0.2) !important; color: #10b981 !important; box-shadow: none !important; cursor: default !important; }
+        .going-btn-done { background: var(--primary-glow) !important; color: var(--primary) !important; box-shadow: none !important; cursor: default !important; }
 
         /* Partner card (passenger) */
         .partner-card {
@@ -554,8 +554,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
         .trip-chat { flex: 1; display: flex; flex-direction: column; }
         .finish-btn {
-          background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
-          box-shadow: 0 4px 12px rgba(244,63,94,0.3);
+          background: linear-gradient(135deg, var(--danger), var(--danger)) !important;
+          box-shadow: 0 4px 12px var(--danger-border);
         }
       `}</style>
     </div>

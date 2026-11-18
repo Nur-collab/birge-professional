@@ -164,8 +164,8 @@ class ErrorBoundary extends React.Component {
               width: 64px;
               height: 64px;
               border-radius: 18px;
-              background: rgba(239, 68, 68, 0.1);
-              border: 1px solid rgba(239, 68, 68, 0.22);
+              background: var(--danger-soft);
+              border: 1px solid var(--danger-border);
               display: flex;
               align-items: center;
               justify-content: center;
@@ -187,7 +187,7 @@ class ErrorBoundary extends React.Component {
               text-transform: uppercase;
               letter-spacing: 0.08em;
               color: var(--danger);
-              background: rgba(239, 68, 68, 0.08);
+              background: var(--danger-soft);
               padding: 3px 10px;
               border-radius: 999px;
             }
@@ -229,8 +229,8 @@ class ErrorBoundary extends React.Component {
             }
             .eb-btn-primary {
               background: var(--primary);
-              color: #ffffff;
-              box-shadow: 0 4px 14px rgba(16, 185, 129, 0.28);
+              color: var(--on-primary);
+              box-shadow: 0 4px 14px var(--primary-glow);
             }
             .eb-btn-primary:hover {
               background: var(--primary-hover);
@@ -285,7 +285,7 @@ class ErrorBoundary extends React.Component {
               align-items: center;
               justify-content: space-between;
               padding: 6px 10px;
-              background: rgba(0, 0, 0, 0.03);
+              background: var(--shadow-soft);
               border-bottom: 1px solid var(--border-subtle);
             }
             .eb-stack-label {

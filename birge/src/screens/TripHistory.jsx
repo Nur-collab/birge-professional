@@ -46,11 +46,11 @@ export default function TripHistory({ currentUser, onBack }) {
         {loading ? (
           <div role="status" aria-live="polite" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
             <div className="loader" aria-hidden="true" style={{ width: 30, height: 30, borderWidth: 3 }}></div>
-            <p style={{ color: '#6b7280', marginTop: '1rem' }}>{t('loading')}</p>
+            <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>{t('loading')}</p>
           </div>
         ) : trips.length === 0 ? (
           <div className="empty-state glass-panel">
-            <Clock size={48} color="#9ca3af" style={{ margin: '0 auto 1rem auto' }} />
+            <Clock size={48} color="var(--text-subtle)" style={{ margin: '0 auto 1rem auto' }} />
             <h3>{t('history.empty')}</h3>
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function TripHistory({ currentUser, onBack }) {
         .back-btn {
           background: none;
           border: none;
-          color: #4b5563;
+          color: var(--text-muted);
           padding: 8px;
           margin-left: -8px;
           cursor: pointer;
@@ -126,7 +126,7 @@ export default function TripHistory({ currentUser, onBack }) {
         .empty-state {
           text-align: center;
           padding: 3rem 1.5rem;
-          border: 1px dashed #d1d5db;
+          border: 1px dashed var(--border-strong);
         }
         .empty-state h3 {
           color: var(--dark);
@@ -145,14 +145,14 @@ export default function TripHistory({ currentUser, onBack }) {
           align-items: center;
           margin-bottom: 1rem;
           padding-bottom: 0.8rem;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid var(--bg-subtle);
         }
         .history-date {
           display: flex;
           align-items: center;
           gap: 6px;
           font-size: 0.85rem;
-          color: #6b7280;
+          color: var(--text-muted);
           font-weight: 500;
         }
         .history-status {
@@ -165,12 +165,12 @@ export default function TripHistory({ currentUser, onBack }) {
           gap: 4px;
         }
         .history-status.completed {
-          background: #d1fae5;
-          color: #059669;
+          background: var(--accent-soft);
+          color: var(--primary-hover);
         }
         .history-status.active {
-          background: #fef3c7;
-          color: #d97706;
+          background: var(--warning-soft);
+          color: var(--warning);
         }
         .history-route {
           position: relative;
@@ -183,7 +183,7 @@ export default function TripHistory({ currentUser, onBack }) {
           top: 20px;
           bottom: 20px;
           width: 2px;
-          background: #e5e7eb;
+          background: var(--border-subtle);
           z-index: 0;
         }
         .route-point {
@@ -209,11 +209,11 @@ export default function TripHistory({ currentUser, onBack }) {
           align-items: center;
           margin-top: 1rem;
           padding-top: 1rem;
-          border-top: 1px dashed #e5e7eb;
+          border-top: 1px dashed var(--border-subtle);
           font-size: 0.85rem;
         }
         .history-role {
-          color: #4b5563;
+          color: var(--text-muted);
           font-weight: 500;
         }
         @keyframes slideIn {

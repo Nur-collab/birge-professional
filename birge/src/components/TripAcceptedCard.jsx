@@ -59,7 +59,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
       'серый': '#6b7280', 'серая': '#6b7280',
       'красный': '#ef4444', 'красная': '#ef4444',
       'синий': '#3b82f6', 'синяя': '#3b82f6',
-      'зелёный': '#10b981', 'зелёная': '#10b981', 'зеленый': '#10b981', 'зеленая': '#10b981',
+      'зелёный': '#0F6B57', 'зелёная': '#0F6B57', 'зеленый': '#0F6B57', 'зеленая': '#0F6B57',
       'жёлтый': '#f59e0b', 'жёлтая': '#f59e0b', 'желтый': '#f59e0b', 'желтая': '#f59e0b',
       'серебристый': '#d1d5db', 'серебристая': '#d1d5db',
       'бежевый': '#d4b896', 'бежевая': '#d4b896',
@@ -81,8 +81,8 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         alignItems: 'flex-end',
         justifyContent: 'center',
         background: animateOut
-          ? 'rgba(0,0,0,0)'
-          : 'rgba(0,0,0,0.55)',
+          ? 'transparent'
+          : 'var(--shadow-strong)',
         backdropFilter: animateOut ? 'blur(0)' : 'blur(8px)',
         transition: 'background 0.4s ease, backdrop-filter 0.4s ease',
         padding: '0 0 0 0',
@@ -98,7 +98,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         width: 100,
         height: 100,
         borderRadius: '50%',
-        background: 'rgba(16,185,129,0.15)',
+        background: 'var(--primary-glow)',
         animation: 'pulse-ring 2s ease-in-out infinite',
         pointerEvents: 'none',
       }} />
@@ -110,7 +110,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         width: 66,
         height: 66,
         borderRadius: '50%',
-        background: 'rgba(16,185,129,0.25)',
+        background: 'var(--primary-glow)',
         animation: 'pulse-ring 2s ease-in-out infinite 0.3s',
         pointerEvents: 'none',
       }} />
@@ -124,16 +124,16 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         width: 50,
         height: 50,
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #10b981, #059669)',
+        background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '1.5rem',
-        boxShadow: '0 4px 20px rgba(16,185,129,0.5)',
+        boxShadow: '0 4px 20px var(--primary-glow)',
         zIndex: 10,
         pointerEvents: 'none',
       }}>
-        <Check size={26} color="white" strokeWidth={3} />
+        <Check size={26} color='var(--on-primary)' strokeWidth={3} />
       </div>
 
       {/* Основная карточка */}
@@ -142,10 +142,10 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         style={{
           width: '100%',
           maxWidth: 480,
-          background: 'white',
+          background: 'var(--bg-card)',
           borderRadius: '28px 28px 0 0',
           padding: '0 0 32px 0',
-          boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
+          boxShadow: '0 -8px 40px var(--shadow-strong)',
           animation: animateOut ? 'slideDown 0.4s ease-in forwards' : 'slideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
           overflow: 'hidden',
           position: 'relative',
@@ -174,47 +174,47 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             font-weight: 800;
             font-size: 0.95rem;
             letter-spacing: 2px;
-            background: #1f2937;
-            color: white;
+            background: var(--inverse-surface);
+            color: var(--inverse-text);
             padding: 4px 14px;
             border-radius: 6px;
-            border: 2px solid #374151;
+            border: 2px solid var(--inverse-border);
             text-transform: uppercase;
-            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
+            box-shadow: inset 0 -2px 0 var(--shadow-strong);
           }
           .tac-btn-chat {
             width: 100%; padding: 16px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white; border: none; border-radius: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: var(--on-primary); border: none; border-radius: 16px;
             font-size: 1rem; font-weight: 700;
             cursor: pointer; transition: all 0.2s;
             display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 6px 20px rgba(16,185,129,0.35);
+            box-shadow: 0 6px 20px var(--primary-glow);
             letter-spacing: 0.3px;
           }
           .tac-btn-chat:hover {
             transform: translateY(-1px);
-            box-shadow: 0 8px 28px rgba(16,185,129,0.45);
+            box-shadow: 0 8px 28px var(--primary-glow);
           }
           .tac-color-dot {
             width: 14px; height: 14px; border-radius: 50%;
-            border: 2px solid rgba(0,0,0,0.1);
+            border: 2px solid var(--shadow-medium);
             flex-shrink: 0;
           }
           .tac-avatar-ring {
             border-radius: 50%;
             padding: 3px;
-            background: linear-gradient(135deg, #10b981, #34d399);
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
             display: inline-block;
           }
         `}</style>
 
         {/* Зелёная полоска прогресса (автозакрытие) */}
-        <div style={{ height: 4, background: '#e5e7eb', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ height: 4, background: 'var(--border-subtle)', position: 'relative', overflow: 'hidden' }}>
           <div style={{
             position: 'absolute',
             top: 0, left: 0, height: '100%',
-            background: 'linear-gradient(90deg, #10b981, #34d399)',
+            background: 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
             animation: 'shrinkBar 8s linear forwards',
             width: '100%',
           }} />
@@ -234,14 +234,14 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
           style={{
             position: 'absolute', top: 16, right: 16,
             width: 32, height: 32, borderRadius: '50%',
-            background: '#f3f4f6', border: 'none',
+            background: 'var(--bg-subtle)', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#6b7280',
+            cursor: 'pointer', color: 'var(--text-muted)',
             transition: 'background 0.2s',
             zIndex: 10,
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
-          onMouseLeave={e => e.currentTarget.style.background = '#f3f4f6'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--border-subtle)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
         >
           <X size={16} aria-hidden="true" />
         </button>
@@ -250,23 +250,23 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         <div style={{
           textAlign: 'center',
           padding: '28px 24px 20px',
-          background: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)',
+          background: 'linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-card) 100%)',
         }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: '#d1fae5', color: '#065f46',
+            background: 'var(--accent-soft)', color: 'var(--primary)',
             padding: '5px 14px', borderRadius: 20,
             fontSize: '0.78rem', fontWeight: 700,
             marginBottom: 10, letterSpacing: 0.3,
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'pulse-badge 1.5s ease-in-out infinite' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', animation: 'pulse-badge 1.5s ease-in-out infinite' }} />
             ПОЕЗДКА ПОДТВЕРЖДЕНА
           </div>
           <style>{`@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px 0' }}>
             Водитель найден
           </h2>
-          <p style={{ color: '#6b7280', fontSize: '0.88rem', margin: 0 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
             Ваш водитель уже в пути
           </p>
         </div>
@@ -274,10 +274,10 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         {/* Профиль водителя */}
         <div style={{ padding: '0 20px' }}>
           <div style={{
-            background: 'linear-gradient(135deg, #f9fafb, #f0fdf4)',
+            background: 'linear-gradient(135deg, var(--bg-input), var(--accent-soft))',
             borderRadius: 20,
             padding: '20px',
-            border: '1.5px solid #d1fae5',
+            border: '1.5px solid var(--accent-soft)',
             marginBottom: 14,
             position: 'relative',
             overflow: 'hidden',
@@ -286,7 +286,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             <div style={{
               position: 'absolute', top: -30, right: -30,
               width: 100, height: 100, borderRadius: '50%',
-              background: 'rgba(16,185,129,0.06)',
+              background: 'var(--primary-glow)',
               pointerEvents: 'none',
             }} />
 
@@ -299,23 +299,23 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                   style={{
                     width: 72, height: 72, borderRadius: '50%',
                     objectFit: 'cover', display: 'block',
-                    border: '3px solid white',
+                    border: '3px solid var(--bg-card)',
                   }}
                   onError={e => { e.target.src = `https://i.pravatar.cc/200?u=${driver.id || 99}`; }}
                 />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 800, fontSize: '1.15rem', color: '#1f2937' }}>
+                  <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-main)' }}>
                     {driverName}
                   </span>
                   {driverVerified && (
                     <div style={{
-                      background: '#10b981', borderRadius: '50%',
+                      background: 'var(--primary)', borderRadius: '50%',
                       width: 20, height: 20,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <ShieldCheck size={12} color="white" />
+                      <ShieldCheck size={12} color='var(--on-primary)' />
                     </div>
                   )}
                 </div>
@@ -325,26 +325,26 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                     <Star
                       key={i}
                       size={14}
-                      fill={i <= Math.round(parseFloat(driverRating)) ? '#f59e0b' : 'none'}
-                      color={i <= Math.round(parseFloat(driverRating)) ? '#f59e0b' : '#d1d5db'}
+                      fill={i <= Math.round(parseFloat(driverRating)) ? 'var(--warning)' : 'none'}
+                      color={i <= Math.round(parseFloat(driverRating)) ? 'var(--warning)' : 'var(--border-strong)'}
                     />
                   ))}
-                  <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '0.88rem', marginLeft: 3 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.88rem', marginLeft: 3 }}>
                     {driverRating}
                   </span>
-                  <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>рейтинг</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>рейтинг</span>
                 </div>
               </div>
             </div>
 
             {/* Разделитель */}
-            <div style={{ height: 1, background: '#e5e7eb', margin: '0 0 16px 0' }} />
+            <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0 0 16px 0' }} />
 
             {/* Данные машины */}
             {carModel ? (
               <div>
                 <div style={{
-                  fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af',
+                  fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
                 }}>
                   Автомобиль
@@ -362,7 +362,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                     <Car size={22} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937', marginBottom: 6 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)', marginBottom: 6 }}>
                       {carModel}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -370,14 +370,14 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                       {carColor && (
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 5,
-                          background: 'white', border: '1.5px solid #e5e7eb',
+                          background: 'var(--bg-card)', border: '1.5px solid var(--border-subtle)',
                           borderRadius: 20, padding: '3px 10px',
                         }}>
                           <div
                             className="tac-color-dot"
                             style={{ background: getCarColorDot(carColor) }}
                           />
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                             {carColor}
                           </span>
                         </div>
@@ -396,10 +396,10 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '10px 14px', borderRadius: 12,
-                background: '#fffbeb', border: '1px solid #fde68a',
+                background: 'var(--warning-soft)', border: '1px solid var(--warning-border)',
               }}>
-                <Car size={16} color="#f59e0b" />
-                <span style={{ fontSize: '0.82rem', color: '#92400e' }}>
+                <Car size={16} color="var(--warning)" />
+                <span style={{ fontSize: '0.82rem', color: 'var(--warning-strong)' }}>
                   Данные машины не указаны
                 </span>
               </div>
@@ -408,14 +408,14 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
 
           {/* Маршрут */}
           <div style={{
-            background: '#f9fafb',
+            background: 'var(--bg-input)',
             borderRadius: 16,
             padding: '14px 16px',
             marginBottom: 16,
-            border: '1px solid #e5e7eb',
+            border: '1px solid var(--border-subtle)',
           }}>
             <div style={{
-              fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af',
+              fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)',
               textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12,
             }}>
               Маршрут
@@ -423,28 +423,28 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               {/* Иконки маршрута */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2, gap: 3 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                <div style={{ width: 2, height: 24, background: 'linear-gradient(180deg, #10b981, #f43f5e)', borderRadius: 1 }} />
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f43f5e', flexShrink: 0 }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                <div style={{ width: 2, height: 24, background: 'linear-gradient(180deg, var(--primary), var(--danger))', borderRadius: 1 }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 2 }}>Откуда</div>
-                  <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.88rem' }}>{fromLocation || '—'}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Откуда</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>{fromLocation || '—'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 2 }}>Куда</div>
-                  <div style={{ fontWeight: 600, color: '#1f2937', fontSize: '0.88rem' }}>{toLocation || '—'}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Куда</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>{toLocation || '—'}</div>
                 </div>
               </div>
               {tripTime && (
                 <div style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  background: 'white', border: '1.5px solid #e5e7eb',
+                  background: 'var(--bg-card)', border: '1.5px solid var(--border-subtle)',
                   borderRadius: 12, padding: '8px 12px', alignSelf: 'center',
                 }}>
-                  <Clock size={14} color="#10b981" />
-                  <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '0.85rem' }}>{tripTime}</span>
+                  <Clock size={14} color="var(--primary)" />
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.85rem' }}>{tripTime}</span>
                 </div>
               )}
             </div>

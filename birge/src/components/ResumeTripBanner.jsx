@@ -15,13 +15,14 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
 
   const isDriver = trip.role === 'driver';
   const roleLabel = isDriver ? 'Водитель' : 'Пассажир';
-  const roleColor = isDriver ? '#f59e0b' : '#10b981';
+  const roleColor = isDriver ? 'var(--warning)' : 'var(--primary)';
+  const roleSurface = isDriver ? 'var(--warning-soft)' : 'var(--accent-soft)';
 
   return (
     <div style={styles.wrapper} role="region" aria-label="Незавершённый поиск">
       <div style={styles.card}>
         {/* Иконка */}
-        <div style={{ ...styles.iconWrap, background: roleColor + '22', color: roleColor }}>
+        <div style={{ ...styles.iconWrap, background: roleSurface, color: roleColor }}>
           <RotateCcw size={20} />
         </div>
 
@@ -92,13 +93,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    background: 'rgba(255,255,255,0.96)',
+    background: 'var(--surface-glass)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
-    border: '1.5px solid #e5e7eb',
+    border: '1.5px solid var(--border-subtle)',
     borderRadius: 18,
     padding: '12px 14px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(16,185,129,0.08)',
+    boxShadow: '0 8px 32px var(--shadow-medium), 0 2px 8px var(--primary-glow)',
   },
 
   iconWrap: {
@@ -119,7 +120,7 @@ const styles = {
   title: {
     fontSize: '0.75rem',
     fontWeight: 700,
-    color: '#374151',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
     marginBottom: 2,
@@ -128,7 +129,7 @@ const styles = {
   role: {
     fontSize: '0.78rem',
     fontWeight: 600,
-    color: '#6b7280',
+    color: 'var(--text-muted)',
     marginBottom: 3,
   },
 
@@ -141,7 +142,7 @@ const styles = {
 
   routeFrom: {
     fontSize: '0.75rem',
-    color: '#111827',
+    color: 'var(--text-main)',
     fontWeight: 500,
     maxWidth: 110,
     overflow: 'hidden',
@@ -151,12 +152,12 @@ const styles = {
 
   arrow: {
     fontSize: '0.75rem',
-    color: '#9ca3af',
+    color: 'var(--text-subtle)',
   },
 
   routeTo: {
     fontSize: '0.75rem',
-    color: '#111827',
+    color: 'var(--text-main)',
     fontWeight: 500,
     maxWidth: 110,
     overflow: 'hidden',
@@ -166,7 +167,7 @@ const styles = {
 
   time: {
     fontSize: '0.73rem',
-    color: '#9ca3af',
+    color: 'var(--text-subtle)',
     marginTop: 2,
   },
 
@@ -182,15 +183,15 @@ const styles = {
     alignItems: 'center',
     gap: 5,
     padding: '7px 12px',
-    background: 'linear-gradient(135deg, #10b981, #059669)',
-    color: 'white',
+    background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+    color: 'var(--on-primary)',
     border: 'none',
     borderRadius: 10,
     fontSize: '0.8rem',
     fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    boxShadow: '0 2px 8px rgba(16,185,129,0.35)',
+    boxShadow: '0 2px 8px var(--primary-glow)',
     transition: 'opacity 0.15s',
   },
 
@@ -199,8 +200,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '7px',
-    background: '#fee2e2',
-    color: '#dc2626',
+    background: 'var(--danger-soft)',
+    color: 'var(--danger)',
     border: 'none',
     borderRadius: 10,
     cursor: 'pointer',

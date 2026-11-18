@@ -3,40 +3,82 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>Правила использования — Birge</title>
+  <script>
+    try {
+      const saved = localStorage.getItem('birge_theme');
+      const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    } catch (_) {}
+  </script>
   <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f3ee;
+      --card: #ffffff;
+      --border: #e2ded4;
+      --heading: #14201b;
+      --subheading: #0b3d32;
+      --text: #4a574f;
+      --muted: #67736c;
+      --accent: #0f6b57;
+      --accent-strong: #0b5546;
+      --accent-soft: #e3f0ea;
+      --accent-border: #c9e2d8;
+      --on-accent: #ffffff;
+      --shadow: 0 4px 20px rgba(20, 32, 27, 0.06);
+      --button-shadow: 0 8px 18px -8px rgba(15, 107, 87, 0.45);
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0d1411;
+      --card: #141e1a;
+      --border: rgba(244, 241, 233, 0.12);
+      --heading: #f4f1e9;
+      --subheading: #7ed8be;
+      --text: #d3dcd7;
+      --muted: #8b968f;
+      --accent: #63c7aa;
+      --accent-strong: #7ed8be;
+      --accent-soft: rgba(99, 199, 170, 0.12);
+      --accent-border: rgba(99, 199, 170, 0.24);
+      --on-accent: #0b2a24;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      --button-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.6);
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #f0fdf4;
-      color: #1f2937;
+      background: var(--page);
+      color: var(--text);
       line-height: 1.7;
       padding: 2rem 1rem;
     }
-    .container { max-width: 720px; margin: 0 auto; background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .container { max-width: 720px; margin: 0 auto; background: var(--card); padding: 2rem; border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
     header {
       display: flex; align-items: center; gap: 14px;
       margin-bottom: 2rem; padding-bottom: 1.5rem;
-      border-bottom: 2px solid #d1fae5;
+      border-bottom: 1px solid var(--border);
     }
     .logo {
       width: 48px; height: 48px; border-radius: 14px;
-      background: linear-gradient(135deg, #10b981, #059669);
+      background: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; font-weight: 900; color: white;
+      font-size: 1.5rem; font-weight: 900; color: var(--on-accent);
       flex-shrink: 0;
     }
-    h1 { font-size: 1.5rem; font-weight: 800; color: #111827; }
-    h2 { font-size: 1.15rem; font-weight: 700; color: #065f46; margin: 2rem 0 0.75rem; border-left: 3px solid #10b981; padding-left: 10px; }
-    p, li { font-size: 0.95rem; color: #374151; }
+    h1 { font-size: 1.5rem; font-weight: 800; color: var(--heading); }
+    h2 { font-size: 1.15rem; font-weight: 700; color: var(--subheading); margin: 2rem 0 0.75rem; border-left: 2px solid var(--accent); padding-left: 10px; }
+    p, li { font-size: 0.95rem; color: var(--text); }
     ul { padding-left: 1.4rem; margin-top: 0.5rem; }
     li { margin-bottom: 0.5rem; }
-    .updated { font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem; }
+    .updated { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
     .badge-law {
       display: inline-block;
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border: 1px solid var(--accent-border);
       padding: 6px 12px;
       border-radius: 8px;
       font-size: 0.82rem;
@@ -46,15 +88,15 @@
     .back-btn {
       display: inline-flex; align-items: center; gap: 8px;
       margin-top: 2.5rem; padding: 12px 24px;
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white; border: none; border-radius: 12px;
+      background: var(--accent);
+      color: var(--on-accent); border: none; border-radius: 12px;
       font-size: 0.95rem; font-weight: 700; cursor: pointer;
       text-decoration: none;
       transition: transform 0.15s, box-shadow 0.15s;
     }
     .back-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+      box-shadow: var(--button-shadow);
     }
   </style>
 </head>

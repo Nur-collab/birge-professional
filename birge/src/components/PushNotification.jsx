@@ -20,7 +20,7 @@ export default function PushNotification({ title, message, show, onClose }) {
     return (
         <div className={`push-notification ${animClass}`} role="status" aria-live="polite" aria-atomic="true">
             <div className="push-icon" aria-hidden="true">
-                <Bell size={20} color="white" />
+                <Bell size={20} color='var(--on-primary)' />
             </div>
             <div className="push-content">
                 <h4>{title}</h4>
@@ -35,9 +35,9 @@ export default function PushNotification({ title, message, show, onClose }) {
           transform: translateX(-50%);
           width: 90%;
           max-width: 400px;
-          background: white;
+          background: var(--bg-card);
           border-radius: 16px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+          box-shadow: 0 10px 25px var(--shadow-medium);
           display: flex;
           padding: 12px 16px;
           gap: 12px;
@@ -65,12 +65,12 @@ export default function PushNotification({ title, message, show, onClose }) {
         .push-content h4 {
           margin: 0 0 2px 0;
           font-size: 0.9rem;
-          color: #1f2937;
+          color: var(--text-main);
         }
         .push-content p {
           margin: 0;
           font-size: 0.8rem;
-          color: #4b5563;
+          color: var(--text-muted);
         }
       `}</style>
         </div>

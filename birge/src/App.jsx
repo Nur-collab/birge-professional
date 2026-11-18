@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Map, User, Calendar, Sun, Moon } from 'lucide-react';
+import { Home, Users, Map, User, Calendar, Sun, Moon, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Dashboard from './screens/Dashboard';
 import Matches from './screens/Matches';
@@ -177,7 +177,7 @@ function App() {
   if (authLoading) {
     return (
       <div role="status" aria-live="polite" style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>B</div>
+        <div style={{ width: 48, height: 48, borderRadius: 13, background: 'var(--primary)', color: 'var(--bg-page)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, fontWeight: 800, letterSpacing: -0.5 }}>B</div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Инициализация сессии...</p>
       </div>
     );
@@ -186,8 +186,8 @@ function App() {
   if (authError) {
     return (
       <div role="alert" style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(239,68,68,0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Sun size={26} />
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'var(--danger-soft)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <WifiOff size={24} />
         </div>
         <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 800 }}>Нет связи с сервером</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: 320, lineHeight: 1.5 }}>
@@ -350,7 +350,7 @@ function App() {
             <span className="header-brand-mark" aria-hidden="true">B</span>
             <span className="header-brand-text">
               <span className="header-brand-title">BIRGE</span>
-              <span className="header-brand-subtitle">CARPOOL</span>
+              <span className="header-brand-subtitle">Совместные поездки</span>
             </span>
           </button>
           <div className="header-actions">
@@ -424,7 +424,7 @@ function App() {
         }
         .bottom-nav {
           position: fixed;
-          bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+          bottom: calc(10px + env(safe-area-inset-bottom, 0px));
           left: 50%;
           transform: translateX(-50%);
           width: calc(100% - 24px);
@@ -433,10 +433,11 @@ function App() {
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           border: 1px solid var(--nav-border);
-          border-radius: var(--radius-lg);
+          border-radius: 20px;
           box-shadow: var(--floating-shadow);
           display: flex;
           justify-content: space-around;
+          gap: 2px;
           padding: 6px;
           z-index: 100;
           transition: background-color 0.25s ease, border-color 0.25s ease;
@@ -444,13 +445,16 @@ function App() {
         .nav-item {
           flex: 1;
           display: flex; flex-direction: column; align-items: center;
-          gap: 3px; background: none; border: none; color: var(--text-subtle);
-          font-size: 0.68rem; font-weight: 700; cursor: pointer;
-          position: relative; transition: all 0.2s;
-          padding: 8px 6px;
-          border-radius: 12px;
-          letter-spacing: 0.02em;
+          justify-content: center;
+          gap: 4px; background: none; border: none; color: var(--text-subtle);
+          font-size: 0.64rem; font-weight: 700; cursor: pointer;
+          position: relative; transition: background-color 0.2s ease, color 0.2s ease;
+          min-height: 52px;
+          padding: 7px 4px;
+          border-radius: 14px;
+          letter-spacing: 0.01em;
         }
+        .nav-item svg { width: 22px; height: 22px; }
         .header-brand { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; }
         #main-content:focus { outline: none; }
         .nav-item:hover { color: var(--text-main); background: var(--bg-subtle); }
@@ -458,20 +462,21 @@ function App() {
           color: var(--primary);
           background: var(--nav-active-bg);
         }
+        .nav-item.active svg { stroke-width: 2.35; }
         .badge {
-          position: absolute; top: 4px; right: 14px;
-          background: #ef4444; color: white; font-size: 0.62rem;
+          position: absolute; top: 3px; right: 12px;
+          background: var(--danger); color: var(--on-primary); font-size: 0.6rem;
           font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
-          padding: 0 4px; border: 2px solid var(--bg-app);
+          padding: 0 4px; border: 2px solid var(--nav-bg);
           font-variant-numeric: tabular-nums;
         }
         .badge.dot {
-          width: 7px; height: 7px; min-width: unset; right: 18px; padding: 0;
-          top: 6px; background: #10b981;
+          width: 7px; height: 7px; min-width: unset; right: 16px; padding: 0;
+          top: 5px; background: var(--primary);
         }
         .badge.incoming-badge {
-          background: #f59e0b;
+          background: var(--warning);
         }
       `}</style>
       {/* Модал входящего запроса для водителя */}

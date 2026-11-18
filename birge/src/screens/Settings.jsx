@@ -97,7 +97,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           <div className="form-group">
             <label htmlFor="settings-photo">{t('settings.photo_url')}</label>
             <div className="input-with-icon">
-              <Camera size={18} color="#9ca3af" aria-hidden="true" />
+              <Camera size={18} color="var(--text-subtle)" aria-hidden="true" />
               <input
                 id="settings-photo"
                 type="text"
@@ -111,7 +111,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
               <img
                 src={formData.photo}
                 alt="Предпросмотр"
-                style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', marginTop: 10, border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', marginTop: 10, border: '2px solid var(--bg-card)', boxShadow: '0 2px 4px var(--shadow-medium)' }}
                 onError={(e) => e.target.style.display = 'none'}
               />
             )}
@@ -174,7 +174,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           <div className="form-group">
             <label htmlFor="settings-mbank-phone">{t('settings.mbank_phone')}</label>
             <div className="input-with-icon">
-              <Smartphone size={18} color="#9ca3af" aria-hidden="true" />
+              <Smartphone size={18} color="var(--text-subtle)" aria-hidden="true" />
               <input
                 id="settings-mbank-phone"
                 type="tel"
@@ -184,7 +184,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
                 placeholder="0555 123 456"
               />
             </div>
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '4px 0 0 2px' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 0 2px' }}>
               Пассажиры смогут в 1 клик перевести компенсацию за поездку в приложении MBank
             </p>
           </div>
@@ -192,7 +192,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           <div className="form-group">
             <label htmlFor="settings-elkart-number">{t('settings.elkart_number')}</label>
             <div className="input-with-icon">
-              <CreditCard size={18} color="#9ca3af" aria-hidden="true" />
+              <CreditCard size={18} color="var(--text-subtle)" aria-hidden="true" />
               <input
                 id="settings-elkart-number"
                 type="text"
@@ -207,16 +207,16 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         </div>
 
         {/* Блок Безопасность */}
-        <div className="settings-section glass-panel" style={{ borderLeft: '4px solid #f59e0b' }}>
-          <div className="section-title" style={{ color: '#d97706' }}>
+        <div className="settings-section glass-panel" style={{ borderLeft: '4px solid var(--warning)' }}>
+          <div className="section-title" style={{ color: 'var(--warning)' }}>
             <ShieldAlert size={18} />
             <span>Верификация</span>
           </div>
-          <p style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '8px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
             Ваш телефон: <b>{currentUser?.phone}</b>
           </p>
-          <p style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '4px' }}>
-            Статус: {currentUser?.is_verified ? <span style={{ color: '#10b981', fontWeight: 600 }}>Подтверждён</span> : <span style={{ color: '#f59e0b', fontWeight: 600 }}>Базовый</span>}
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Статус: {currentUser?.is_verified ? <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Подтверждён</span> : <span style={{ color: 'var(--warning)', fontWeight: 600 }}>Базовый</span>}
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         .back-btn {
           background: none;
           border: none;
-          color: #4b5563;
+          color: var(--text-muted);
           padding: 8px;
           margin-left: -8px;
           cursor: pointer;
@@ -273,12 +273,12 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           font-size: 1rem;
           color: var(--dark);
           margin-bottom: 1rem;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid var(--bg-subtle);
           padding-bottom: 8px;
         }
         .section-desc {
           font-size: 0.8rem;
-          color: #6b7280;
+          color: var(--text-muted);
           margin-bottom: 1rem;
           margin-top: -8px;
         }
@@ -292,16 +292,16 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           display: block;
           font-size: 0.85rem;
           font-weight: 600;
-          color: #4b5563;
+          color: var(--text-muted);
           margin-bottom: 6px;
         }
         .form-group input {
           width: 100%;
           padding: 12px;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-strong);
           border-radius: 8px;
           font-size: 0.95rem;
-          background: white;
+          background: var(--bg-card);
           transition: border-color 0.2s;
         }
         .form-group input:focus {
@@ -323,10 +323,10 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         .language-select {
           width: 100%;
           padding: 12px;
-          border: 1px solid #d1d5db;
+          border: 1px solid var(--border-strong);
           border-radius: 8px;
           font-size: 0.95rem;
-          background: white;
+          background: var(--bg-card);
           cursor: pointer;
           outline: none;
         }
@@ -335,12 +335,12 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         }
         .save-btn {
           margin-top: 1rem;
-          background: ${saved ? '#10b981' : 'var(--primary)'};
+          background: ${saved ? 'var(--primary)' : 'var(--primary)'};
           transition: all 0.3s;
         }
         .error-msg {
-          color: #dc2626;
-          background: #fee2e2;
+          color: var(--danger);
+          background: var(--danger-soft);
           padding: 10px;
           border-radius: 8px;
           font-size: 0.9rem;
@@ -349,7 +349,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         .loader-small {
           width: 20px;
           height: 20px;
-          border: 2px solid white;
+          border: 2px solid var(--bg-card);
           border-top: 2px solid transparent;
           border-radius: 50%;
           animation: spin 1s linear infinite;

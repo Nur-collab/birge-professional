@@ -38,7 +38,7 @@ export default function AddressInput({
     value,
     onChange,
     placeholder,
-    iconColor = '#10b981',
+    iconColor = 'var(--primary)',
     name,
     invalid = false,
     describedBy,
@@ -111,7 +111,7 @@ export default function AddressInput({
             <MapPin
                 size={18}
                 style={{
-                    position: 'absolute', left: 12, top: '50%',
+                    position: 'absolute', left: 13, top: '50%',
                     transform: 'translateY(-50%)', color: iconColor, pointerEvents: 'none', zIndex: 1
                 }}
             />
@@ -137,11 +137,11 @@ export default function AddressInput({
                 autoComplete="off"
                 style={{
                     width: '100%',
-                    padding: '12px 12px 12px 40px',
+                    padding: '13px 12px 13px 42px',
                     border: '1px solid var(--border-subtle)',
-                    borderRadius: '10px',
-                    fontSize: '1rem',
-                    background: 'var(--bg-input)',
+                    borderRadius: '12px',
+                    fontSize: '0.95rem',
+                    background: 'var(--bg-card)',
                     color: 'var(--text-main)',
                     outline: 'none',
                     transition: 'border-color 0.2s, background-color 0.2s',
@@ -164,7 +164,7 @@ export default function AddressInput({
                         right: 0,
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border-subtle)',
-                        borderRadius: '12px',
+                        borderRadius: '14px',
                         boxShadow: 'var(--floating-shadow)',
                         zIndex: 999,
                         overflow: 'hidden',

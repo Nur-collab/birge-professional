@@ -75,8 +75,8 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
   if (!user && error) {
     return (
       <div className="profile screen-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1rem' }}>
-        <ShieldAlert size={40} color="#f43f5e" />
-        <p style={{ color: '#6b7280', textAlign: 'center' }}>Бэкенд недоступен.<br />Подождите немного и повторите попытку.</p>
+        <ShieldAlert size={40} color="var(--danger)" />
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>Бэкенд недоступен.<br />Подождите немного и повторите попытку.</p>
         <button className="primary-btn" style={{ width: 'auto', padding: '10px 24px' }} onClick={() => {
           setError(false);
           api.getCurrentUser().then(data => { if (data) setUser(data); else setError(true); }).catch(() => setError(true));
@@ -102,19 +102,19 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <button type="button" className="avatar-container" onClick={() => fileInputRef.current?.click()} aria-label="Изменить фото профиля">
           {uploading ? (
             <div className="avatar-loader">
-              <Loader size={24} color="white" className="spin-loader" aria-hidden="true" />
+              <Loader size={24} color='var(--on-primary)' className="spin-loader" aria-hidden="true" />
             </div>
           ) : (
             <>
               <img src={user.photo} alt={user.name} className="profile-avatar" />
               <div className="avatar-overlay">
-                <span style={{ color: 'white', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
+                <span style={{ color: 'var(--on-primary)', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
               </div>
             </>
           )}
           {user.is_verified && (
             <div className="verified-badge" role="img" title="Верифицированный пользователь" aria-label="Верифицированный пользователь">
-              <ShieldCheck size={16} color="white" />
+              <ShieldCheck size={16} color='var(--on-primary)' />
             </div>
           )}
           <input
@@ -133,7 +133,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <div className="stats-row">
           <div className="stat-item">
             <div className="stat-value">
-              <Star size={16} fill="#f59e0b" color="#f59e0b" /> {user.trust_rating}
+              <Star size={16} fill="var(--warning)" color="var(--warning)" /> {user.trust_rating}
             </div>
             <div className="stat-label">{t('profile.rating')}</div>
           </div>
@@ -161,7 +161,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <div className="progress-bar" role="progressbar" aria-label="Поездок водителем сегодня" aria-valuemin="0" aria-valuemax="3" aria-valuenow={Math.min(user.trips_today || 0, 3)}>
           <div
             className="progress-fill"
-            style={{ width: `${(user.trips_today / 3) * 100}%`, background: user.trips_today >= 3 ? '#f43f5e' : 'var(--primary)' }}
+            style={{ width: `${(user.trips_today / 3) * 100}%`, background: user.trips_today >= 3 ? 'var(--danger)' : 'var(--primary)' }}
           ></div>
         </div>
         <p className="limits-hint">{t('profile.trips_hint')}</p>
@@ -171,11 +171,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
       <button type="button" className="car-card glass-panel" onClick={onShowSettings} style={{ cursor: 'pointer', width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: user.car_model ? '1rem' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-            <Car size={18} color={user.car_model ? '#f59e0b' : '#9ca3af'} />
+            <Car size={18} color={user.car_model ? 'var(--warning)' : 'var(--text-subtle)'} />
             Моя машина
           </div>
           {!user.car_model && (
-            <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>+ Добавить →</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 600 }}>+ Добавить →</span>
           )}
         </div>
 
@@ -238,11 +238,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-            background: user.is_verified ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--bg-subtle)',
+            background: user.is_verified ? 'linear-gradient(135deg,var(--primary),var(--primary-hover))' : 'var(--bg-subtle)',
             border: user.is_verified ? 'none' : '1px solid var(--border-subtle)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <ShieldCheck size={20} color={user.is_verified ? 'white' : 'var(--text-muted)'} />
+            <ShieldCheck size={20} color={user.is_verified ? 'var(--on-primary)' : 'var(--text-muted)'} />
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
@@ -262,18 +262,18 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             {verifyResult && (
               <div role="status" aria-live="polite" style={{
                 marginBottom: 10, padding: '10px 14px', borderRadius: 12,
-                background: verifyResult.status === 'verified' ? '#f0fdf4'
-                  : verifyResult.status === 'need_telegram' ? '#fffbeb'
-                  : '#fef2f2',
+                background: verifyResult.status === 'verified' ? 'var(--accent-soft)'
+                  : verifyResult.status === 'need_telegram' ? 'var(--warning-soft)'
+                  : 'var(--danger-soft)',
                 border: `1px solid ${
-                  verifyResult.status === 'verified' ? '#bbf7d0'
-                  : verifyResult.status === 'need_telegram' ? '#fde68a'
-                  : '#fecdd3'
+                  verifyResult.status === 'verified' ? 'var(--accent-soft)'
+                  : verifyResult.status === 'need_telegram' ? 'var(--warning-border)'
+                  : 'var(--danger-border)'
                 }`,
                 fontSize: '0.82rem',
-                color: verifyResult.status === 'verified' ? '#065f46'
-                  : verifyResult.status === 'need_telegram' ? '#92400e'
-                  : '#9f1239',
+                color: verifyResult.status === 'verified' ? 'var(--primary)'
+                  : verifyResult.status === 'need_telegram' ? 'var(--warning-strong)'
+                  : 'var(--danger-strong)',
               }}>
                 {verifyResult.message}
               </div>
@@ -288,10 +288,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                   width: '100%', padding: '11px', marginBottom: 8,
-                  background: 'linear-gradient(135deg,#0088cc,#006fa8)',
-                  color: 'white', borderRadius: 12, textDecoration: 'none',
+                  background: 'linear-gradient(135deg,var(--info),var(--info-strong))',
+                  color: 'var(--bg-card)', borderRadius: 12, textDecoration: 'none',
                   fontWeight: 700, fontSize: '0.9rem',
-                  boxShadow: '0 3px 12px rgba(0,136,204,0.35)',
+                  boxShadow: '0 3px 12px var(--info-border)',
                 }}
               >
                 <ExternalLink size={16} />
@@ -309,11 +309,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   width: '100%', padding: '12px',
-                  background: verifyLoading ? '#e5e7eb' : 'linear-gradient(135deg,#10b981,#059669)',
-                  color: verifyLoading ? '#9ca3af' : 'white',
+                  background: verifyLoading ? 'var(--border-subtle)' : 'linear-gradient(135deg,var(--primary),var(--primary-hover))',
+                  color: verifyLoading ? 'var(--text-subtle)' : 'var(--on-primary)',
                   border: 'none', borderRadius: 12,
                   fontWeight: 700, fontSize: '0.92rem', cursor: verifyLoading ? 'wait' : 'pointer',
-                  boxShadow: verifyLoading ? 'none' : '0 3px 12px rgba(16,185,129,0.3)',
+                  boxShadow: verifyLoading ? 'none' : '0 3px 12px var(--primary-glow)',
                   transition: 'all 0.2s',
                 }}
               >
@@ -340,7 +340,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                   <span className="review-author">{review.author_name}</span>
                   <div className="review-rating">
                     {[...Array(review.rating)].map((_, i) => (
-                      <Star key={i} size={12} fill="#f59e0b" color="#f59e0b" />
+                      <Star key={i} size={12} fill="var(--warning)" color="var(--warning)" />
                     ))}
                   </div>
                 </div>
@@ -353,26 +353,26 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
 
       <div className="settings-menu">
         <button type="button" className="menu-item" onClick={onShowHistory}>
-          <Clock size={20} color="#4b5563" />
+          <Clock size={20} color="var(--text-muted)" />
           <span>{t('profile.history')}</span>
-          <ChevronRight size={20} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+          <ChevronRight size={20} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </button>
         <button type="button" className="menu-item" onClick={onShowSettings}>
-          <Settings size={20} color="#4b5563" />
+          <Settings size={20} color="var(--text-muted)" />
           <span>{t('profile.settings')}</span>
-          <ChevronRight size={20} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+          <ChevronRight size={20} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </button>
         <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="menu-item" style={{ textDecoration: 'none' }}>
-          <FileText size={20} color="#4b5563" />
+          <FileText size={20} color="var(--text-muted)" />
           <span>{t('legal.terms')}</span>
-          <ExternalLink size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+          <ExternalLink size={16} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </a>
         <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="menu-item" style={{ textDecoration: 'none' }}>
-          <ShieldCheck size={20} color="#4b5563" />
+          <ShieldCheck size={20} color="var(--text-muted)" />
           <span>{t('legal.privacy')}</span>
-          <ExternalLink size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+          <ExternalLink size={16} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </a>
-        <button type="button" className="menu-item" style={{ color: '#f43f5e' }} onClick={() => {
+        <button type="button" className="menu-item" style={{ color: 'var(--danger)' }} onClick={() => {
           if (onLogout) {
             void onLogout();
           } else {
@@ -381,7 +381,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             window.location.reload();
           }
         }}>
-          <LogOut size={20} color="#f43f5e" />
+          <LogOut size={20} color="var(--danger)" />
           <span>{t('profile.logout')}</span>
         </button>
       </div>
@@ -411,20 +411,20 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           cursor: pointer;
           border-radius: 50%;
           overflow: hidden;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          box-shadow: 0 4px 15px var(--shadow-medium);
         }
         .profile-avatar {
           width: 100%;
           height: 100%;
           border-radius: 50%;
           object-fit: cover;
-          border: 3px solid white;
+          border: 3px solid var(--bg-card);
         }
         .avatar-overlay {
           position: absolute;
           bottom: 0; left: 0; right: 0;
           height: 30%;
-          background: rgba(0,0,0,0.5);
+          background: var(--surface-overlay);
           display: flex; align-items: center; justify-content: center;
           opacity: 0; transition: opacity 0.2s;
         }
@@ -433,7 +433,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         }
         .avatar-loader {
           position: absolute; top:0; left:0; right:0; bottom:0;
-          background: rgba(16,185,129,0.8);
+          background: var(--primary-glow);
           display: flex; align-items: center; justify-content: center;
           border-radius: 50%;
         }
@@ -448,11 +448,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 2px solid white;
+          border: 2px solid var(--bg-card);
           z-index: 2;
         }
         .user-phone {
-          color: #6b7280;
+          color: var(--text-muted);
           font-size: 0.9rem;
           margin-top: 4px;
           margin-bottom: 1.5rem;

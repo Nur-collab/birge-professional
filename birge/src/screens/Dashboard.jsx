@@ -57,6 +57,7 @@ const HUB_CATEGORIES = [
 
 export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const { t } = useTranslation();
+  const firstName = currentUser?.name?.trim().split(/\s+/)[0] || '';
   const [role, setRole] = useState('passenger');
   const [from, setFrom] = useState('Жилмассив Ала-Арча');
   const [to, setTo] = useState('ЦУМ (Центр)');
@@ -152,6 +153,11 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
 
   return (
     <div className="dashboard screen-content">
+      <div className="dashboard-heading">
+        <p className="dashboard-kicker">Бишкек · Чуйская область</p>
+        <h2 className="dashboard-title">{firstName ? `Куда поедем, ${firstName}?` : 'Куда поедем?'}</h2>
+      </div>
+
       {/* Селектор роли (iOS / Linear Segmented Pill) */}
       <div className="role-switch-container">
         <div className="role-switch" role="group" aria-label="Роль в поездке">
@@ -198,7 +204,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
 
       {/* Интерактивная карта маршрута */}
       <div className="map-card">
-        <RealMap showUserOnly={true} height="130px" />
+        <RealMap showUserOnly={true} height="118px" />
       </div>
 
       {/* Основная карточка маршрута */}
@@ -233,7 +239,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 value={from}
                 onChange={(v) => { setFrom(v); setErrors(prev => ({ ...prev, from: undefined })); }}
                 placeholder="Откуда едем..."
-                iconColor={errors.from ? '#ef4444' : '#10b981'}
+                iconColor={errors.from ? 'var(--danger)' : 'var(--primary)'}
                 name="from"
                 invalid={Boolean(errors.from)}
                 describedBy={errors.from ? 'dashboard-from-error' : undefined}
@@ -256,7 +262,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 value={to}
                 onChange={(v) => { setTo(v); setErrors(prev => ({ ...prev, to: undefined })); }}
                 placeholder="Куда направляемся..."
-                iconColor={errors.to ? '#ef4444' : '#64748b'}
+                iconColor={errors.to ? 'var(--danger)' : 'var(--text-subtle)'}
                 name="to"
                 invalid={Boolean(errors.to)}
                 describedBy={errors.to ? 'dashboard-to-error' : undefined}
@@ -475,7 +481,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         .role-option.active {
           background: var(--bg-card);
           color: var(--primary);
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+          box-shadow: 0 1px 4px var(--shadow-soft);
         }
 
         /* Driver Warning */
@@ -488,17 +494,17 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           align-items: center;
           gap: 12px;
           padding: 12px 14px;
-          background: rgba(245, 158, 11, 0.08);
-          border: 1px solid rgba(245, 158, 11, 0.25);
+          background: var(--warning-soft);
+          border: 1px solid var(--warning-border);
           border-radius: var(--radius-md);
           cursor: pointer;
           transition: all 0.2s ease;
         }
         .driver-warning-card:hover {
-          background: rgba(245, 158, 11, 0.12);
+          background: var(--warning-soft);
         }
         .warning-icon-wrap {
-          color: #f59e0b;
+          color: var(--warning);
           display: flex;
           align-items: center;
         }
@@ -594,12 +600,12 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           border: 2px solid var(--bg-subtle);
         }
         .origin-node {
-          background: #10b981;
-          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+          background: var(--primary);
+          box-shadow: 0 0 0 2px var(--primary-glow);
         }
         .dest-node {
-          background: #ef4444;
-          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+          background: var(--danger);
+          box-shadow: 0 0 0 2px var(--danger-border);
         }
         .track-line {
           width: 2px;
@@ -645,7 +651,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .input-err-msg {
           font-size: 0.72rem;
-          color: #ef4444;
+          color: var(--danger);
           margin: 0;
           padding-left: 2px;
         }
@@ -685,16 +691,14 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         .target-pill.active {
           background: var(--bg-card);
           color: var(--text-main);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          box-shadow: 0 1px 3px var(--shadow-soft);
         }
         .category-scroll {
           display: flex;
+          flex-wrap: wrap;
           gap: 6px;
-          overflow-x: auto;
           margin-bottom: 10px;
-          scrollbar-width: none;
         }
-        .category-scroll::-webkit-scrollbar { display: none; }
         .category-pill {
           display: flex;
           align-items: center;
@@ -716,7 +720,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .category-pill.active {
           background: var(--primary);
-          color: #ffffff;
+          color: var(--on-primary);
           border-color: var(--primary);
           box-shadow: 0 2px 8px var(--primary-glow);
         }
@@ -725,8 +729,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           gap: 6px;
           overflow-x: auto;
           padding-bottom: 2px;
-          scrollbar-width: thin;
+          scrollbar-width: none;
         }
+        .hubs-chips-scroll::-webkit-scrollbar { display: none; }
         .hub-chip {
           white-space: nowrap;
           border: 1px solid var(--border-subtle);
@@ -746,7 +751,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .hub-chip.selected {
           background: var(--primary);
-          color: #ffffff;
+          color: var(--on-primary);
           border-color: var(--primary);
           box-shadow: 0 2px 8px var(--primary-glow);
         }
@@ -918,6 +923,231 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .spin {
           animation: spin 0.8s linear infinite;
+        }
+      `}</style>
+
+      <style>{`
+        .dashboard { gap: 14px; }
+        .dashboard-heading { padding: 3px 2px 1px; }
+        .dashboard-kicker {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          margin-bottom: 6px;
+          color: var(--text-subtle);
+          font-size: 0.64rem;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .dashboard-kicker::before {
+          content: '';
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--primary);
+        }
+        .dashboard-title {
+          color: var(--text-main);
+          font-size: clamp(1.5rem, 5vw, 1.8rem);
+          font-weight: 800;
+          line-height: 1.16;
+          letter-spacing: -0.045em;
+          text-wrap: balance;
+        }
+
+        .role-switch-container {
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+        .role-switch {
+          gap: 4px;
+          padding: 4px;
+          border: 1px solid var(--border-subtle);
+          border-radius: 14px;
+          background: var(--bg-subtle);
+        }
+        .role-option {
+          min-height: 44px;
+          border-radius: 10px;
+          color: var(--text-muted);
+          font-size: 0.84rem;
+        }
+        .role-option.active {
+          background: var(--bg-card);
+          color: var(--primary);
+          box-shadow: 0 1px 2px var(--shadow-soft), 0 8px 16px -12px var(--shadow-soft);
+        }
+
+        .map-card {
+          border-radius: 20px;
+          border-color: var(--border-subtle);
+          box-shadow: var(--card-shadow);
+        }
+
+        .route-form-card {
+          padding: 18px;
+          border-radius: 24px;
+          box-shadow: var(--card-shadow);
+        }
+        .form-header { margin-bottom: 14px; }
+        .form-header-title {
+          font-size: 1rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+        }
+        .form-header-title svg { color: var(--primary); }
+        .swap-route-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 12px;
+          background: var(--bg-subtle);
+        }
+
+        .connected-route-card {
+          gap: 10px;
+          margin-bottom: 16px;
+          padding: 10px;
+          border-radius: 16px;
+          background: var(--bg-subtle);
+        }
+        .route-inputs-col { gap: 8px; }
+        .route-track-indicator {
+          width: 14px;
+          padding: 15px 0;
+        }
+        .route-track-indicator .track-node {
+          width: 9px;
+          height: 9px;
+          border: 2px solid var(--bg-subtle);
+        }
+        .origin-node {
+          background: var(--primary);
+          box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .dest-node {
+          background: var(--danger);
+          box-shadow: 0 0 0 3px var(--danger-soft);
+        }
+        .track-line {
+          width: 0;
+          margin: 3px 0;
+          border-left: 1px dashed var(--border-strong);
+          background: transparent;
+        }
+        .inline-geo-btn {
+          width: 38px;
+          height: 38px;
+          margin-left: 8px;
+          border-radius: 12px;
+          background: var(--bg-card);
+        }
+
+        .hubs-section {
+          margin-bottom: 16px;
+          padding: 14px;
+          border-radius: 16px;
+          background: var(--bg-subtle);
+        }
+        .hubs-top { margin-bottom: 12px; }
+        .target-toggle {
+          padding: 3px;
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          background: var(--bg-card);
+        }
+        .target-pill {
+          min-height: 28px;
+          padding: 3px 9px;
+          border-radius: 7px;
+        }
+        .target-pill.active {
+          background: var(--primary);
+          color: var(--on-primary);
+          box-shadow: none;
+        }
+        .category-pill {
+          min-height: 32px;
+          padding: 0 10px;
+          border-color: var(--border-subtle);
+          background: var(--bg-card);
+          color: var(--text-muted);
+        }
+        .hub-chip {
+          min-height: 34px;
+          padding: 0 12px;
+          border-color: var(--border-subtle);
+          background: var(--bg-card);
+          color: var(--text-main);
+        }
+        .category-pill.active,
+        .hub-chip.selected {
+          border-color: var(--primary);
+          background: var(--primary);
+          color: var(--on-primary);
+          box-shadow: none;
+        }
+        .hub-chip:hover { border-color: var(--primary); color: var(--primary); }
+
+        .datetime-grid { gap: 10px; margin-bottom: 16px; }
+        .datetime-cell {
+          gap: 7px;
+          padding: 12px;
+          border-radius: 16px;
+          background: var(--bg-subtle);
+        }
+        .cell-label {
+          color: var(--text-subtle);
+          font-size: 0.66rem;
+          letter-spacing: 0.1em;
+        }
+        .date-display,
+        .time-native-input {
+          color: var(--text-main);
+          font-size: 0.9rem;
+          font-weight: 800;
+        }
+
+        .driver-parameters-card {
+          margin-bottom: 18px;
+          padding: 14px;
+          border-radius: 16px;
+          background: var(--bg-subtle);
+        }
+        .param-title { font-size: 0.82rem; font-weight: 700; }
+        .stepper-box,
+        .price-input-wrap {
+          border-radius: 10px;
+          background: var(--bg-card);
+        }
+        .stepper-btn { width: 30px; height: 30px; border-radius: 8px; }
+
+        .driver-warning-card {
+          border-color: var(--warning-border);
+          border-radius: 14px;
+          background: var(--warning-soft);
+        }
+        .warning-icon-wrap { color: var(--warning); }
+
+        .submit-action-btn {
+          min-height: 54px;
+          border-radius: 16px;
+          font-size: 0.92rem;
+        }
+
+        [data-theme="dark"] .target-pill.active,
+        [data-theme="dark"] .category-pill.active,
+        [data-theme="dark"] .hub-chip.selected,
+        [data-theme="dark"] .role-option.active {
+          color: var(--on-primary);
+        }
+        [data-theme="dark"] .driver-warning-card {
+          border-color: var(--warning-border);
+        }
+        [data-theme="dark"] .role-option.active {
+          color: var(--primary);
         }
       `}</style>
     </div>

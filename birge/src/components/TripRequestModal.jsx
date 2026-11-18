@@ -68,7 +68,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
             aria-describedby="trip-request-desc"
             style={{
                 position: 'fixed', inset: 0,
-                background: 'rgba(0,0,0,0.65)',
+                background: 'var(--surface-overlay)',
                 zIndex: 1000,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '1rem',
@@ -76,9 +76,9 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
             }}
         >
             <div style={{
-                background: 'white', borderRadius: '24px', padding: '1.5rem',
+                background: 'var(--bg-card)', borderRadius: '24px', padding: '1.5rem',
                 width: '100%', maxWidth: '360px',
-                boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+                boxShadow: '0 24px 70px var(--shadow-strong)',
                 animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 position: 'relative', overflow: 'hidden',
             }}>
@@ -88,27 +88,27 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         to { transform: translateY(0) scale(1); opacity: 1; }
                     }
                     @keyframes ringPulse {
-                        0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
-                        70% { box-shadow: 0 0 0 20px rgba(16,185,129,0); }
-                        100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+                        0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+                        70% { box-shadow: 0 0 0 20px var(--primary-glow); }
+                        100% { box-shadow: 0 0 0 0 var(--primary-glow); }
                     }
                     @keyframes urgentPulse {
-                        0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
-                        70% { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
-                        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+                        0% { box-shadow: 0 0 0 0 var(--danger-border); }
+                        70% { box-shadow: 0 0 0 16px var(--danger-soft); }
+                        100% { box-shadow: 0 0 0 0 var(--danger-soft); }
                     }
                 `}</style>
 
                 {/* Прогресс-бар вверху (тает по мере истечения времени) */}
                 <div style={{
                     position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
-                    background: '#e5e7eb', borderRadius: '24px 24px 0 0',
+                    background: 'var(--border-subtle)', borderRadius: '24px 24px 0 0',
                 }}>
                     <div style={{
                         height: '100%', borderRadius: '24px 0 0 0',
                         background: urgency
-                            ? 'linear-gradient(90deg, #ef4444, #f97316)'
-                            : 'linear-gradient(90deg, #10b981, #34d399)',
+                            ? 'linear-gradient(90deg, var(--danger), var(--warning))'
+                            : 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
                         width: `${progress}%`,
                         transition: 'width 1s linear, background 0.5s ease',
                     }} />
@@ -119,18 +119,18 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                     <div style={{
                         width: 56, height: 56, borderRadius: '50%',
                         background: urgency
-                            ? '#dc2626'
-                            : 'linear-gradient(135deg, #10b981, #059669)',
+                            ? 'var(--danger)'
+                            : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         margin: '0 auto 0.75rem',
                         animation: urgency ? 'urgentPulse 1s ease-in-out infinite' : 'ringPulse 2s ease-in-out infinite',
                     }}>
-                        <User size={26} color="white" />
+                        <User size={26} color='var(--on-primary)' />
                     </div>
-                    <h3 id="trip-request-title" style={{ color: '#1f2937', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                    <h3 id="trip-request-title" style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
                         Новый запрос на поездку
                     </h3>
-                    <p id="trip-request-desc" style={{ color: '#4b5563', fontSize: '0.85rem', marginTop: '4px' }}>
+                    <p id="trip-request-desc" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
                         Пассажир хочет присоединиться
                     </p>
                     {/* Таймер */}
@@ -138,8 +138,8 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         display: 'inline-flex', alignItems: 'center', gap: 5,
                         marginTop: '6px',
                         padding: '4px 12px', borderRadius: '20px',
-                        background: urgency ? 'rgba(239,68,68,0.1)' : 'var(--bg-subtle)',
-                        color: urgency ? '#b91c1c' : '#047857',
+                        background: urgency ? 'var(--danger-soft)' : 'var(--bg-subtle)',
+                        color: urgency ? 'var(--danger-strong)' : 'var(--primary-hover)',
                         fontSize: '0.82rem', fontWeight: 700,
                     }}>
                         <Clock size={13} />
@@ -150,47 +150,47 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                 {/* Информация о пассажире */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
-                    background: '#f9fafb', borderRadius: '14px', padding: '14px',
+                    background: 'var(--bg-input)', borderRadius: '14px', padding: '14px',
                     marginBottom: '1rem',
-                    border: '1.5px solid #e5e7eb',
+                    border: '1.5px solid var(--border-subtle)',
                 }}>
                     <img
                         src={request.requester_photo || `https://i.pravatar.cc/80?u=${request.requester_id}`}
                         alt={request.requester_name}
                         style={{
                             width: 56, height: 56, borderRadius: '50%',
-                            objectFit: 'cover', border: '2.5px solid #d1fae5',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            objectFit: 'cover', border: '2.5px solid var(--accent-soft)',
+                            boxShadow: '0 2px 8px var(--shadow-medium)',
                         }}
                     />
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: '#1f2937', fontSize: '1.05rem' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.05rem' }}>
                             {request.requester_name}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#f59e0b', fontSize: '0.85rem', marginTop: '3px' }}>
-                            <Star size={13} fill="#f59e0b" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--warning)', fontSize: '0.85rem', marginTop: '3px' }}>
+                            <Star size={13} fill="var(--warning)" />
                             <span style={{ fontWeight: 600 }}>{(request.requester_rating || 5.0).toFixed(1)}</span>
-                            <span style={{ color: '#9ca3af', fontWeight: 400 }}>Рейтинг</span>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Рейтинг</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Маршрут */}
                 <div style={{
-                    background: '#f0fdf4', borderRadius: '12px', padding: '12px 14px',
+                    background: 'var(--accent-soft)', borderRadius: '12px', padding: '12px 14px',
                     marginBottom: '1.2rem', fontSize: '0.88rem',
-                    border: '1px solid #d1fae5',
+                    border: '1px solid var(--accent-soft)',
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '8px', color: '#374151' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
                         <span style={{ fontWeight: 500 }}>{request.origin}</span>
                     </div>
-                    <div style={{ width: 1, height: 12, background: '#86efac', marginLeft: 3, marginBottom: 8 }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '8px', color: '#374151' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e', flexShrink: 0 }} />
+                    <div style={{ width: 1, height: 12, background: 'var(--accent-border)', marginLeft: 3, marginBottom: 8 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
                         <span style={{ fontWeight: 500 }}>{request.destination}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', marginTop: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', marginTop: 4 }}>
                         <Clock size={13} />
                         <span>{request.time}</span>
                     </div>
@@ -202,14 +202,14 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         type="button"
                         onClick={() => onDecline(request.id)}
                         style={{
-                            flex: 1, padding: '13px', border: '1.5px solid #e5e7eb',
-                            borderRadius: '14px', background: 'white',
-                            color: '#6b7280', fontWeight: 600, cursor: 'pointer',
+                            flex: 1, padding: '13px', border: '1.5px solid var(--border-subtle)',
+                            borderRadius: '14px', background: 'var(--bg-card)',
+                            color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                             fontSize: '0.95rem', transition: 'all 0.2s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#fca5a5'; e.currentTarget.style.color = '#ef4444'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#6b7280'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--danger-soft)'; e.currentTarget.style.borderColor = 'var(--danger-border)'; e.currentTarget.style.color = 'var(--danger)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                     >
                         <X size={18} /> Отклонить
                     </button>
@@ -220,15 +220,15 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         style={{
                             flex: 2, padding: '13px', border: 'none',
                             borderRadius: '14px',
-                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                            color: 'white', fontWeight: 800, cursor: 'pointer',
+                            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                            color: 'var(--on-primary)', fontWeight: 800, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                             fontSize: '0.95rem', transition: 'all 0.2s',
-                            boxShadow: '0 6px 20px rgba(16,185,129,0.4)',
+                            boxShadow: '0 6px 20px var(--primary-glow)',
                             letterSpacing: '0.3px',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(16,185,129,0.5)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(16,185,129,0.4)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 25px var(--primary-glow)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
                     >
                         <Check size={18} /> Принять
                     </button>

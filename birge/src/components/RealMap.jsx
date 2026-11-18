@@ -54,6 +54,18 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
     const [userLocation, setUserLocation] = React.useState(null);
     const [fromCoords, setFromCoords] = React.useState(geocodeOffline(from) || [42.8500, 74.5600]);
     const [toCoords, setToCoords] = React.useState(geocodeOffline(to) || [42.8900, 74.6100]);
+    const [isDark, setIsDark] = React.useState(
+        () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+    );
+
+    React.useEffect(() => {
+        const root = document.documentElement;
+        const syncTheme = () => setIsDark(root.getAttribute('data-theme') === 'dark');
+        syncTheme();
+        const observer = new MutationObserver(syncTheme);
+        observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+        return () => observer.disconnect();
+    }, []);
 
     React.useEffect(() => {
         if (navigator.geolocation) {
@@ -117,11 +129,11 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                 },
                 {
                     boundsAutoApply: true,
-                    routeActiveStrokeColor: '#10b981',
+                    routeActiveStrokeColor: '#0F6B57',
                     routeActiveStrokeWidth: 5,
                     routeStrokeColor: '#d1fae5',
                     routeStrokeWidth: 3,
-                    wayPointStartIconColor: '#10b981',
+                    wayPointStartIconColor: '#0F6B57',
                     wayPointFinishIconColor: '#f43f5e',
                 }
             );
@@ -139,7 +151,16 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
     }, [fromCoords, toCoords, showUserOnly]);
 
     return (
-        <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', position: 'relative' }}>
+        <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+            <div
+                style={{
+                    height: '100%',
+                    filter: isDark
+                        ? 'invert(0.9) hue-rotate(180deg) brightness(0.88) contrast(1.12) saturate(0.7)'
+                        : 'none',
+                    transition: 'filter 0.25s ease',
+                }}
+            >
             <YMaps
                 query={{ lang: 'ru_RU', load: 'package.full' }}
                 onApiAvailable={handleApiAvailable}
@@ -180,7 +201,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                                 }}
                                 options={{
                                     preset: 'islands#greenDotIcon',
-                                    iconColor: '#10b981'
+                                    iconColor: '#0F6B57'
                                 }}
                             />
 
@@ -201,7 +222,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                             <Polyline
                                 geometry={[fromCoords, toCoords]}
                                 options={{
-                                    strokeColor: '#10b98150',
+                                    strokeColor: '#0F6B5750',
                                     strokeWidth: 4,
                                     strokeStyle: 'dash',
                                 }}
@@ -210,6 +231,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                     )}
                 </Map>
             </YMaps>
+            </div>
 
             {/* Легенда маршрута */}
             {!showUserOnly && (
@@ -218,7 +240,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                     bottom: '10px',
                     left: '10px',
                     right: '10px',
-                    background: 'rgba(255,255,255,0.92)',
+                    background: 'var(--surface-glass)',
                     backdropFilter: 'blur(8px)',
                     borderRadius: '10px',
                     padding: '8px 12px',
@@ -226,18 +248,18 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '4px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    boxShadow: '0 2px 8px var(--shadow-medium)',
                     pointerEvents: 'none',
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                        <span style={{ color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {from || 'Откуда не указано'}
                         </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f43f5e', flexShrink: 0 }} />
-                        <span style={{ color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {to || 'Куда не указано'}
                         </span>
                     </div>

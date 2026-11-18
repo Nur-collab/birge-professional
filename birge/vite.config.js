@@ -33,8 +33,8 @@ export default defineConfig(({ mode }) => {
                 name: 'БИРГЕ — Попутные поездки',
                 short_name: 'БИРГЕ',
                 description: 'Твой сосед — твой попутчик. Карпулинг в Бишкеке.',
-                theme_color: '#10b981',
-                background_color: '#ffffff',
+                theme_color: '#0f6b57',
+                background_color: '#f5f3ee',
                 display: 'standalone',
                 orientation: 'portrait',
                 icons: [
