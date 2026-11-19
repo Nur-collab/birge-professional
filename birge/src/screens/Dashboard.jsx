@@ -911,10 +911,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           padding: 2px;
         }
         .stepper-btn {
-          width: 28px;
-          height: 28px;
+          width: 44px;
+          height: 44px;
           border: none;
-          border-radius: 6px;
+          border-radius: 10px;
           background: transparent;
           color: var(--text-main);
           display: flex;
@@ -934,7 +934,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           font-size: 0.95rem;
           font-weight: 800;
           color: var(--text-main);
-          min-width: 28px;
+          min-width: 32px;
           text-align: center;
           font-variant-numeric: tabular-nums;
         }
@@ -1229,7 +1229,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           border-radius: 10px;
           background: var(--bg-card);
         }
-        .stepper-btn { width: 30px; height: 30px; border-radius: 8px; }
+        .stepper-btn { width: 44px; height: 44px; border-radius: 12px; }
 
         .submit-action-btn {
           min-height: 54px;

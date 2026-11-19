@@ -63,7 +63,7 @@
   --border-strong: #cdc7ba;
   --border-focus: #0f6b57;
   --text-main: #14201b;
-  --text-muted: #5c6a63;
+  --text-muted: #4f5b54;
   --text-subtle: #626e67;
   --dark: #14201b;
   --focus-ring: #0b5546;
@@ -359,9 +359,9 @@ body {
 }
 
 .theme-toggle-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-card);
   color: var(--text-main);

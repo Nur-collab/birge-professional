@@ -128,10 +128,14 @@ export default function InstallPWA() {
           gap: 4px;
         }
         .close-btn {
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
           background: none;
           border: none;
+          border-radius: 10px;
           color: var(--text-muted);
-          padding: 4px;
+          padding: 0;
           display: flex;
           align-items: center;
           justify-content: center;
