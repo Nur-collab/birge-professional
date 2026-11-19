@@ -47,7 +47,7 @@ function geocodeOffline(locationStr) {
     return null;
 }
 
-export default function RealMap({ from, to, height = "250px", showUserOnly = false }) {
+export default function RealMap({ from, to, height = "250px", showUserOnly = false, borderRadius = "12px", framed = true, showLegend = true, showFallbackRoute = true }) {
     const ymapsRef = useRef(null);
     const mapRef = useRef(null);
     const routeRef = useRef(null);
@@ -140,7 +140,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
             routeRef.current = multiRoute;
             map.geoObjects.add(multiRoute);
         } catch (e) {
-            console.warn('MultiRoute not available, using polyline fallback', e);
+            console.warn('Road route geometry unavailable', e);
         }
     };
 
@@ -151,7 +151,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
     }, [fromCoords, toCoords, showUserOnly]);
 
     return (
-        <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+        <div style={{ height, width: '100%', borderRadius, overflow: 'hidden', border: framed ? '1px solid var(--border-subtle)' : 'none', position: 'relative' }}>
             <div
                 style={{
                     height: '100%',
@@ -218,15 +218,17 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
                                 }}
                             />
 
-                            {/* Запасная полилиния если multiRouter не загрузился */}
-                            <Polyline
-                                geometry={[fromCoords, toCoords]}
-                                options={{
-                                    strokeColor: '#0F6B5750',
-                                    strokeWidth: 4,
-                                    strokeStyle: 'dash',
-                                }}
-                            />
+                            {/* Запасная полилиния для карт без дорожной геометрии */}
+                            {showFallbackRoute && (
+                                <Polyline
+                                    geometry={[fromCoords, toCoords]}
+                                    options={{
+                                        strokeColor: '#0F6B5750',
+                                        strokeWidth: 4,
+                                        strokeStyle: 'dash',
+                                    }}
+                                />
+                            )}
                         </>
                     )}
                 </Map>
@@ -234,7 +236,7 @@ export default function RealMap({ from, to, height = "250px", showUserOnly = fal
             </div>
 
             {/* Легенда маршрута */}
-            {!showUserOnly && (
+            {!showUserOnly && showLegend && (
                 <div style={{
                     position: 'absolute',
                     bottom: '10px',

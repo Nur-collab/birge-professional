@@ -19,10 +19,12 @@ import {
   CreditCard,
   Plus,
   Minus,
-  ChevronDown
+  ChevronDown,
+  Map as MapIcon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AddressInput from '../components/AddressInput';
+import RouteMapPreview from '../components/RouteMapPreview';
 
 // Популярные жилые комплексы, микрорайоны и ориентиры Бишкека и Чуйской области
 const BISHKEK_HUBS = [
@@ -71,6 +73,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const [errors, setErrors] = useState({});
   const [showHubs, setShowHubs] = useState(false);
   const [showDriverDetails, setShowDriverDetails] = useState(false);
+  const [showRoutePreview, setShowRoutePreview] = useState(false);
 
   const today = localDateStr();
   const tomorrow = localDateStr(1);
@@ -131,6 +134,16 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
     }
   };
 
+  const buildSearchPayload = () => ({
+    role,
+    from: from.trim(),
+    to: to.trim(),
+    time,
+    date,
+    seats: role === 'driver' ? seats : 1,
+    price: role === 'driver' ? price : 0,
+  });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -142,15 +155,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
     }
     setErrors({});
 
-    onSearch({
-      role,
-      from: from.trim(),
-      to: to.trim(),
-      time,
-      date,
-      seats: role === 'driver' ? seats : 1,
-      price: role === 'driver' ? price : 0,
-    });
+    onSearch(buildSearchPayload());
   };
 
   return (
@@ -195,7 +200,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         <div className="form-header">
           <div className="form-header-title">
             <MapPin size={16} className="text-primary" />
-            <span>{role === 'driver' ? 'Маршрут поездки' : 'Поиск попутчиков'}</span>
+            <span>{role === 'driver' ? 'Маршрут' : 'Поиск попутчиков'}</span>
           </div>
           <div className="form-header-actions">
             {role === 'driver' && currentUser && !currentUser.car_model && (
@@ -210,6 +215,16 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 <span>Нет авто</span>
               </button>
             )}
+            <button
+              type="button"
+              className="swap-route-btn route-map-btn"
+              onClick={() => setShowRoutePreview(true)}
+              disabled={!from.trim() || !to.trim()}
+              title={from.trim() && to.trim() ? 'Показать маршрут на карте' : 'Сначала укажите откуда и куда'}
+              aria-label="Показать маршрут на карте"
+            >
+              <MapIcon size={17} aria-hidden="true" />
+            </button>
             <button
               type="button"
               className="swap-route-btn"
@@ -480,6 +495,20 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         </button>
       </form>
 
+      {showRoutePreview && (
+        <RouteMapPreview
+          role={role}
+          from={from.trim()}
+          to={to.trim()}
+          dateLabel={formatDateLabel(date)}
+          time={time}
+          seats={seats}
+          price={price}
+          onClose={() => setShowRoutePreview(false)}
+          onSearch={() => onSearch(buildSearchPayload())}
+        />
+      )}
+
       <style>{`
         .dashboard {
           display: flex;
@@ -593,6 +622,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         .swap-route-btn:hover {
           background: var(--border-subtle);
           color: var(--text-main);
+        }
+        .swap-route-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
         }
 
         /* Connected Route */
