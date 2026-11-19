@@ -89,7 +89,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
 
   if (!user) {
     return (
-      <div className="profile screen-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="profile screen-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <Loader className="spin-loader" size={32} color="var(--primary)" />
         <style>{`.spin-loader { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
       </div>
