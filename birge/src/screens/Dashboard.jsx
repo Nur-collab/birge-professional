@@ -18,10 +18,10 @@ import {
   Users,
   CreditCard,
   Plus,
-  Minus
+  Minus,
+  ChevronDown
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import RealMap from '../components/RealMap';
 import AddressInput from '../components/AddressInput';
 
 // Популярные жилые комплексы, микрорайоны и ориентиры Бишкека и Чуйской области
@@ -69,6 +69,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const [price, setPrice] = useState(100); // цена за место в сомах
   const [geoLoading, setGeoLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showHubs, setShowHubs] = useState(false);
+  const [showDriverDetails, setShowDriverDetails] = useState(false);
 
   const today = localDateStr();
   const tomorrow = localDateStr(1);
@@ -188,25 +190,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         </div>
       </div>
 
-      {/* Предупреждение: водитель без данных машины */}
-      {role === 'driver' && currentUser && !currentUser.car_model && (
-        <button type="button" className="driver-warning-card" onClick={onShowSettings}>
-          <div className="warning-icon-wrap">
-            <AlertTriangle size={18} aria-hidden="true" />
-          </div>
-          <div className="warning-content">
-            <div className="warning-title">Данные автомобиля не указаны</div>
-            <div className="warning-desc">Пассажиры не увидят марку и номер машины</div>
-          </div>
-          <ArrowRight size={16} className="warning-arrow" aria-hidden="true" />
-        </button>
-      )}
-
-      {/* Интерактивная карта маршрута */}
-      <div className="map-card">
-        <RealMap showUserOnly={true} height="118px" />
-      </div>
-
       {/* Основная карточка маршрута */}
       <form className="route-form-card" onSubmit={handleSubmit}>
         <div className="form-header">
@@ -214,15 +197,29 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             <MapPin size={16} className="text-primary" />
             <span>{role === 'driver' ? 'Маршрут поездки' : 'Поиск попутчиков'}</span>
           </div>
-          <button
-            type="button"
-            className="swap-route-btn"
-            onClick={handleSwapAddresses}
-            title="Поменять местами"
-            aria-label="Поменять местами точки отправления и назначения"
-          >
-            <ArrowUpDown size={15} aria-hidden="true" />
-          </button>
+          <div className="form-header-actions">
+            {role === 'driver' && currentUser && !currentUser.car_model && (
+              <button
+                type="button"
+                className="car-warning-chip"
+                onClick={onShowSettings}
+                title="Пассажиры не увидят марку и номер машины"
+                aria-label="Данные автомобиля не указаны. Пассажиры не увидят марку и номер машины. Открыть настройки"
+              >
+                <AlertTriangle size={13} aria-hidden="true" />
+                <span>Нет авто</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="swap-route-btn"
+              onClick={handleSwapAddresses}
+              title="Поменять местами"
+              aria-label="Поменять местами точки отправления и назначения"
+            >
+              <ArrowUpDown size={15} aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         {/* Интегрированный трек маршрута */}
@@ -272,8 +269,28 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           </div>
         </div>
 
-        {/* Быстрые хабы Бишкека и Чуйской области */}
-        <div className="hubs-section">
+        {/* Популярные точки — раскрываются по запросу */}
+        <button
+          type="button"
+          className="compact-disclosure"
+          onClick={() => setShowHubs((open) => !open)}
+          aria-expanded={showHubs}
+          aria-controls="popular-places-panel"
+        >
+          <span className="compact-disclosure-main">
+            <MapPin size={16} aria-hidden="true" />
+            <span>Популярные места</span>
+            <span className="compact-disclosure-meta">Быстрый выбор</span>
+          </span>
+          <ChevronDown
+            size={17}
+            className={`compact-disclosure-chevron ${showHubs ? 'open' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {showHubs && (
+          <div className="hubs-section" id="popular-places-panel">
           <div className="hubs-top">
             <div className="section-label">Популярные точки</div>
             <div className="target-toggle" role="group" aria-label="Куда применить популярную точку">
@@ -335,7 +352,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               );
             })}
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Дата и Время */}
         <div className="datetime-grid">
@@ -376,7 +394,30 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
 
         {/* Настройки для водителя: Места и Цена */}
         {role === 'driver' && (
-          <div className="driver-parameters-card">
+          <>
+            <button
+              type="button"
+              className="compact-disclosure driver-summary"
+              onClick={() => setShowDriverDetails((open) => !open)}
+              aria-expanded={showDriverDetails}
+              aria-controls="driver-parameters-panel"
+            >
+              <span className="compact-disclosure-main">
+                <Users size={16} aria-hidden="true" />
+                <span>Детали поездки</span>
+              </span>
+              <span className="driver-summary-value">
+                {seats} {seats === 1 ? 'место' : seats < 5 ? 'места' : 'мест'} · {price > 0 ? `${price} сом` : 'бесплатно'}
+              </span>
+              <ChevronDown
+                size={17}
+                className={`compact-disclosure-chevron ${showDriverDetails ? 'open' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {showDriverDetails && (
+              <div className="driver-parameters-card" id="driver-parameters-panel">
             {/* Места */}
             <div className="parameter-row">
               <div className="param-label-group">
@@ -427,7 +468,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 <span className="currency-label">СОМ</span>
               </div>
             </div>
-          </div>
+              </div>
+            )}
+          </>
         )}
 
         <button type="submit" className="primary-btn submit-action-btn">
@@ -484,54 +527,33 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           box-shadow: 0 1px 4px var(--shadow-soft);
         }
 
-        /* Driver Warning */
-        .driver-warning-card {
+        .form-header-actions {
           display: flex;
-          width: 100%;
-          text-align: left;
-          font: inherit;
-          color: inherit;
           align-items: center;
-          gap: 12px;
-          padding: 12px 14px;
-          background: var(--warning-soft);
+          gap: 8px;
+        }
+        .car-warning-chip {
+          min-height: 38px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 0 9px;
           border: 1px solid var(--warning-border);
-          border-radius: var(--radius-md);
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .driver-warning-card:hover {
+          border-radius: 9px;
           background: var(--warning-soft);
-        }
-        .warning-icon-wrap {
-          color: var(--warning);
-          display: flex;
-          align-items: center;
-        }
-        .warning-content {
-          flex: 1;
-        }
-        .warning-title {
-          font-size: 0.84rem;
-          font-weight: 700;
           color: var(--text-main);
+          font: inherit;
+          font-size: 0.68rem;
+          font-weight: 700;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: border-color 0.18s ease, background-color 0.18s ease;
         }
-        .warning-desc {
-          font-size: 0.74rem;
-          color: var(--text-muted);
-          margin-top: 2px;
+        .car-warning-chip svg {
+          color: var(--warning);
+          flex-shrink: 0;
         }
-        .warning-arrow {
-          color: var(--text-subtle);
-        }
-
-        /* Map */
-        .map-card {
-          border-radius: var(--radius-md);
-          overflow: hidden;
-          border: 1px solid var(--border-subtle);
-          box-shadow: var(--card-shadow);
-        }
+        .car-warning-chip:hover { border-color: var(--warning); }
 
         /* Form */
         .route-form-card {
@@ -981,11 +1003,63 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           box-shadow: 0 1px 2px var(--shadow-soft), 0 8px 16px -12px var(--shadow-soft);
         }
 
-        .map-card {
-          border-radius: 20px;
-          border-color: var(--border-subtle);
-          box-shadow: var(--card-shadow);
+        .compact-disclosure {
+          width: 100%;
+          min-height: 46px;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 13px;
+          border: 1px solid var(--border-subtle);
+          border-radius: 14px;
+          background: var(--bg-subtle);
+          color: var(--text-main);
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color 0.18s ease, background-color 0.18s ease;
         }
+        .compact-disclosure:hover {
+          border-color: var(--border-strong);
+          background: var(--bg-card);
+        }
+        .compact-disclosure-main {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+          font-size: 0.82rem;
+          font-weight: 700;
+        }
+        .compact-disclosure-main svg {
+          color: var(--primary);
+          flex-shrink: 0;
+        }
+        .compact-disclosure-meta {
+          color: var(--text-subtle);
+          font-size: 0.7rem;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .compact-disclosure-chevron {
+          margin-left: auto;
+          flex-shrink: 0;
+          color: var(--text-subtle);
+          transition: transform 0.2s ease;
+        }
+        .compact-disclosure-chevron.open { transform: rotate(180deg); }
+        .compact-disclosure[aria-expanded="true"] { margin-bottom: 8px; }
+        .driver-summary-value {
+          margin-left: auto;
+          color: var(--text-muted);
+          font-size: 0.74rem;
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .driver-summary-value + .compact-disclosure-chevron { margin-left: 0; }
 
         .route-form-card {
           padding: 18px;
@@ -1124,13 +1198,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .stepper-btn { width: 30px; height: 30px; border-radius: 8px; }
 
-        .driver-warning-card {
-          border-color: var(--warning-border);
-          border-radius: 14px;
-          background: var(--warning-soft);
-        }
-        .warning-icon-wrap { color: var(--warning); }
-
         .submit-action-btn {
           min-height: 54px;
           border-radius: 16px;
@@ -1142,9 +1209,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         [data-theme="dark"] .hub-chip.selected,
         [data-theme="dark"] .role-option.active {
           color: var(--on-primary);
-        }
-        [data-theme="dark"] .driver-warning-card {
-          border-color: var(--warning-border);
         }
         [data-theme="dark"] .role-option.active {
           color: var(--primary);
