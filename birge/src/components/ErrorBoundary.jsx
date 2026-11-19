@@ -142,6 +142,11 @@ class ErrorBoundary extends React.Component {
               color: var(--text-main);
               box-sizing: border-box;
             }
+            /* Внутри оболочки экран ошибки не должен резервировать целый
+               вьюпорт: хедер и отступ под меню уже занимают место. */
+            #main-content .eb-container {
+              min-height: 60vh;
+            }
             .eb-card {
               width: 100%;
               max-width: 440px;
