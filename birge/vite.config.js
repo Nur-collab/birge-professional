@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
             filename: 'sw.js',
             registerType: 'autoUpdate',
             injectManifest: {
+                // index.html не прекешируется: иначе старый service worker
+                // отдаёт HTML со ссылками на предыдущий бандл до обновления SW.
+                globIgnores: ['**/index.html'],
                 // Избегаем кеширования больших ассетов
                 maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
             },

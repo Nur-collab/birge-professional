@@ -9,6 +9,18 @@ import './index.css'
 
 initSentry()
 
+// Новый service worker забирает контроль сразу (skipWaiting + clientsClaim).
+// Один перезапуск переключает уже открытую вкладку на свежий бандл.
+if ('serviceWorker' in navigator) {
+    const hadController = Boolean(navigator.serviceWorker.controller)
+    let refreshing = false
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || refreshing) return
+        refreshing = true
+        window.location.reload()
+    })
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>

@@ -1,9 +1,18 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst } from 'workbox-strategies';
 
 // Это обязательная часть для vite-plugin-pwa injectManifest
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// HTML не в прекеше: документ всегда запрашивается из сети, поэтому после
+// деплоя страница сразу ссылается на новый бандл. Кеш — только офлайн-запас.
+registerRoute(
+    ({ request }) => request.mode === 'navigate',
+    new NetworkFirst({ cacheName: 'pages', networkTimeoutSeconds: 3 })
+);
 
 // Позволяет Service Worker моментально взять контроль над страницей
 self.skipWaiting();
