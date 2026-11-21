@@ -49,6 +49,11 @@ function App() {
     navigate(tabToPath(tab, tripId));
   }, [navigate]);
 
+  // Instant keeps the global smooth-scroll rule from animating the jump.
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   const {
     isLoggedIn,
     authLoading,
@@ -136,8 +141,8 @@ function App() {
 
   // Each screen opens at its own top instead of inheriting the previous scroll.
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [location.pathname]);
+    scrollToTop();
+  }, [location.pathname, scrollToTop]);
 
   // Preserve the old behavior: a stored active trip wins on a bare `/` load.
   useEffect(() => {
@@ -214,7 +219,13 @@ function App() {
   }
 
   const handleTabChange = (tab) => {
-    setActiveTab(tab, tab === 'trip' ? activeTrip?.id : null);
+    const tripId = tab === 'trip' ? activeTrip?.id : null;
+    if (tabToPath(tab, tripId) === location.pathname) {
+      // Re-tapping the active tab returns that screen to the top.
+      scrollToTop();
+    } else {
+      setActiveTab(tab, tripId);
+    }
     if (tab === 'trip') setUnreadCount(0); // сброс непрочитанных при открытии чата
   };
 
