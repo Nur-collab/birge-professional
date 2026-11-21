@@ -6,6 +6,7 @@ import {
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 import ReviewModal from '../components/ReviewModal';
+import SkeletonCard from '../components/SkeletonCard';
 
 export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
   const [trips, setTrips] = useState([]);
@@ -97,14 +98,9 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         <div className="sched-header">
           <h2 className="sched-title">Запланированные поездки</h2>
         </div>
-        <div className="sched-skeleton-list">
-          {[1, 2].map(i => (
-            <div key={i} className="sched-skeleton-card">
-              <div className="skel skel-date" />
-              <div className="skel skel-route" />
-              <div className="skel skel-route short" />
-            </div>
-          ))}
+        <div className="sched-list">
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       </div>
     );
@@ -143,7 +139,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         /* Пустой стейт */
         <div className="sched-empty">
           <div className="sched-empty-icon">
-            <Calendar size={36} color="var(--text-subtle)" />
+            <Calendar size={22} aria-hidden="true" />
           </div>
           <h3 className="sched-empty-title">Пока пусто</h3>
           <p className="sched-empty-text">
@@ -389,38 +385,48 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         .sched-refresh-btn.spinning svg { animation: spin360 0.7s linear infinite; }
         @keyframes spin360 { to { transform: rotate(360deg); } }
 
-        /* Skeleton */
-        .sched-skeleton-list { display: flex; flex-direction: column; gap: 12px; }
-        .sched-skeleton-card {
-          background: var(--bg-input); border-radius: 16px; padding: 18px;
-          display: flex; flex-direction: column; gap: 10px;
-        }
-        .skel {
-          background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--border-subtle) 50%, var(--bg-subtle) 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.4s infinite;
-          border-radius: 8px;
-        }
-        .skel-date { height: 18px; width: 60%; }
-        .skel-route { height: 14px; width: 90%; }
-        .skel-route.short { width: 70%; }
-        @keyframes shimmer { to { background-position: -200% 0; } }
-
-        /* Empty state */
+        /* Empty state — same panel as the matches screen */
         .sched-empty {
-          display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 32px 22px;
+          border: 1px solid var(--border-subtle);
+          border-radius: 24px;
+          background: var(--bg-card);
+          box-shadow: var(--card-shadow);
           text-align: center;
-          padding: 40px 20px;
-          gap: 12px;
         }
-        .sched-empty-icon { font-size: 3.5rem; }
-        .sched-empty-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
-        .sched-empty-text { font-size: 0.83rem; color: var(--text-subtle); margin: 0; max-width: 260px; line-height: 1.5; }
+        .sched-empty-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          margin-bottom: 15px;
+          border-radius: 15px;
+          background: var(--accent-soft);
+          color: var(--primary);
+        }
+        .sched-empty-title {
+          font-size: 1.2rem;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          color: var(--text-main);
+          margin: 0;
+        }
+        .sched-empty-text {
+          font-size: 0.84rem;
+          color: var(--text-muted);
+          margin: 7px auto 18px;
+          max-width: 33ch;
+          line-height: 1.6;
+        }
         .sched-cta-btn {
-          margin-top: 8px;
           width: auto !important;
-          padding: 12px 24px !important;
+          min-width: 190px;
+          padding: 0 22px !important;
+          min-height: 48px;
           font-size: 0.9rem !important;
         }
 

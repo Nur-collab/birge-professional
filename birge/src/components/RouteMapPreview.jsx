@@ -216,7 +216,7 @@ export default function RouteMapPreview({
         }
         .route-preview-icon-btn,
         .route-preview-edit {
-          min-height: 42px;
+          min-height: 44px;
           border: 1px solid var(--border-subtle);
           background: var(--surface-glass);
           color: var(--text-main);
@@ -226,8 +226,8 @@ export default function RouteMapPreview({
           cursor: pointer;
         }
         .route-preview-icon-btn {
-          width: 42px;
-          height: 42px;
+          width: 44px;
+          height: 44px;
           border-radius: 14px;
           display: flex;
           align-items: center;

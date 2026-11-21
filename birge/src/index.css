@@ -26,7 +26,7 @@
   --on-primary: #ffffff;
   --on-danger: #ffffff;
   --on-warning: #3f2a08;
-  --surface-overlay: rgba(8, 16, 12, 0.55);
+  --surface-overlay: rgba(8, 16, 12, 0.65);
   --surface-glass: rgba(255, 255, 255, 0.92);
   --shadow-soft: rgba(20, 32, 27, 0.04);
   --shadow-medium: rgba(20, 32, 27, 0.12);
@@ -314,7 +314,7 @@ body {
 }
 
 .header-brand-subtitle {
-  font-size: 0.56rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.13em;
   color: var(--text-subtle);
@@ -434,7 +434,7 @@ button.glass-panel {
 }
 
 .section-label {
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -594,7 +594,7 @@ textarea::placeholder {
 .matches-kicker {
   margin-bottom: 5px;
   color: var(--text-muted);
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -613,7 +613,7 @@ textarea::placeholder {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 11px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
@@ -727,7 +727,7 @@ textarea::placeholder {
 
 .date-chip {
   flex-shrink: 0;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 13px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
@@ -859,7 +859,7 @@ textarea::placeholder {
   display: block;
   margin-top: 2px;
   color: var(--text-muted);
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -880,7 +880,7 @@ textarea::placeholder {
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--primary);
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -921,7 +921,7 @@ textarea::placeholder {
   display: block;
   margin-bottom: 2px;
   color: var(--text-muted);
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;

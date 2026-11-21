@@ -108,7 +108,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             <>
               <img src={user.photo} alt={user.name} className="profile-avatar" />
               <div className="avatar-overlay">
-                <span style={{ color: 'var(--on-primary)', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
+                <span style={{ color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
               </div>
             </>
           )}

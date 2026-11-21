@@ -111,7 +111,7 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
         .chat-input { flex: 1; border: 1px solid var(--border-subtle); border-radius: 20px; padding: 10px 16px; outline: none; background: var(--bg-input); color: var(--text-main); font-size: 0.95rem; transition: all 0.2s; }
         .chat-input:focus { background: var(--bg-card); border-color: var(--primary); }
         .chat-input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-        .chat-send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .chat-send-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
         .chat-send-btn:disabled { background: var(--border-subtle); color: var(--text-subtle); cursor: not-allowed; }
       `}</style>
     </div>

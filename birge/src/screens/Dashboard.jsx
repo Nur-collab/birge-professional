@@ -607,9 +607,9 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           color: var(--text-main);
         }
         .swap-route-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
           border: 1px solid var(--border-subtle);
           background: var(--bg-subtle);
           color: var(--text-muted);
@@ -1107,8 +1107,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .form-header-title svg { color: var(--primary); }
         .swap-route-btn {
-          width: 38px;
-          height: 38px;
+          width: 44px;
+          height: 44px;
           border-radius: 12px;
           background: var(--bg-subtle);
         }
