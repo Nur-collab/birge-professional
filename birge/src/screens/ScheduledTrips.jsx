@@ -7,6 +7,7 @@ import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 import ReviewModal from '../components/ReviewModal';
 import SkeletonCard from '../components/SkeletonCard';
+import StatePanel from '../components/StatePanel';
 
 export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
   const [trips, setTrips] = useState([]);
@@ -92,20 +93,6 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="sched-screen">
-        <div className="sched-header">
-          <h2 className="sched-title">Запланированные поездки</h2>
-        </div>
-        <div className="sched-list">
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="sched-screen">
       {error && (
@@ -118,9 +105,11 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         <div>
           <h2 className="sched-title">Запланированные</h2>
           <p className="sched-subtitle">
-            {trips.length > 0
-              ? tripsCountLabel(trips.length)
-              : 'Нет запланированных поездок'}
+            {loading
+              ? 'Загружаем поездки…'
+              : trips.length > 0
+                ? tripsCountLabel(trips.length)
+                : 'Нет запланированных поездок'}
           </p>
         </div>
         <button
@@ -135,22 +124,27 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         </button>
       </div>
 
-      {trips.length === 0 ? (
-        /* Пустой стейт */
-        <div className="sched-empty">
-          <div className="sched-empty-icon">
-            <Calendar size={22} aria-hidden="true" />
-          </div>
-          <h3 className="sched-empty-title">Пока пусто</h3>
-          <p className="sched-empty-text">
-            Запланируйте поездку на завтра или следующую неделю —
-            она появится здесь автоматически
-          </p>
-          <button type="button" className="primary-btn sched-cta-btn" onClick={onCancel} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {loading ? (
+        <div className="sched-list">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : trips.length === 0 ? (
+        <StatePanel
+          titleAs="h3"
+          icon={<Calendar size={22} />}
+          title="Пока пусто"
+          text="Запланируйте поездку на завтра или следующую неделю — она появится здесь автоматически"
+          action={<button
+            type="button"
+            className="primary-btn state-panel-action"
+            onClick={onCancel}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
             <Plus size={16} aria-hidden="true" />
             <span>Запланировать поездку</span>
-          </button>
-        </div>
+          </button>}
+        />
       ) : (
         <div className="sched-list">
           {trips.map((trip, idx) => (
@@ -384,51 +378,6 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         .sched-refresh-btn:hover { background: var(--bg-subtle); color: var(--text-muted); }
         .sched-refresh-btn.spinning svg { animation: spin360 0.7s linear infinite; }
         @keyframes spin360 { to { transform: rotate(360deg); } }
-
-        /* Empty state — same panel as the matches screen */
-        .sched-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 32px 22px;
-          border: 1px solid var(--border-subtle);
-          border-radius: 24px;
-          background: var(--bg-card);
-          box-shadow: var(--card-shadow);
-          text-align: center;
-        }
-        .sched-empty-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 48px;
-          height: 48px;
-          margin-bottom: 15px;
-          border-radius: 15px;
-          background: var(--accent-soft);
-          color: var(--primary);
-        }
-        .sched-empty-title {
-          font-size: 1.2rem;
-          font-weight: 800;
-          letter-spacing: -0.03em;
-          color: var(--text-main);
-          margin: 0;
-        }
-        .sched-empty-text {
-          font-size: 0.84rem;
-          color: var(--text-muted);
-          margin: 7px auto 18px;
-          max-width: 33ch;
-          line-height: 1.6;
-        }
-        .sched-cta-btn {
-          width: auto !important;
-          min-width: 190px;
-          padding: 0 22px !important;
-          min-height: 48px;
-          font-size: 0.9rem !important;
-        }
 
         /* Cards list */
         .sched-list { display: flex; flex-direction: column; gap: 14px; }

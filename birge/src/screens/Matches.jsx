@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Star, CheckCircle, Clock, Car, Send, Loader, Calendar, MapPin, Navigation, X, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SkeletonCard from '../components/SkeletonCard';
+import StatePanel from '../components/StatePanel';
 import { api, API_URL } from '../utils/api';
 import { localDateStr } from '../utils/date';
 
@@ -219,27 +220,25 @@ export default function Matches({
   if (activeTrip) {
     return (
       <div className="matches screen-content">
-        <section className="matches-state-card">
-          <span className="matches-state-badge">
+        <StatePanel
+          badge={<>
             <CheckCircle2 size={14} aria-hidden="true" />
             {activeTrip.isScheduled ? 'Запланированная поездка' : 'Поездка в процессе'}
-          </span>
-          <h2 className="matches-state-title">
-            {activeTrip.origin} <span className="matches-state-arrow">→</span> {activeTrip.destination}
-          </h2>
-          <p className="matches-state-text">
-            {activeTrip.role === 'passenger'
-              ? 'Вы уже едете с водителем ' + (activeTrip.user?.name || activeTrip.driverName || 'водителем') + '. Чат и статус поездки открыты во вкладке «В пути».'
-              : 'Поездка сформирована. Занято мест: ' + (activeTrip.seats_taken || 1) + ' из ' + (activeTrip.seats || 3) + '. Управление поездкой доступно во вкладке «В пути».'}
-          </p>
-          <button
+          </>}
+          title={<>
+            {activeTrip.origin} <span className="state-panel-arrow">→</span> {activeTrip.destination}
+          </>}
+          text={activeTrip.role === 'passenger'
+            ? 'Вы уже едете с водителем ' + (activeTrip.user?.name || activeTrip.driverName || 'водителем') + '. Чат и статус поездки открыты во вкладке «В пути».'
+            : 'Поездка сформирована. Занято мест: ' + (activeTrip.seats_taken || 1) + ' из ' + (activeTrip.seats || 3) + '. Управление поездкой доступно во вкладке «В пути».'}
+          action={<button
             type="button"
             onClick={onGoToActiveTrip}
-            className="primary-btn matches-state-action"
+            className="primary-btn state-panel-action"
           >
             Перейти к поездке
-          </button>
-        </section>
+          </button>}
+        />
       </div>
     );
   }
@@ -247,22 +246,18 @@ export default function Matches({
   if (!searchCriteria && matches.length === 0) {
     return (
       <div className="matches screen-content">
-        <section className="matches-state-card">
-          <span className="matches-state-icon">
-            <Navigation size={22} aria-hidden="true" />
-          </span>
-          <h2 className="matches-state-title">Нет активного поиска</h2>
-          <p className="matches-state-text">
-            Укажите откуда и куда вы едете на главном экране, чтобы Birge подобрал подходящих попутчиков.
-          </p>
-          <button
+        <StatePanel
+          icon={<Navigation size={22} />}
+          title="Нет активного поиска"
+          text="Укажите откуда и куда вы едете на главном экране, чтобы Birge подобрал подходящих попутчиков."
+          action={<button
             type="button"
             onClick={onCancel}
-            className="secondary-btn matches-state-action"
+            className="secondary-btn state-panel-action"
           >
             Перейти к поиску
-          </button>
-        </section>
+          </button>}
+        />
       </div>
     );
   }
@@ -292,17 +287,15 @@ export default function Matches({
   if (matches.length === 0) {
     return (
       <div className="matches screen-content">
-        <section className="matches-state-card">
-          <span className="matches-state-icon">
-            <Clock size={22} aria-hidden="true" />
-          </span>
-          <h2 className="matches-state-title">{t('matches.empty')}</h2>
-          <p className="matches-state-text">Ищем подходящих попутчиков по маршруту...</p>
-          <button type="button" onClick={onCancel} className="secondary-btn matches-state-action">
+        <StatePanel
+          icon={<Clock size={22} />}
+          title={t('matches.empty')}
+          text="Ищем подходящих попутчиков по маршруту..."
+          action={<button type="button" onClick={onCancel} className="secondary-btn state-panel-action">
             <X size={15} aria-hidden="true" />
             Отменить поиск
-          </button>
-        </section>
+          </button>}
+        />
       </div>
     );
   }

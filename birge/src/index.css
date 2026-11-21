@@ -649,7 +649,7 @@ textarea::placeholder {
   line-height: 1.45;
 }
 
-.matches-state-card {
+.state-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -661,7 +661,7 @@ textarea::placeholder {
   text-align: center;
 }
 
-.matches-state-icon {
+.state-panel-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -673,7 +673,7 @@ textarea::placeholder {
   color: var(--primary);
 }
 
-.matches-state-badge {
+.state-panel-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -686,7 +686,7 @@ textarea::placeholder {
   font-weight: 800;
 }
 
-.matches-state-title {
+.state-panel-title {
   color: var(--text-main);
   font-size: 1.2rem;
   font-weight: 800;
@@ -694,12 +694,12 @@ textarea::placeholder {
   letter-spacing: -0.03em;
 }
 
-.matches-state-arrow {
+.state-panel-arrow {
   color: var(--text-subtle);
   font-weight: 600;
 }
 
-.matches-state-text {
+.state-panel-text {
   max-width: 33ch;
   margin: 7px auto 18px;
   color: var(--text-muted);
@@ -707,7 +707,7 @@ textarea::placeholder {
   line-height: 1.6;
 }
 
-.matches-state-action {
+.state-panel-action {
   width: auto;
   min-width: 190px;
   padding-right: 22px;
