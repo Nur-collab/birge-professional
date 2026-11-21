@@ -134,6 +134,11 @@ function App() {
     if (isLoggedIn) mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname, isLoggedIn]);
 
+  // Each screen opens at its own top instead of inheriting the previous scroll.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname]);
+
   // Preserve the old behavior: a stored active trip wins on a bare `/` load.
   useEffect(() => {
     if (initialRouteHandled.current) return;
