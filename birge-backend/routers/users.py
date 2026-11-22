@@ -37,15 +37,68 @@ def read_current_user(
     )
     return user or current_user
 
+def _is_accepted_passenger(db: Session, driver_id: int, passenger_id: int) -> bool:
+    """True, если passenger принят в поездку driver."""
+    return (
+        db.query(models.TripRequest.id)
+        .join(models.Trip, models.Trip.id == models.TripRequest.trip_id)
+        .filter(
+            models.Trip.user_id == driver_id,
+            models.TripRequest.requester_id == passenger_id,
+            models.TripRequest.status.in_(("accepted", "completed")),
+        )
+        .first()
+        is not None
+    )
+
+
+def _shares_accepted_trip(db: Session, viewer_id: int, target_id: int) -> bool:
+    """True, если пользователи вместе приняли одну поездку."""
+    if _is_accepted_passenger(db, viewer_id, target_id) or _is_accepted_passenger(
+        db, target_id, viewer_id
+    ):
+        return True
+
+    # Два принятых пассажира одной поездки тоже видят профили друг друга.
+    statuses = ("accepted", "completed")
+    viewer_trip_ids = [
+        trip_id
+        for (trip_id,) in db.query(models.TripRequest.trip_id)
+        .filter(
+            models.TripRequest.requester_id == viewer_id,
+            models.TripRequest.trip_id.isnot(None),
+            models.TripRequest.status.in_(statuses),
+        )
+        .all()
+    ]
+    if not viewer_trip_ids:
+        return False
+    return (
+        db.query(models.TripRequest.id)
+        .filter(
+            models.TripRequest.requester_id == target_id,
+            models.TripRequest.trip_id.in_(viewer_trip_ids),
+            models.TripRequest.status.in_(statuses),
+        )
+        .first()
+        is not None
+    )
+
+
 @router.get("/{user_id}", response_model=schemas.UserPublic)
 def read_user_public(
     user_id: int,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Публичный профиль без телефона и платёжных реквизитов."""
+    """Профиль доступен только себе и участникам принятой совместной поездки."""
+    enforce_user_limit_sync(current_user.id, "user.profile.read", 60, 60)
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
+    if not user or (
+        user_id != current_user.id
+        and not _shares_accepted_trip(db, current_user.id, user_id)
+    ):
+        # 404 не подтверждает существование профиля посторонним.
         raise HTTPException(status_code=404, detail="User not found")
     return user
 

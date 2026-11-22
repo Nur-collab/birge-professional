@@ -203,7 +203,15 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
             if circular_diff <= 30:
                 matches.append(trip)
 
-    return matches
+    # Поиск доступен посторонним: номер машины раскрываем только после
+    # принятия поездки, когда профиль уже доступен через /users/{id}.
+    result = []
+    for trip in matches:
+        item = schemas.Trip.model_validate(trip)
+        if item.user is not None:
+            item.user.car_plate = None
+        result.append(item)
+    return result
 
 @router.post("/{trip_id}/ws-ticket")
 def create_trip_ws_ticket(

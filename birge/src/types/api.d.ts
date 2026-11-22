@@ -696,7 +696,7 @@ export interface paths {
         };
         /**
          * Read User Public
-         * @description Публичный профиль без телефона и платёжных реквизитов.
+         * @description Профиль доступен только себе и участникам принятой совместной поездки.
          */
         get: operations["read_user_public_users__user_id__get"];
         put?: never;

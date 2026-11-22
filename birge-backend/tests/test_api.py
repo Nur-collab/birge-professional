@@ -431,6 +431,8 @@ def test_photo_upload_requires_server_side_configuration(client, db, monkeypatch
 
 def test_trip_create_matches_status_and_delete_flow(client, db):
     driver = _user(db, "+996555000021", "Водитель")
+    driver.car_plate = "A123BC"
+    db.commit()
     passenger = _user(db, "+996555000022", "Пассажир")
     today = main.get_bishkek_today_str()
 
@@ -463,7 +465,8 @@ def test_trip_create_matches_status_and_delete_flow(client, db):
         },
     )
     assert matches.status_code == 200
-    assert any(item["id"] == trip_id for item in matches.json())
+    match = next(item for item in matches.json() if item["id"] == trip_id)
+    assert match["user"]["car_plate"] is None
 
     updated = client.patch(
         f"/trips/{trip_id}/status",

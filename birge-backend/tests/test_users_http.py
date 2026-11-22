@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import auth
@@ -118,6 +119,64 @@ def test_users_me_patch_and_public_profile(client, db):
 
     assert client.get("/users/999999", headers=headers).status_code == 404
     assert client.get("/users/me").status_code == 401
+
+
+def test_public_profile_is_limited_to_self_and_accepted_trip(client, db):
+    driver = _user(db, phone="+996555000017", name="Водитель")
+    driver.car_plate = "A123BC"
+    passenger = _user(db, phone="+996555000018", name="Пассажир")
+    co_passenger = _user(db, phone="+996555000019", name="Попутчик")
+    stranger = _user(db, phone="+996555000020", name="Посторонний")
+    db.commit()
+
+    trip = _trip(db, driver, seats=3, seats_taken=2)
+    _accepted_request(db, trip, passenger)
+    _accepted_request(db, trip, co_passenger)
+    db.add(
+        models.TripRequest(
+            trip_id=trip.id,
+            requester_id=stranger.id,
+            driver_id=driver.id,
+            status="pending",
+        )
+    )
+    db.commit()
+
+    own = client.get(f"/users/{driver.id}", headers=_headers(driver))
+    assert own.status_code == 200
+    assert own.json()["car_plate"] == "A123BC"
+
+    shared_driver = client.get(f"/users/{driver.id}", headers=_headers(passenger))
+    assert shared_driver.status_code == 200
+    assert shared_driver.json()["car_plate"] == "A123BC"
+
+    shared_passenger = client.get(f"/users/{passenger.id}", headers=_headers(driver))
+    assert shared_passenger.status_code == 200
+
+    shared_co_passenger = client.get(
+        f"/users/{co_passenger.id}", headers=_headers(passenger)
+    )
+    assert shared_co_passenger.status_code == 200
+
+    for target in (driver, passenger, co_passenger):
+        blocked = client.get(f"/users/{target.id}", headers=_headers(stranger))
+        assert blocked.status_code == 404
+        assert blocked.json() == {"detail": "User not found"}
+        assert "A123BC" not in blocked.text
+
+
+def test_public_profile_is_rate_limited(client, db, monkeypatch):
+    user = _user(db, phone="+996555000021")
+    calls = []
+
+    def deny(*args, **kwargs):
+        calls.append(args)
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    monkeypatch.setattr("routers.users.enforce_user_limit_sync", deny)
+    response = client.get(f"/users/{user.id}", headers=_headers(user))
+    assert response.status_code == 429
+    assert calls == [(user.id, "user.profile.read", 60, 60)]
 
 
 def test_users_trips_and_active_trip(client, db):
