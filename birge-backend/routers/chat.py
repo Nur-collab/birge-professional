@@ -8,6 +8,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import auth
 import models
 from database import SessionLocal
+from rate_limit import get_rate_limiter
 from realtime import is_trip_participant, manager, publish_chat_message
 from time_utils import get_bishkek_now
 
@@ -77,6 +78,14 @@ async def websocket_endpoint(
                 continue
             if len(text) > 1000:
                 await websocket.send_text(json.dumps({"error": "message_too_long"}))
+                continue
+
+            # The REST send route is limited, but direct WebSocket clients could
+            # otherwise flood a trip chat without any throttling.
+            if not await get_rate_limiter().hit(
+                f"ws:chat:{user_id}:{trip_int_id}", 30, 60
+            ):
+                await websocket.send_text(json.dumps({"error": "rate_limited"}))
                 continue
 
             timestamp = get_bishkek_now().strftime("%I:%M %p")

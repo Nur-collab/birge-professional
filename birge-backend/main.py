@@ -57,7 +57,15 @@ async def lifespan(app: FastAPI):
         await stop_realtime()
         await close_rate_limiter()
 
-app = FastAPI(title="Birge API - MVP Backend", lifespan=lifespan)
+app = FastAPI(
+    title="Birge API - MVP Backend",
+    lifespan=lifespan,
+    # Public API docs are useful in development but unnecessary attack surface
+    # in production. The schema is exported at build time for frontend types.
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
 
 
 @app.middleware("http")
@@ -109,6 +117,10 @@ async def security_headers_middleware(request, call_next):
     response.headers["Content-Security-Policy"] = (
         "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
     )
+    # Tokens and personal profile data must never be reused from an HTTP cache.
+    if request.url.path.startswith(("/auth/", "/users/me")):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
     if IS_PRODUCTION:
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"
@@ -577,8 +589,10 @@ async def telegram_webhook(
         )
         return {"ok": True}
 
-    except Exception as e:
-        logger.exception(f"[Telegram Webhook] Ошибка обработки обновления: {e}")
+    except Exception:
+        # Do not put exception text into logs: SDK/transport errors can contain
+        # request URLs, and Telegram URLs include the bot token.
+        logger.exception("[Telegram Webhook] Ошибка обработки обновления")
         try:
             db.rollback()
         except Exception:

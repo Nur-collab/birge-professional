@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -528,6 +529,39 @@ def test_security_headers_and_current_cors_origin(client):
         },
     )
     assert preflight.headers["access-control-allow-origin"] == allowed_origin
+
+
+def test_auth_and_profile_responses_are_not_cached(client, db):
+    user = _user(db, "+996555000066", "Кеш")
+
+    profile = client.get("/users/me", headers=_headers(user))
+    assert profile.status_code == 200
+    assert profile.headers["Cache-Control"] == "no-store"
+
+    auth_failure = client.post("/auth/refresh", json={"refresh_token": "x" * 20})
+    assert auth_failure.status_code == 401
+    assert auth_failure.headers["Cache-Control"] == "no-store"
+
+    health = client.get("/health")
+    assert "Cache-Control" not in health.headers
+
+
+def test_websocket_chat_rate_limit(client, db, monkeypatch):
+    driver = _user(db, "+996555000067", "Водитель")
+    trip = _driver_trip(db, driver)
+    ticket = auth.create_ws_ticket(driver.id, trip.id, driver.token_version or 0)
+
+    class DeniedLimiter:
+        async def hit(self, key: str, limit: int, window_seconds: int) -> bool:
+            return False
+
+    monkeypatch.setattr("routers.chat.get_rate_limiter", lambda: DeniedLimiter())
+
+    with client.websocket_connect(
+        f"/ws/chat/{trip.id}/{driver.id}?ticket={ticket}"
+    ) as websocket:
+        websocket.send_text(json.dumps({"text": "hello"}))
+        assert websocket.receive_json() == {"error": "rate_limited"}
 
 
 def test_write_rate_limit_returns_429(client, db, monkeypatch):

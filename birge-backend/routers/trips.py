@@ -1,6 +1,7 @@
 """Trip, chat and payment routes."""
 import html
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -23,6 +24,7 @@ from realtime import (
 )
 from time_utils import get_bishkek_now, get_bishkek_today_str, parse_time_minutes
 
+logger = logging.getLogger("birge")
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
@@ -554,7 +556,10 @@ async def send_panic_alert(
             )
         return {"sent": resp.status_code == 200}
     except Exception as e:
-        return {"sent": False, "reason": str(e)}
+        # Never return transport text to the client: it can include the Telegram
+        # URL and therefore the bot token.
+        logger.warning("[Panic] Telegram delivery failed: %s", type(e).__name__)
+        return {"sent": False, "reason": "delivery_failed"}
 
 @router.get("/{trip_id}/passengers")
 def get_trip_passengers(trip_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):

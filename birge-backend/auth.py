@@ -418,7 +418,8 @@ async def send_telegram_message(
             resp = await client.post(f"{api_url}/sendMessage", json=payload)
             return resp.status_code == 200 and resp.json().get("ok", False)
     except Exception as e:
-        print(f"[Telegram] Ошибка отправки: {e}")
+        # Telegram/client errors may include the request URL with the bot token.
+        print(f"[Telegram] Ошибка отправки: {type(e).__name__}")
         return False
 
 

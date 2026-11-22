@@ -93,7 +93,7 @@ async def main():
                         secret_token = os.environ.get("TELEGRAM_WEBHOOK_SECRET", None)
                         await telegram_webhook(payload=update, x_telegram_bot_api_secret_token=secret_token, db=db)
                     except Exception as e:
-                        print(f"[!] Ошибка обработки: {e}")
+                        print(f"[!] Ошибка обработки: {type(e).__name__}")
                     finally:
                         db.close()
 
@@ -103,7 +103,7 @@ async def main():
                 print("\n[!] Остановка бота...")
                 break
             except Exception as exc:
-                print(f"[!] Ошибка сети/запроса: {exc}")
+                print(f"[!] Ошибка сети/запроса: {type(exc).__name__}")
                 await asyncio.sleep(3)
 
 
