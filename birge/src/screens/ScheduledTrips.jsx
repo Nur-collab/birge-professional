@@ -365,7 +365,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           border-color: var(--warning);
         }
         .sched-refresh-btn {
-          width: 38px; height: 38px;
+          width: 44px; height: 44px;
           border-radius: 10px;
           border: 1.5px solid var(--border-subtle);
           background: var(--bg-card);
