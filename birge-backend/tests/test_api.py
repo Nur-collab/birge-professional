@@ -224,10 +224,15 @@ def test_verify_code_issues_a_rotatable_refresh_token(client, db):
     assert rotated.json()["refresh_token"] != issued
 
 
-def test_refresh_token_replay_revokes_the_whole_family(client, db):
+def test_refresh_token_replay_revokes_every_session_and_access_token(client, db):
     user = _user(db, "+996555000005", "Ротация")
+    access = auth.create_access_token(
+        {"sub": str(user.id), "ver": user.token_version or 0}
+    )
     refresh = auth.issue_refresh_token(user, db)
     db.commit()
+    headers = {"Authorization": f"Bearer {access}"}
+    assert client.get("/users/me", headers=headers).status_code == 200
 
     first = client.post("/auth/refresh", json={"refresh_token": refresh})
     assert first.status_code == 200
@@ -241,15 +246,21 @@ def test_refresh_token_replay_revokes_the_whole_family(client, db):
     second = client.post("/auth/refresh", json={"refresh_token": rotated})
     assert second.status_code == 401
 
+    # Detected theft bumps the user-wide version: the stolen access token
+    # dies immediately and every refresh session is dropped.
     db.expire_all()
-    sessions = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
-    assert len(sessions) == 2
-    # Only the original token was consumed; its successor was revoked unused.
-    assert sum(1 for session in sessions if session.used_at is not None) == 1
-    assert all(session.revoked_at is not None for session in sessions)
+    db.refresh(user)
+    assert user.token_version == 1
+    assert db.query(models.RefreshSession).filter_by(user_id=user.id).count() == 0
+    assert client.get("/users/me", headers=headers).status_code == 401
+
+    fresh_access = auth.create_access_token({"sub": str(user.id), "ver": 1})
+    assert client.get(
+        "/users/me", headers={"Authorization": f"Bearer {fresh_access}"}
+    ).status_code == 200
 
 
-def test_refresh_replay_leaves_other_devices_signed_in(client, db):
+def test_refresh_replay_signs_every_device_out(client, db):
     user = _user(db, "+996555000011", "Семейство")
     first_login = auth.issue_refresh_token(user, db)
     second_login = auth.issue_refresh_token(user, db)
@@ -262,13 +273,17 @@ def test_refresh_replay_leaves_other_devices_signed_in(client, db):
     assert client.post(
         "/auth/refresh", json={"refresh_token": first_login}
     ).status_code == 401
-    # Only the compromised family is revoked; the other login keeps working.
     assert client.post(
         "/auth/refresh", json={"refresh_token": successor}
     ).status_code == 401
+    # Minimal user-wide revocation: other device families die too.
     assert client.post(
         "/auth/refresh", json={"refresh_token": second_login}
-    ).status_code == 200
+    ).status_code == 401
+
+    db.expire_all()
+    db.refresh(user)
+    assert user.token_version == 1
 
 
 def test_refresh_cleanup_removes_only_expired_sessions(client, db):
@@ -317,11 +332,13 @@ def test_refresh_rotation_keeps_consumed_session_for_reuse_detection(client, db)
     assert len(sessions) == 2
     assert sum(1 for session in sessions if session.used_at is not None) == 1
 
-    # Replaying the consumed token returns None and revokes the replacement.
+    # Replaying the consumed token returns None, drops every session and
+    # invalidates access tokens through the user-wide version.
     assert auth.rotate_refresh_token(original, user, db) is None
     db.commit()
-    sessions = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
-    assert all(session.revoked_at is not None for session in sessions)
+    assert db.query(models.RefreshSession).filter_by(user_id=user.id).count() == 0
+    db.refresh(user)
+    assert user.token_version == 1
 
 
 def test_consumed_refresh_session_survives_next_issue(client, db):
@@ -605,6 +622,11 @@ def test_auth_and_profile_responses_are_not_cached(client, db):
     assert public_profile.status_code == 200
     assert public_profile.headers["Cache-Control"] == "no-store"
     assert public_profile.headers["Pragma"] == "no-cache"
+
+    trip = _driver_trip(db, user)
+    trip_detail = client.get(f"/trips/{trip.id}", headers=_headers(user))
+    assert trip_detail.status_code == 200
+    assert trip_detail.headers["Cache-Control"] == "no-store"
 
     auth_failure = client.post("/auth/refresh", json={"refresh_token": "x" * 20})
     assert auth_failure.status_code == 401

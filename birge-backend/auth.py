@@ -157,30 +157,13 @@ def issue_refresh_token(user, db, family_id: Optional[str] = None) -> str:
     return token
 
 
-def revoke_refresh_family(db, session, now: Optional[datetime] = None) -> int:
-    """Revoke every still-active token that descends from the same login."""
-    from models import RefreshSession
-
-    if not session.family_id:
-        return 0
-    now = now or datetime.now(timezone.utc)
-    return (
-        db.query(RefreshSession)
-        .filter(
-            RefreshSession.user_id == session.user_id,
-            RefreshSession.family_id == session.family_id,
-            RefreshSession.revoked_at.is_(None),
-        )
-        .update({RefreshSession.revoked_at: now}, synchronize_session="fetch")
-    )
-
-
 def rotate_refresh_token(token: str, user, db) -> Optional[str]:
     """Consume a refresh JTI and issue its replacement.
 
     Returns None when the token is invalid, expired or revoked. Replaying an
-    already-rotated token also revokes its whole family, so a stolen
-    successor cannot keep refreshing after the theft is detected.
+    already-rotated token is treated as theft: every refresh session is
+    dropped and the user-wide token version is bumped, which revokes already
+    issued access tokens as well.
     """
     from models import RefreshSession
 
@@ -200,7 +183,14 @@ def rotate_refresh_token(token: str, user, db) -> Optional[str]:
     if not session:
         return None
     if session.used_at is not None:
-        revoke_refresh_family(db, session, now)
+        # Access tokens only carry the user-wide version, so bumping it is
+        # the smallest way to kill the stolen one immediately. The cost is a
+        # forced re-login on every device, which is the right response to a
+        # confirmed refresh-token replay.
+        user.token_version = int(user.token_version or 0) + 1
+        db.query(RefreshSession).filter(
+            RefreshSession.user_id == user.id
+        ).delete(synchronize_session=False)
         return None
     if session.revoked_at is not None:
         return None

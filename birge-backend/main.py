@@ -117,8 +117,15 @@ async def security_headers_middleware(request, call_next):
     response.headers["Content-Security-Policy"] = (
         "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
     )
-    # Tokens and personal profile data must never be reused from an HTTP cache.
-    if request.url.path == "/users" or request.url.path.startswith(("/auth/", "/users/")):
+    # Tokens and personal data must never be reused from an HTTP cache. Every
+    # authenticated request is personalized by definition; auth and profile
+    # routes also need this for their unauthenticated steps.
+    is_authenticated = "authorization" in request.headers
+    if (
+        is_authenticated
+        or request.url.path == "/users"
+        or request.url.path.startswith(("/auth/", "/users/", "/internal/"))
+    ):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
     if IS_PRODUCTION:
