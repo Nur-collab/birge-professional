@@ -24,6 +24,9 @@ from time_utils import get_bishkek_now, get_bishkek_today_str
 
 router = APIRouter(prefix="/trip-requests", tags=["trip-requests"])
 
+# SSE keepalive interval; also bounds how long a revoked stream stays open.
+SSE_KEEPALIVE_SECONDS = 20.0
+
 
 def _session_revoked(user_id: int, ticket_version: Optional[int]) -> bool:
     """Re-check a long-lived SSE stream against the current token version."""
@@ -89,7 +92,9 @@ async def driver_trip_request_events(
         try:
             while True:
                 try:
-                    data = await asyncio.wait_for(q.get(), timeout=20.0)
+                    data = await asyncio.wait_for(
+                        q.get(), timeout=SSE_KEEPALIVE_SECONDS
+                    )
                 except asyncio.TimeoutError:
                     if _session_revoked(driver_id, ticket_version):
                         return
@@ -128,7 +133,9 @@ async def trip_request_events(
             # Keepalive — каждые 20 сек чтобы соединение не обрывалось
             while True:
                 try:
-                    data = await asyncio.wait_for(q.get(), timeout=20.0)
+                    data = await asyncio.wait_for(
+                        q.get(), timeout=SSE_KEEPALIVE_SECONDS
+                    )
                 except asyncio.TimeoutError:
                     if _session_revoked(requester_id, ticket_version):
                         return

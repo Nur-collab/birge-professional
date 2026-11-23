@@ -508,6 +508,76 @@ def test_sse_ticket_is_bound_to_stream_and_user(client, db):
     assert revoked.status_code == 401
 
 
+def test_sse_stream_closes_after_session_revocation(client, db, monkeypatch):
+    """A real open SSE connection must end once token_version changes."""
+    import socket
+    import threading
+    import time
+
+    import httpx
+    import uvicorn
+
+    user = _user(db, "+996555000069", "SSE отзыв")
+    ticket = auth.create_sse_ticket(
+        user.id, "requester", user.id, user.token_version or 0
+    )
+
+    # Keepalive is the wake-up that re-checks the session in the generator.
+    monkeypatch.setattr("routers.trip_requests.SSE_KEEPALIVE_SECONDS", 0.05)
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    config = uvicorn.Config(
+        main.app,
+        host="127.0.0.1",
+        port=port,
+        log_level="warning",
+        lifespan="off",
+    )
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    try:
+        deadline = time.time() + 10
+        while not server.started and time.time() < deadline:
+            time.sleep(0.05)
+        assert server.started, "uvicorn did not start"
+
+        url = f"http://127.0.0.1:{port}/trip-requests/events/{user.id}?ticket={ticket}"
+        with httpx.stream("GET", url, timeout=5.0) as response:
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/event-stream")
+
+            lines = response.iter_lines()
+            # Wait for the first keepalive while the session is still valid.
+            first = next(lines)
+            while first == "":
+                first = next(lines)
+            assert first == ": keepalive"
+
+            db.query(models.User).filter(models.User.id == user.id).update(
+                {models.User.token_version: 1}
+            )
+            db.commit()
+
+            # After revocation the generator ends instead of keeping the
+            # stream alive; consume any already-buffered blank line.
+            for _ in range(20):
+                try:
+                    line = next(lines)
+                except StopIteration:
+                    break
+                assert line in ("", ": keepalive") or line.startswith("event:")
+            else:
+                pytest.fail("SSE stream stayed open after token_version change")
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
 def test_token_version_check_rejects_revoked_streams(db):
     user = _user(db, "+996555000014", "Стрим")
     assert auth.is_token_version_current(db, user.id, 0)
