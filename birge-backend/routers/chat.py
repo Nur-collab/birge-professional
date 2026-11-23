@@ -1,4 +1,5 @@
 """WebSocket trip chat."""
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -15,6 +16,14 @@ from time_utils import get_bishkek_now
 logger = logging.getLogger("birge")
 
 router = APIRouter(tags=["chat"])
+
+# How often an idle socket re-checks that its session was not revoked.
+WS_SESSION_CHECK_SECONDS = 20.0
+
+
+def _session_revoked(user_id: int, ticket_version: Optional[int]) -> bool:
+    with SessionLocal() as db:
+        return not auth.is_token_version_current(db, user_id, ticket_version)
 
 
 @router.websocket("/ws/chat/{trip_id}/{user_id}")
@@ -65,7 +74,21 @@ async def websocket_endpoint(
     await manager.connect(websocket, trip_id)
     try:
         while True:
-            data = await websocket.receive_text()
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=WS_SESSION_CHECK_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                if _session_revoked(user_id, ticket_version):
+                    await websocket.close(code=1008, reason="Session has been revoked")
+                    break
+                continue
+
+            # An open socket must not outlive the session that authorized it.
+            if _session_revoked(user_id, ticket_version):
+                await websocket.close(code=1008, reason="Session has been revoked")
+                break
 
             # Парсим JSON: ожидаем {"text": "привет"}
             try:

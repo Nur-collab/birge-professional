@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
+from starlette.websockets import WebSocketDisconnect
 
 import auth
 import database
@@ -61,6 +62,21 @@ def _driver_trip(db, user):
     db.commit()
     db.refresh(trip)
     return trip
+
+
+def _age_consumed_sessions(db, user):
+    """Move consumed tokens past the reuse grace window."""
+    db.query(models.RefreshSession).filter(
+        models.RefreshSession.user_id == user.id,
+        models.RefreshSession.used_at.isnot(None),
+    ).update(
+        {
+            models.RefreshSession.used_at: datetime.now(timezone.utc)
+            - timedelta(minutes=1)
+        },
+        synchronize_session=False,
+    )
+    db.commit()
 
 
 def _accepted_request(db, trip, passenger, requester_trip_id=None):
@@ -239,6 +255,7 @@ def test_refresh_token_replay_revokes_every_session_and_access_token(client, db)
     rotated = first.json()["refresh_token"]
     assert rotated != refresh
 
+    _age_consumed_sessions(db, user)
     replay = client.post("/auth/refresh", json={"refresh_token": refresh})
     assert replay.status_code == 401
 
@@ -270,6 +287,7 @@ def test_refresh_replay_signs_every_device_out(client, db):
     assert rotated.status_code == 200
     successor = rotated.json()["refresh_token"]
 
+    _age_consumed_sessions(db, user)
     assert client.post(
         "/auth/refresh", json={"refresh_token": first_login}
     ).status_code == 401
@@ -284,6 +302,31 @@ def test_refresh_replay_signs_every_device_out(client, db):
     db.expire_all()
     db.refresh(user)
     assert user.token_version == 1
+
+
+def test_immediate_refresh_reuse_is_a_benign_retry(client, db):
+    user = _user(db, "+996555000013", "Повтор")
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    first = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert first.status_code == 200
+    successor = first.json()["refresh_token"]
+
+    retry = client.post("/auth/refresh", json={"refresh_token": refresh})
+    assert retry.status_code == 200
+    branch = retry.json()["refresh_token"]
+    assert branch not in (refresh, successor)
+
+    db.refresh(user)
+    assert user.token_version == 0
+    # Both branches stay usable: the parallel request was not punished.
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": successor}
+    ).status_code == 200
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": branch}
+    ).status_code == 200
 
 
 def test_refresh_cleanup_removes_only_expired_sessions(client, db):
@@ -332,8 +375,9 @@ def test_refresh_rotation_keeps_consumed_session_for_reuse_detection(client, db)
     assert len(sessions) == 2
     assert sum(1 for session in sessions if session.used_at is not None) == 1
 
-    # Replaying the consumed token returns None, drops every session and
-    # invalidates access tokens through the user-wide version.
+    # Replaying the consumed token after the grace window returns None, drops
+    # every session and invalidates access tokens through the version.
+    _age_consumed_sessions(db, user)
     assert auth.rotate_refresh_token(original, user, db) is None
     db.commit()
     assert db.query(models.RefreshSession).filter_by(user_id=user.id).count() == 0
@@ -357,7 +401,8 @@ def test_consumed_refresh_session_survives_next_issue(client, db):
         .all()
     )
     assert len(consumed) == 2
-    assert auth.rotate_refresh_token(original, user, db) is None
+    # Immediate reuse is a concurrent retry, not theft.
+    assert auth.rotate_refresh_token(original, user, db) is not None
 
 
 def test_payment_pii_is_encrypted_at_rest_but_readable_through_api(client, db):
@@ -456,6 +501,18 @@ def test_sse_ticket_is_bound_to_stream_and_user(client, db):
         f"/trip-requests/events/{user.id}?ticket={ticket}"
     )
     assert revoked.status_code == 401
+
+
+def test_token_version_check_rejects_revoked_streams(db):
+    user = _user(db, "+996555000014", "Стрим")
+    assert auth.is_token_version_current(db, user.id, 0)
+
+    user.token_version = 1
+    db.commit()
+
+    assert not auth.is_token_version_current(db, user.id, 0)
+    assert auth.is_token_version_current(db, user.id, 1)
+    assert not auth.is_token_version_current(db, user.id, None)
 
 
 def test_admin_endpoint_requires_admin_allowlist(client, db):
@@ -652,6 +709,24 @@ def test_websocket_chat_rate_limit(client, db, monkeypatch):
     ) as websocket:
         websocket.send_text(json.dumps({"text": "hello"}))
         assert websocket.receive_json() == {"error": "rate_limited"}
+
+
+def test_websocket_closes_after_session_revocation(client, db):
+    driver = _user(db, "+996555000068", "Отзыв")
+    trip = _driver_trip(db, driver)
+    ticket = auth.create_ws_ticket(driver.id, trip.id, driver.token_version or 0)
+
+    with client.websocket_connect(
+        f"/ws/chat/{trip.id}/{driver.id}?ticket={ticket}"
+    ) as websocket:
+        db.query(models.User).filter(models.User.id == driver.id).update(
+            {models.User.token_version: 1}
+        )
+        db.commit()
+
+        with pytest.raises(WebSocketDisconnect):
+            websocket.send_text(json.dumps({"text": "after revocation"}))
+            websocket.receive_json()
 
 
 def test_write_rate_limit_returns_429(client, db, monkeypatch):

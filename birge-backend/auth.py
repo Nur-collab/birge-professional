@@ -33,6 +33,9 @@ SECRET_KEY: str = _env_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+# A short window where reusing the just-rotated token is a benign parallel
+# refresh (another tab or an immediate retry), not a stolen-token replay.
+REFRESH_REUSE_GRACE_SECONDS = int(os.environ.get("REFRESH_REUSE_GRACE_SECONDS", "10"))
 
 SMS_CODE_TTL_MINUTES = 5        # Код действителен 5 минут
 SMS_RATE_LIMIT_SECONDS = 60     # Повторная отправка — не чаще 1 раза в 60 сек
@@ -160,10 +163,11 @@ def issue_refresh_token(user, db, family_id: Optional[str] = None) -> str:
 def rotate_refresh_token(token: str, user, db) -> Optional[str]:
     """Consume a refresh JTI and issue its replacement.
 
-    Returns None when the token is invalid, expired or revoked. Replaying an
-    already-rotated token is treated as theft: every refresh session is
-    dropped and the user-wide token version is bumped, which revokes already
-    issued access tokens as well.
+    Returns None when the token is invalid, expired or revoked. Reusing the
+    just-rotated token within REFRESH_REUSE_GRACE_SECONDS is a parallel refresh
+    or retry and gets its own branch of the family. After that window a replay
+    is treated as theft: every refresh session is dropped and the user-wide
+    token version is bumped, which revokes already issued access tokens too.
     """
     from models import RefreshSession
 
@@ -183,6 +187,16 @@ def rotate_refresh_token(token: str, user, db) -> Optional[str]:
     if not session:
         return None
     if session.used_at is not None:
+        used_at = session.used_at
+        if used_at.tzinfo is None:
+            used_at = used_at.replace(tzinfo=timezone.utc)
+        if now - used_at <= timedelta(seconds=REFRESH_REUSE_GRACE_SECONDS):
+            # A second tab or an immediate retry can present the same token
+            # while the first rotation is still fresh. Give it its own branch
+            # of the same family instead of logging the user out everywhere.
+            if not session.family_id:
+                session.family_id = secrets.token_urlsafe(16)
+            return issue_refresh_token(user, db, family_id=session.family_id)
         # Access tokens only carry the user-wide version, so bumping it is
         # the smallest way to kill the stolen one immediately. The cost is a
         # forced re-login on every device, which is the right response to a
@@ -241,6 +255,16 @@ def verify_token(token: str) -> Optional[int]:
 def verify_refresh_token(token: str) -> Optional[int]:
     """Проверяет refresh-токен и возвращает user_id."""
     return _decode_token(token, "refresh")
+
+
+def is_token_version_current(db, user_id: int, version: Optional[int]) -> bool:
+    """True when a long-lived stream still matches the user's session version."""
+    from models import User
+
+    if version is None:
+        return False
+    current = db.query(User.token_version).filter(User.id == user_id).scalar()
+    return current is not None and int(current or 0) == int(version)
 
 
 def get_token_version(token: str, expected_type: str = "access") -> Optional[int]:

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 import auth
 import models
 import schemas
-from database import get_db
+from database import SessionLocal, get_db
 from dependencies import get_current_user
 from rate_limit import enforce_user_limit
 from realtime import (
@@ -23,6 +23,12 @@ from realtime import (
 from time_utils import get_bishkek_now, get_bishkek_today_str
 
 router = APIRouter(prefix="/trip-requests", tags=["trip-requests"])
+
+
+def _session_revoked(user_id: int, ticket_version: Optional[int]) -> bool:
+    """Re-check a long-lived SSE stream against the current token version."""
+    with SessionLocal() as session:
+        return not auth.is_token_version_current(session, user_id, ticket_version)
 
 
 def _authorize_sse_ticket(
@@ -75,6 +81,7 @@ async def driver_trip_request_events(
     Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
     """
     _authorize_sse_ticket(ticket, "driver", driver_id, db)
+    ticket_version = auth.get_token_version(ticket, "sse")
 
     q = driver_sse_manager.subscribe(driver_id)
 
@@ -83,9 +90,14 @@ async def driver_trip_request_events(
             while True:
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=20.0)
-                    yield f"event: new_request\ndata: {data}\n\n"
                 except asyncio.TimeoutError:
+                    if _session_revoked(driver_id, ticket_version):
+                        return
                     yield ": keepalive\n\n"
+                    continue
+                if _session_revoked(driver_id, ticket_version):
+                    return
+                yield f"event: new_request\ndata: {data}\n\n"
         finally:
             driver_sse_manager.unsubscribe(driver_id, q)
 
@@ -107,6 +119,7 @@ async def trip_request_events(
     Авторизация: короткоживущий ?ticket= вместо access-токена в URL.
     """
     _authorize_sse_ticket(ticket, "requester", requester_id, db)
+    ticket_version = auth.get_token_version(ticket, "sse")
 
     q = sse_manager.subscribe(requester_id)
 
@@ -116,9 +129,14 @@ async def trip_request_events(
             while True:
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=20.0)
-                    yield f"event: request_update\ndata: {data}\n\n"
                 except asyncio.TimeoutError:
+                    if _session_revoked(requester_id, ticket_version):
+                        return
                     yield ": keepalive\n\n"
+                    continue
+                if _session_revoked(requester_id, ticket_version):
+                    return
+                yield f"event: request_update\ndata: {data}\n\n"
         finally:
             sse_manager.unsubscribe(requester_id, q)
 
