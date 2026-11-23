@@ -224,7 +224,7 @@ def test_verify_code_issues_a_rotatable_refresh_token(client, db):
     assert rotated.json()["refresh_token"] != issued
 
 
-def test_refresh_tokens_are_single_use(client, db):
+def test_refresh_token_replay_revokes_the_whole_family(client, db):
     user = _user(db, "+996555000005", "Ротация")
     refresh = auth.issue_refresh_token(user, db)
     db.commit()
@@ -237,11 +237,41 @@ def test_refresh_tokens_are_single_use(client, db):
     replay = client.post("/auth/refresh", json={"refresh_token": refresh})
     assert replay.status_code == 401
 
+    # The stolen successor must not survive the replay either.
     second = client.post("/auth/refresh", json={"refresh_token": rotated})
-    assert second.status_code == 200
+    assert second.status_code == 401
+
+    db.expire_all()
+    sessions = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
+    assert len(sessions) == 2
+    # Only the original token was consumed; its successor was revoked unused.
+    assert sum(1 for session in sessions if session.used_at is not None) == 1
+    assert all(session.revoked_at is not None for session in sessions)
 
 
-def test_refresh_cleanup_removes_consumed_and_expired_sessions_only(client, db):
+def test_refresh_replay_leaves_other_devices_signed_in(client, db):
+    user = _user(db, "+996555000011", "Семейство")
+    first_login = auth.issue_refresh_token(user, db)
+    second_login = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    rotated = client.post("/auth/refresh", json={"refresh_token": first_login})
+    assert rotated.status_code == 200
+    successor = rotated.json()["refresh_token"]
+
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": first_login}
+    ).status_code == 401
+    # Only the compromised family is revoked; the other login keeps working.
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": successor}
+    ).status_code == 401
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": second_login}
+    ).status_code == 200
+
+
+def test_refresh_cleanup_removes_only_expired_sessions(client, db):
     user = _user(db, "+996555000009", "Cleanup")
     active = auth.issue_refresh_token(user, db)
     db.commit()
@@ -253,6 +283,7 @@ def test_refresh_cleanup_removes_consumed_and_expired_sessions_only(client, db):
         jti_hash="a" * 64,
         expires_at=now + timedelta(days=1),
         revoked_at=now,
+        used_at=now,
     )
     expired = models.RefreshSession(
         user_id=user.id,
@@ -262,14 +293,18 @@ def test_refresh_cleanup_removes_consumed_and_expired_sessions_only(client, db):
     db.add_all([revoked, expired])
     db.commit()
 
-    assert auth.purge_refresh_sessions(db, user_id=user.id) == 2
+    # Rotated rows stay until expiry so their replay can still be detected.
+    assert auth.purge_refresh_sessions(db, user_id=user.id) == 1
     db.commit()
-    remaining = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
-    assert len(remaining) == 1
-    assert remaining[0].revoked_at is None
+    remaining = {
+        session.jti_hash
+        for session in db.query(models.RefreshSession).filter_by(user_id=user.id)
+    }
+    assert len(remaining) == 2
+    assert "a" * 64 in remaining
 
 
-def test_refresh_rotation_purges_consumed_session(client, db):
+def test_refresh_rotation_keeps_consumed_session_for_reuse_detection(client, db):
     user = _user(db, "+996555000010", "Rotation cleanup")
     original = auth.issue_refresh_token(user, db)
     db.commit()
@@ -278,8 +313,33 @@ def test_refresh_rotation_purges_consumed_session(client, db):
     assert rotated
     db.commit()
 
-    remaining = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
-    assert len(remaining) == 1
+    sessions = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
+    assert len(sessions) == 2
+    assert sum(1 for session in sessions if session.used_at is not None) == 1
+
+    # Replaying the consumed token returns None and revokes the replacement.
+    assert auth.rotate_refresh_token(original, user, db) is None
+    db.commit()
+    sessions = db.query(models.RefreshSession).filter_by(user_id=user.id).all()
+    assert all(session.revoked_at is not None for session in sessions)
+
+
+def test_consumed_refresh_session_survives_next_issue(client, db):
+    user = _user(db, "+996555000012", "Повтор")
+    original = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    rotated = auth.rotate_refresh_token(original, user, db)
+    assert rotated
+    # Issuing the replacement purges only expired rows, not the consumed one.
+    db.commit()
+
+    consumed = (
+        db.query(models.RefreshSession)
+        .filter(models.RefreshSession.user_id == user.id)
+        .all()
+    )
+    assert len(consumed) == 2
     assert auth.rotate_refresh_token(original, user, db) is None
 
 
@@ -540,6 +600,11 @@ def test_auth_and_profile_responses_are_not_cached(client, db):
     profile = client.get("/users/me", headers=_headers(user))
     assert profile.status_code == 200
     assert profile.headers["Cache-Control"] == "no-store"
+
+    public_profile = client.get(f"/users/{user.id}", headers=_headers(user))
+    assert public_profile.status_code == 200
+    assert public_profile.headers["Cache-Control"] == "no-store"
+    assert public_profile.headers["Pragma"] == "no-cache"
 
     auth_failure = client.post("/auth/refresh", json={"refresh_token": "x" * 20})
     assert auth_failure.status_code == 401

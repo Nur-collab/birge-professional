@@ -187,6 +187,8 @@ def refresh_access_token(req: schemas.RefreshTokenRequest, db: Session = Depends
 
     new_refresh_token = auth_service.rotate_refresh_token(req.refresh_token, user, db)
     if not new_refresh_token:
+        # A replayed token revokes its whole family; persist that before 401.
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has already been used or revoked",

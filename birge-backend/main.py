@@ -118,7 +118,7 @@ async def security_headers_middleware(request, call_next):
         "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
     )
     # Tokens and personal profile data must never be reused from an HTTP cache.
-    if request.url.path.startswith(("/auth/", "/users/me")):
+    if request.url.path == "/users" or request.url.path.startswith(("/auth/", "/users/")):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
     if IS_PRODUCTION:

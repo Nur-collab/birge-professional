@@ -120,34 +120,25 @@ def hash_refresh_jti(jti: str) -> str:
 
 
 def purge_refresh_sessions(db, user_id: Optional[int] = None, now: Optional[datetime] = None) -> int:
-    """Delete revoked or expired refresh sessions without touching active ones."""
+    """Delete expired refresh sessions.
+
+    Consumed rows survive until they expire: they are what lets a replay of
+    an old JTI revoke its whole token family.
+    """
     from models import RefreshSession
 
     now = now or datetime.now(timezone.utc)
-    query = db.query(RefreshSession)
+    query = db.query(RefreshSession).filter(RefreshSession.expires_at < now)
     if user_id is not None:
         query = query.filter(RefreshSession.user_id == user_id)
-
-    stale_ids: list[int] = []
-    for session in query.all():
-        expires_at = session.expires_at
-        if expires_at is not None and expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if session.revoked_at is not None or expires_at is None or expires_at < now:
-            stale_ids.append(session.id)
-
-    if stale_ids:
-        db.query(RefreshSession).filter(RefreshSession.id.in_(stale_ids)).delete(
-            synchronize_session="fetch"
-        )
-    return len(stale_ids)
+    return query.delete(synchronize_session="fetch")
 
 
-def issue_refresh_token(user, db) -> str:
+def issue_refresh_token(user, db, family_id: Optional[str] = None) -> str:
     """Issue a refresh token and persist its one-time JTI hash."""
     from models import RefreshSession
 
-    # Keep the per-user session table bounded; only stale rows are removed.
+    # Keep the per-user session table bounded; expired rows are removed.
     purge_refresh_sessions(db, user_id=user.id)
 
     jti = secrets.token_urlsafe(32)
@@ -159,14 +150,38 @@ def issue_refresh_token(user, db) -> str:
         RefreshSession(
             user_id=user.id,
             jti_hash=hash_refresh_jti(jti),
+            family_id=family_id or secrets.token_urlsafe(16),
             expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         )
     )
     return token
 
 
+def revoke_refresh_family(db, session, now: Optional[datetime] = None) -> int:
+    """Revoke every still-active token that descends from the same login."""
+    from models import RefreshSession
+
+    if not session.family_id:
+        return 0
+    now = now or datetime.now(timezone.utc)
+    return (
+        db.query(RefreshSession)
+        .filter(
+            RefreshSession.user_id == session.user_id,
+            RefreshSession.family_id == session.family_id,
+            RefreshSession.revoked_at.is_(None),
+        )
+        .update({RefreshSession.revoked_at: now}, synchronize_session="fetch")
+    )
+
+
 def rotate_refresh_token(token: str, user, db) -> Optional[str]:
-    """Consume a refresh JTI and issue its replacement; return None if used/invalid."""
+    """Consume a refresh JTI and issue its replacement.
+
+    Returns None when the token is invalid, expired or revoked. Replaying an
+    already-rotated token also revokes its whole family, so a stolen
+    successor cannot keep refreshing after the theft is detected.
+    """
     from models import RefreshSession
 
     jti = get_refresh_jti(token)
@@ -178,12 +193,16 @@ def rotate_refresh_token(token: str, user, db) -> Optional[str]:
         .filter(
             RefreshSession.jti_hash == hash_refresh_jti(jti),
             RefreshSession.user_id == user.id,
-            RefreshSession.revoked_at.is_(None),
         )
         .with_for_update()
         .first()
     )
     if not session:
+        return None
+    if session.used_at is not None:
+        revoke_refresh_family(db, session, now)
+        return None
+    if session.revoked_at is not None:
         return None
     expires_at = session.expires_at
     if expires_at is not None and expires_at.tzinfo is None:
@@ -191,8 +210,13 @@ def rotate_refresh_token(token: str, user, db) -> Optional[str]:
     if expires_at is None or expires_at < now:
         session.revoked_at = now
         return None
+    if not session.family_id:
+        # Legacy row: start a family now so replay detection still covers
+        # the token that replaces it.
+        session.family_id = secrets.token_urlsafe(16)
+    session.used_at = now
     session.revoked_at = now
-    return issue_refresh_token(user, db)
+    return issue_refresh_token(user, db, family_id=session.family_id)
 
 
 def _decode_payload(token: str, expected_type: str) -> Optional[dict]:

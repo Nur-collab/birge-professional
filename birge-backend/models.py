@@ -178,7 +178,11 @@ class SmsCode(Base):
 
 
 class RefreshSession(Base):
-    """One issued refresh token; rotation revokes the previous JTI."""
+    """One issued refresh token; rotation revokes the previous JTI.
+
+    Tokens descended from one login share ``family_id`` so that replaying an
+    already-rotated token can revoke the whole family at once.
+    """
 
     __tablename__ = "refresh_sessions"
     __table_args__ = (
@@ -200,6 +204,8 @@ class RefreshSession(Base):
         nullable=False,
     )
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    family_id = Column(String(32), index=True)
 
 
 # Telegram: привязка номера телефона к chat_id
