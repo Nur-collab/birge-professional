@@ -5,8 +5,11 @@ import './i18n' // Инициализация i18next
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { initSentry } from './sentry'
+import { stripLegacyTokenFromUrl } from './utils/api'
 import './index.css'
 
+// Remove the old credential-bearing URL before React or Sentry can read it.
+stripLegacyTokenFromUrl()
 initSentry()
 
 // Новый service worker забирает контроль сразу (skipWaiting + clientsClaim).

@@ -15,7 +15,7 @@ async function expectLoginScreen(page) {
   ).toBeVisible({ timeout: 15_000 });
 }
 
-test('a ?code= link signs in once and a legacy ?token= is ignored', async ({ page, request }) => {
+test('a ?code= link signs in once and a legacy ?token= is stripped from history', async ({ page, request }) => {
   const auth = readAuth();
 
   const issued = await request.post(`${apiUrl}/auth/login-code`, {
@@ -49,13 +49,22 @@ test('a ?code= link signs in once and a legacy ?token= is ignored', async ({ pag
     localStorage.getItem('birge_token')
   ))).toBeNull();
 
-  // The old URL contract is no longer accepted anywhere in the app.
-  await page.goto(`/?token=${encodeURIComponent(auth.token)}`);
+  // The old URL contract is neither accepted nor left in history.
+  await page.goto('/?ref=history');
+  await page.goto(`/?token=${encodeURIComponent(auth.token)}&ref=history`);
   await expectLoginScreen(page);
+  await expect(page).not.toHaveURL(/[?&]token=/);
+  expect(new URL(page.url()).searchParams.get('ref')).toBe('history');
+
   const legacyStored = await page.evaluate(() => ({
     access: localStorage.getItem('birge_token'),
     refresh: localStorage.getItem('birge_refresh_token'),
   }));
   expect(legacyStored.access).toBeNull();
   expect(legacyStored.refresh).toBeNull();
+
+  await page.goBack();
+  await expect(page).not.toHaveURL(/[?&]token=/);
+  await page.goForward();
+  await expect(page).not.toHaveURL(/[?&]token=/);
 });

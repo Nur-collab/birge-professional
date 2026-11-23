@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, getCurrentUserId, takeLoginCodeFromUrl, tokenStorage } from './api';
+import {
+  api,
+  getCurrentUserId,
+  stripLegacyTokenFromUrl,
+  takeLoginCodeFromUrl,
+  tokenStorage,
+} from './api';
 
 function makeToken(payload) {
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -65,6 +71,16 @@ describe('login exchange code', () => {
 
     expect(tokenStorage.get()).toBeNull();
     expect(localStorage.getItem('birge_token')).toBeNull();
+  });
+
+  it('removes a legacy access token from the URL without storing it', () => {
+    window.history.replaceState({}, '', '/trips/5?token=leaked-access-token&ref=bot');
+
+    stripLegacyTokenFromUrl();
+
+    expect(window.location.search).toBe('?ref=bot');
+    expect(tokenStorage.get()).toBeNull();
+    expect(tokenStorage.getRefresh()).toBeNull();
   });
 
   it('removes a one-time code from the URL before exchanging it', async () => {

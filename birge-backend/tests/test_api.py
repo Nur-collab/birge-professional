@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
+from starlette.requests import Request
 from starlette.websockets import WebSocketDisconnect
 
 import auth
@@ -13,6 +14,7 @@ import database
 import main
 import models
 from rate_limit import get_rate_limiter
+from routers.auth import _client_ip
 
 
 @pytest.fixture()
@@ -368,6 +370,84 @@ def test_refresh_rate_limit_returns_429(client, db, monkeypatch):
     )
     assert blocked.status_code == 429
     assert blocked.headers["Cache-Control"] == "no-store"
+
+
+def test_client_ip_ignores_spoofed_forwarded_for():
+    spoofed = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "client": ("10.0.0.5", 1234),
+            "headers": [
+                (b"cf-connecting-ip", b"198.51.100.7"),
+                (b"x-forwarded-for", b"203.0.113.9, 198.51.100.7"),
+            ],
+        }
+    )
+    assert _client_ip(spoofed) == "198.51.100.7"
+
+    no_cloudflare_header = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "client": ("10.0.0.5", 1234),
+            "headers": [(b"x-forwarded-for", b"203.0.113.9")],
+        }
+    )
+    assert _client_ip(no_cloudflare_header) == "10.0.0.5"
+
+
+def test_exchange_code_limit_ignores_xff(client, monkeypatch):
+    monkeypatch.setattr("routers.auth._EXCHANGE_CODE_MAX_PER_WINDOW", 2)
+    headers = [
+        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
+        for i in range(1, 4)
+    ]
+    statuses = [
+        client.post(
+            "/auth/exchange-code",
+            json={"code": char * 32},
+            headers=headers[index],
+        ).status_code
+        for index, char in enumerate(("a", "b", "c"))
+    ]
+    assert statuses == [401, 401, 429]
+
+
+def test_verify_code_limit_ignores_xff(client, monkeypatch):
+    monkeypatch.setattr("routers.auth._VERIFY_CODE_MAX_PER_WINDOW", 2)
+    headers = [
+        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
+        for i in range(11, 14)
+    ]
+    statuses = [
+        client.post(
+            "/auth/verify-code",
+            json={"phone": f"+9965550000{phone}", "code": "123456"},
+            headers=headers[index],
+        ).status_code
+        for index, phone in enumerate((81, 82, 83))
+    ]
+    assert statuses == [400, 400, 429]
+
+
+def test_send_code_limit_ignores_xff(client, monkeypatch):
+    monkeypatch.setattr("routers.auth._SEND_CODE_MAX_PER_WINDOW", 2)
+    headers = [
+        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
+        for i in range(21, 24)
+    ]
+    statuses = [
+        client.post(
+            "/auth/send-code",
+            json={"phone": f"+9965550000{phone}"},
+            headers=headers[index],
+        ).status_code
+        for index, phone in enumerate((84, 85, 86))
+    ]
+    assert statuses == [200, 200, 429]
 
 
 def test_login_exchange_code_is_single_use(client, db):

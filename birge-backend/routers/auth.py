@@ -37,10 +37,16 @@ _EXCHANGE_CODE_MAX_PER_WINDOW = 20
 
 
 def _client_ip(request: Request) -> str:
-    """IP клиента с учётом прокси Render; нужен только для анти-спам лимита."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Return a client key that a caller cannot spoof.
+
+    Render sits behind Cloudflare, which overwrites CF-Connecting-IP with the
+    real visitor address. X-Forwarded-For is intentionally ignored: Render
+    appends to it and the caller-controlled leftmost entries would let an
+    attacker reset every per-IP auth bucket.
+    """
+    cloudflare_ip = request.headers.get("cf-connecting-ip", "").strip()
+    if cloudflare_ip:
+        return cloudflare_ip
     return request.client.host if request.client else "unknown"
 
 

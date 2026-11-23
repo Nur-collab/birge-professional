@@ -38,25 +38,41 @@ export const tokenStorage = {
 };
 
 /**
- * One-time login codes arrive in `?code=`. Read and remove the code before
- * any other request so it is not kept in history, referrers or logs.
+ * Remove a query parameter in place, replacing the current history entry so
+ * the value is not kept in the address bar or history.
  */
-export function takeLoginCodeFromUrl() {
+function consumeQueryParam(name) {
   try {
     if (typeof window === 'undefined' || !window.location) return null;
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    if (!code) return null;
-    params.delete('code');
+    if (!params.has(name)) return null;
+    const value = params.get(name);
+    params.delete(name);
     const query = params.toString();
     const cleanUrl = window.location.pathname
       + (query ? `?${query}` : '')
       + (window.location.hash || '');
     window.history.replaceState({}, document.title, cleanUrl);
-    return code;
+    return value || null;
   } catch {
     return null;
   }
+}
+
+/**
+ * One-time login codes arrive in `?code=`. Read and remove the code before
+ * any other request so it is not kept in history, referrers or logs.
+ */
+export function takeLoginCodeFromUrl() {
+  return consumeQueryParam('code');
+}
+
+/**
+ * Legacy magic links used an access token. Never read it as a credential;
+ * remove it from the current history entry before the app renders.
+ */
+export function stripLegacyTokenFromUrl() {
+  consumeQueryParam('token');
 }
 
 export const getCurrentUserId = () => {
