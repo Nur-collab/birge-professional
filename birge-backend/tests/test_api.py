@@ -318,6 +318,11 @@ def test_immediate_refresh_reuse_is_a_benign_retry(client, db):
     branch = retry.json()["refresh_token"]
     assert branch not in (refresh, successor)
 
+    # Only one extra branch is minted; further duplicates are ignored.
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": refresh}
+    ).status_code == 401
+
     db.refresh(user)
     assert user.token_version == 0
     # Both branches stay usable: the parallel request was not punished.

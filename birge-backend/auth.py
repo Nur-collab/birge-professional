@@ -192,11 +192,23 @@ def rotate_refresh_token(token: str, user, db) -> Optional[str]:
             used_at = used_at.replace(tzinfo=timezone.utc)
         if now - used_at <= timedelta(seconds=REFRESH_REUSE_GRACE_SECONDS):
             # A second tab or an immediate retry can present the same token
-            # while the first rotation is still fresh. Give it its own branch
-            # of the same family instead of logging the user out everywhere.
-            if not session.family_id:
-                session.family_id = secrets.token_urlsafe(16)
-            return issue_refresh_token(user, db, family_id=session.family_id)
+            # while the first rotation is still fresh. Give it one extra
+            # branch of the same family instead of logging the user out
+            # everywhere; further duplicates are ignored.
+            family_id = session.family_id or secrets.token_urlsafe(16)
+            active_in_family = (
+                db.query(RefreshSession)
+                .filter(
+                    RefreshSession.user_id == user.id,
+                    RefreshSession.family_id == family_id,
+                    RefreshSession.revoked_at.is_(None),
+                )
+                .count()
+            )
+            if active_in_family <= 1:
+                session.family_id = family_id
+                return issue_refresh_token(user, db, family_id=family_id)
+            return None
         # Access tokens only carry the user-wide version, so bumping it is
         # the smallest way to kill the stolen one immediately. The cost is a
         # forced re-login on every device, which is the right response to a
