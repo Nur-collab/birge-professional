@@ -208,6 +208,28 @@ class RefreshSession(Base):
     family_id = Column(String(32), index=True)
 
 
+class LoginCode(Base):
+    """Short-lived one-time code exchanged for a token pair (magic links)."""
+
+    __tablename__ = "login_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    code_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    used_at = Column(DateTime(timezone=True), nullable=True)
+
+
 # Telegram: привязка номера телефона к chat_id
 class TelegramBinding(Base):
     __tablename__ = "telegram_bindings"

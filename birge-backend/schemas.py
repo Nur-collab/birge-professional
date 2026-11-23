@@ -13,6 +13,9 @@ class VerifyCodeRequest(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., min_length=20, max_length=4096)
 
+class ExchangeCodeRequest(BaseModel):
+    code: str = Field(..., min_length=20, max_length=128)
+
 
 class TripStatusUpdate(BaseModel):
     status: Literal["active", "matched", "in_progress", "completed", "cancelled", "passenger_cancelled"]

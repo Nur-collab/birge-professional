@@ -23,22 +23,7 @@ const TOKEN_KEY = 'birge_token';
 const REFRESH_TOKEN_KEY = 'birge_refresh_token';
 
 export const tokenStorage = {
-  get: () => {
-    try {
-      if (typeof window !== 'undefined' && window.location) {
-        const urlToken = new URLSearchParams(window.location.search).get('token');
-        if (urlToken) {
-          localStorage.setItem(TOKEN_KEY, urlToken);
-          const cleanUrl = window.location.pathname + (window.location.hash || '');
-          window.history.replaceState({}, document.title, cleanUrl);
-          return urlToken;
-        }
-      }
-    } catch {
-      // Ignore URL parsing errors
-    }
-    return localStorage.getItem(TOKEN_KEY);
-  },
+  get: () => localStorage.getItem(TOKEN_KEY),
   set: (token) => localStorage.setItem(TOKEN_KEY, token),
   getRefresh: () => localStorage.getItem(REFRESH_TOKEN_KEY),
   setRefresh: (token) => localStorage.setItem(REFRESH_TOKEN_KEY, token),
@@ -51,6 +36,28 @@ export const tokenStorage = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 };
+
+/**
+ * One-time login codes arrive in `?code=`. Read and remove the code before
+ * any other request so it is not kept in history, referrers or logs.
+ */
+export function takeLoginCodeFromUrl() {
+  try {
+    if (typeof window === 'undefined' || !window.location) return null;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return null;
+    params.delete('code');
+    const query = params.toString();
+    const cleanUrl = window.location.pathname
+      + (query ? `?${query}` : '')
+      + (window.location.hash || '');
+    window.history.replaceState({}, document.title, cleanUrl);
+    return code;
+  } catch {
+    return null;
+  }
+}
 
 export const getCurrentUserId = () => {
   const token = tokenStorage.get();
@@ -191,6 +198,21 @@ export const api = {
       tokenStorage.setPair(data.access_token, data.refresh_token);
     }
     return data;
+  },
+
+  exchangeLoginCode: async (code) => {
+    const data = await authFetch('/auth/exchange-code', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+    if (data.access_token) {
+      tokenStorage.setPair(data.access_token, data.refresh_token);
+    }
+    return data;
+  },
+
+  requestLoginCode: async () => {
+    return authFetch('/auth/login-code', { method: 'POST' });
   },
 
   logout: async () => {

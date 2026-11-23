@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, getCurrentUserId, tokenStorage } from './api';
+import { api, getCurrentUserId, takeLoginCodeFromUrl, tokenStorage } from './api';
 
 function makeToken(payload) {
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -47,6 +47,45 @@ describe('SSE tickets', () => {
     const url = global.fetch.mock.calls[0][0];
     expect(url).toContain('/trip-requests/sse-ticket?stream=requester');
     expect(url).not.toContain('token=');
+  });
+});
+
+describe('login exchange code', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    window.history.replaceState({}, '', '/');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('ignores a legacy access token passed in the URL', () => {
+    window.history.replaceState({}, '', '/?token=leaked-access-token');
+
+    expect(tokenStorage.get()).toBeNull();
+    expect(localStorage.getItem('birge_token')).toBeNull();
+  });
+
+  it('removes a one-time code from the URL before exchanging it', async () => {
+    window.history.replaceState({}, '', '/trips/5?code=one-time-code&ref=bot');
+
+    expect(takeLoginCodeFromUrl()).toBe('one-time-code');
+    expect(window.location.search).toBe('?ref=bot');
+
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'new-access', refresh_token: 'new-refresh' }),
+    }));
+
+    await api.exchangeLoginCode('one-time-code');
+
+    expect(tokenStorage.get()).toBe('new-access');
+    expect(tokenStorage.getRefresh()).toBe('new-refresh');
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain('/auth/exchange-code');
+    expect(options.body).toContain('one-time-code');
   });
 });
 

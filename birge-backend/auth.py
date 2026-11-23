@@ -36,6 +36,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "30"
 # A short window where reusing the just-rotated token is a benign parallel
 # refresh (another tab or an immediate retry), not a stolen-token replay.
 REFRESH_REUSE_GRACE_SECONDS = int(os.environ.get("REFRESH_REUSE_GRACE_SECONDS", "10"))
+LOGIN_CODE_TTL_SECONDS = int(os.environ.get("LOGIN_CODE_TTL_SECONDS", "120"))
 
 SMS_CODE_TTL_MINUTES = 5        # Код действителен 5 минут
 SMS_RATE_LIMIT_SECONDS = 60     # Повторная отправка — не чаще 1 раза в 60 сек
@@ -267,6 +268,58 @@ def verify_token(token: str) -> Optional[int]:
 def verify_refresh_token(token: str) -> Optional[int]:
     """Проверяет refresh-токен и возвращает user_id."""
     return _decode_token(token, "refresh")
+
+
+def hash_login_code(code: str) -> str:
+    """One-time login codes are high-entropy; a SHA-256 digest is enough."""
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def issue_login_code(user, db) -> str:
+    """Create a short-lived one-time code that can be exchanged for tokens."""
+    from models import LoginCode
+
+    now = datetime.now(timezone.utc)
+    # Keep only live codes for this user; used and expired rows carry no value.
+    db.query(LoginCode).filter(
+        LoginCode.user_id == user.id,
+        (LoginCode.used_at.isnot(None)) | (LoginCode.expires_at < now),
+    ).delete(synchronize_session="fetch")
+
+    code = secrets.token_urlsafe(32)
+    db.add(
+        LoginCode(
+            user_id=user.id,
+            code_hash=hash_login_code(code),
+            expires_at=now + timedelta(seconds=LOGIN_CODE_TTL_SECONDS),
+        )
+    )
+    return code
+
+
+def consume_login_code(code: str, db):
+    """Atomically consume a login code and return its user, or None."""
+    from models import LoginCode, User
+
+    now = datetime.now(timezone.utc)
+    row = (
+        db.query(LoginCode)
+        .filter(LoginCode.code_hash == hash_login_code(code))
+        .with_for_update()
+        .first()
+    )
+    if not row or row.used_at is not None:
+        return None
+    expires_at = row.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at is None or expires_at < now:
+        return None
+    user = db.query(User).filter(User.id == row.user_id).first()
+    if not user:
+        return None
+    row.used_at = now
+    return user
 
 
 def is_token_version_current(db, user_id: int, version: Optional[int]) -> bool:

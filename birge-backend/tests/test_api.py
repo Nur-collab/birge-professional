@@ -334,6 +334,73 @@ def test_immediate_refresh_reuse_is_a_benign_retry(client, db):
     ).status_code == 200
 
 
+def test_refresh_rate_limit_returns_429(client, db, monkeypatch):
+    monkeypatch.setattr("routers.auth._REFRESH_MAX_PER_WINDOW", 2)
+    user = _user(db, "+996555000070", "Refresh limit")
+    token = auth.issue_refresh_token(user, db)
+    db.commit()
+    headers = {"X-Forwarded-For": "203.0.113.70"}
+
+    first = client.post("/auth/refresh", json={"refresh_token": token}, headers=headers)
+    assert first.status_code == 200
+    second = client.post(
+        "/auth/refresh",
+        json={"refresh_token": first.json()["refresh_token"]},
+        headers=headers,
+    )
+    assert second.status_code == 200
+
+    blocked = client.post(
+        "/auth/refresh",
+        json={"refresh_token": second.json()["refresh_token"]},
+        headers=headers,
+    )
+    assert blocked.status_code == 429
+    assert blocked.headers["Cache-Control"] == "no-store"
+
+
+def test_login_exchange_code_is_single_use(client, db):
+    user = _user(db, "+996555000071", "Обмен")
+    code = auth.issue_login_code(user, db)
+    db.commit()
+
+    exchanged = client.post("/auth/exchange-code", json={"code": code})
+    assert exchanged.status_code == 200
+    tokens = exchanged.json()
+    assert tokens["refresh_token"]
+    me = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert me.status_code == 200
+
+    replay = client.post("/auth/exchange-code", json={"code": code})
+    assert replay.status_code == 401
+
+
+def test_login_code_endpoint_issues_and_rejects_expired(client, db):
+    user = _user(db, "+996555000072", "Код входа")
+
+    assert client.post("/auth/login-code").status_code == 401
+
+    issued = client.post("/auth/login-code", headers=_headers(user))
+    assert issued.status_code == 200
+    assert issued.json()["expires_in"] == auth.LOGIN_CODE_TTL_SECONDS
+
+    db.query(models.LoginCode).update(
+        {
+            models.LoginCode.expires_at: datetime.now(timezone.utc)
+            - timedelta(seconds=1)
+        }
+    )
+    db.commit()
+
+    expired = client.post(
+        "/auth/exchange-code", json={"code": issued.json()["code"]}
+    )
+    assert expired.status_code == 401
+
+
 def test_refresh_cleanup_removes_only_expired_sessions(client, db):
     user = _user(db, "+996555000009", "Cleanup")
     active = auth.issue_refresh_token(user, db)

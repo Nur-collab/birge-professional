@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, tokenStorage } from '../utils/api';
+import { api, takeLoginCodeFromUrl, tokenStorage } from '../utils/api';
 import { loadTrip, saveTrip } from '../utils/tripStorage';
 
 export default function useAuth({ clearActiveTrip }) {
@@ -17,6 +17,17 @@ export default function useAuth({ clearActiveTrip }) {
 
     const initAuth = async () => {
       setAuthError(false);
+
+      // Magic links carry a one-time code, never an access token.
+      const loginCode = takeLoginCodeFromUrl();
+      if (loginCode) {
+        try {
+          await api.exchangeLoginCode(loginCode);
+        } catch (_) {
+          // Expired or already used link: continue to the normal login screen.
+        }
+      }
+
       const token = tokenStorage.get();
       if (!token) {
         setAuthLoading(false);

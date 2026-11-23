@@ -27,6 +27,14 @@ _SEND_CODE_MAX_PER_WINDOW = 10
 _VERIFY_CODE_WINDOW_SECONDS = 60
 _VERIFY_CODE_MAX_PER_WINDOW = 15
 
+_REFRESH_WINDOW_SECONDS = 60
+_REFRESH_MAX_PER_WINDOW = 30
+
+_LOGIN_CODE_WINDOW_SECONDS = 60
+_LOGIN_CODE_MAX_PER_WINDOW = 10
+_EXCHANGE_CODE_WINDOW_SECONDS = 60
+_EXCHANGE_CODE_MAX_PER_WINDOW = 20
+
 
 def _client_ip(request: Request) -> str:
     """IP клиента с учётом прокси Render; нужен только для анти-спам лимита."""
@@ -39,6 +47,45 @@ def _client_ip(request: Request) -> str:
 def _token_payload(user: models.User) -> dict:
     """Claims for a session that can be revoked via User.token_version."""
     return {"sub": str(user.id), "ver": int(user.token_version or 0)}
+
+
+def _session_payload(user: models.User, db: Session) -> dict:
+    """Access/refresh pair returned by every successful login step."""
+    token_data = _token_payload(user)
+    return {
+        "access_token": auth_service.create_access_token(token_data),
+        "refresh_token": auth_service.issue_refresh_token(user, db),
+        "token_type": "bearer",
+        "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user_id": user.id,
+        "user": schemas.User.model_validate(user).model_dump(),
+    }
+
+
+def _check_refresh_rate(ip: str) -> None:
+    allowed = get_rate_limiter().hit_sync(
+        f"auth:refresh:{ip}",
+        _REFRESH_MAX_PER_WINDOW,
+        _REFRESH_WINDOW_SECONDS,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Слишком много обновлений сессии. Попробуйте позже.",
+        )
+
+
+async def _check_exchange_code_rate(ip: str) -> None:
+    allowed = await get_rate_limiter().hit(
+        f"auth:exchange-code:{ip}",
+        _EXCHANGE_CODE_MAX_PER_WINDOW,
+        _EXCHANGE_CODE_WINDOW_SECONDS,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Слишком много попыток входа. Попробуйте позже.",
+        )
 
 
 async def _check_send_code_rate(ip: str) -> None:
@@ -153,23 +200,60 @@ async def verify_code(req: VerifyCodePayload, request: Request, db: Session = De
 
     # Создаём JWT токены (sub строго строковый). Профиль отдаём сразу,
     # чтобы клиент не делал второй запрос и не зависел от гонки сети.
-    token_data = _token_payload(user)
-    access_token = auth_service.create_access_token(token_data)
-    refresh_token = auth_service.issue_refresh_token(user, db)
+    payload = _session_payload(user, db)
     db.commit()
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user_id": user.id,
-        "user": schemas.User.model_validate(user).model_dump(),
-    }
+    return payload
+
+
+@router.post("/login-code")
+def create_login_code(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Выдаёт одноразовый код для ссылки входа в приложение."""
+    allowed = get_rate_limiter().hit_sync(
+        f"auth:login-code:{current_user.id}",
+        _LOGIN_CODE_MAX_PER_WINDOW,
+        _LOGIN_CODE_WINDOW_SECONDS,
+    )
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Слишком много запросов кода входа.")
+
+    code = auth_service.issue_login_code(current_user, db)
+    db.commit()
+    return {"code": code, "expires_in": auth_service.LOGIN_CODE_TTL_SECONDS}
+
+
+@router.post("/exchange-code")
+async def exchange_login_code(
+    req: schemas.ExchangeCodeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Обменивает одноразовый код из ссылки на пару токенов."""
+    await _check_exchange_code_rate(_client_ip(request))
+
+    user = auth_service.consume_login_code(req.code, db)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired login code",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = _session_payload(user, db)
+    db.commit()
+    return payload
 
 
 @router.post("/refresh")
-def refresh_access_token(req: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
+def refresh_access_token(
+    req: schemas.RefreshTokenRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     """Обменивает refresh-токен на новую пару токенов."""
+    _check_refresh_rate(_client_ip(request))
     user_id = auth_service.verify_refresh_token(req.refresh_token)
     if not user_id:
         raise HTTPException(

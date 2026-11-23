@@ -77,6 +77,21 @@
         "title": "ChatMessageInput",
         "type": "object"
       },
+      "ExchangeCodeRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 128,
+            "minLength": 20,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ExchangeCodeRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -956,6 +971,94 @@
           }
         },
         "summary": "Run Admin Cleanup"
+      }
+    },
+    "/auth/exchange-code": {
+      "post": {
+        "description": "Обменивает одноразовый код из ссылки на пару токенов.",
+        "operationId": "exchange_login_code_auth_exchange_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exchange Login Code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login-code": {
+      "post": {
+        "description": "Выдаёт одноразовый код для ссылки входа в приложение.",
+        "operationId": "create_login_code_auth_login_code_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Login Code",
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/logout": {
