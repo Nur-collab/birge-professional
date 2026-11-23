@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi import HTTPException
@@ -11,12 +12,15 @@ import auth
 import database
 import main
 import models
+from rate_limit import get_rate_limiter
 
 
 @pytest.fixture()
 def client():
     database.Base.metadata.drop_all(bind=database.engine)
     database.Base.metadata.create_all(bind=database.engine)
+    # Rate counters are process-local in tests; isolate them per test case.
+    get_rate_limiter().reset_memory()
     # Do not enter the lifespan: these tests exercise routes, not startup jobs.
     test_client = TestClient(main.app)
     try:
@@ -339,21 +343,28 @@ def test_refresh_rate_limit_returns_429(client, db, monkeypatch):
     user = _user(db, "+996555000070", "Refresh limit")
     token = auth.issue_refresh_token(user, db)
     db.commit()
-    headers = {"X-Forwarded-For": "203.0.113.70"}
+    # Changing a client-supplied header must not reset the account limit.
+    forged_headers = [
+        {"X-Forwarded-For": "203.0.113.70"},
+        {"X-Forwarded-For": "198.51.100.9"},
+        {"X-Forwarded-For": "192.0.2.44"},
+    ]
 
-    first = client.post("/auth/refresh", json={"refresh_token": token}, headers=headers)
+    first = client.post(
+        "/auth/refresh", json={"refresh_token": token}, headers=forged_headers[0]
+    )
     assert first.status_code == 200
     second = client.post(
         "/auth/refresh",
         json={"refresh_token": first.json()["refresh_token"]},
-        headers=headers,
+        headers=forged_headers[1],
     )
     assert second.status_code == 200
 
     blocked = client.post(
         "/auth/refresh",
         json={"refresh_token": second.json()["refresh_token"]},
-        headers=headers,
+        headers=forged_headers[2],
     )
     assert blocked.status_code == 429
     assert blocked.headers["Cache-Control"] == "no-store"
@@ -399,6 +410,57 @@ def test_login_code_endpoint_issues_and_rejects_expired(client, db):
         "/auth/exchange-code", json={"code": issued.json()["code"]}
     )
     assert expired.status_code == 401
+
+
+def test_telegram_login_command_issues_one_time_link(client, db, monkeypatch):
+    user = _user(db, "+996555000073", "Бот")
+    db.add(
+        models.TelegramBinding(
+            phone="+996 555 000 073",
+            phone_normalized="996555000073",
+            chat_id=900000073,
+        )
+    )
+    db.commit()
+
+    sent: dict = {}
+
+    async def fake_send(chat_id, text, reply_markup=None):
+        sent.update(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=reply_markup,
+        )
+        return True
+
+    monkeypatch.setattr(auth, "send_telegram_message", fake_send)
+
+    response = client.post(
+        "/bot/webhook",
+        json={
+            "message": {
+                "chat": {"id": 900000073},
+                "from": {"id": 900000073, "first_name": "Бот"},
+                "text": "/login",
+            }
+        },
+    )
+    assert response.status_code == 200
+    assert sent["chat_id"] == 900000073
+    assert "один раз" in sent["text"]
+
+    login_url = sent["reply_markup"]["inline_keyboard"][0][0]["url"]
+    parsed = urlparse(login_url)
+    assert parsed.scheme == "https"
+    assert parsed.path == "/"
+    code = parse_qs(parsed.query)["code"][0]
+
+    exchanged = client.post("/auth/exchange-code", json={"code": code})
+    assert exchanged.status_code == 200
+    assert exchanged.json()["access_token"]
+
+    replay = client.post("/auth/exchange-code", json={"code": code})
+    assert replay.status_code == 401
 
 
 def test_refresh_cleanup_removes_only_expired_sessions(client, db):

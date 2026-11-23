@@ -62,9 +62,10 @@ def _session_payload(user: models.User, db: Session) -> dict:
     }
 
 
-def _check_refresh_rate(ip: str) -> None:
+def _check_refresh_rate(user_id: int) -> None:
+    """Limit rotations per account, not by a spoofable request header."""
     allowed = get_rate_limiter().hit_sync(
-        f"auth:refresh:{ip}",
+        f"auth:refresh:user:{user_id}",
         _REFRESH_MAX_PER_WINDOW,
         _REFRESH_WINDOW_SECONDS,
     )
@@ -253,7 +254,6 @@ def refresh_access_token(
     db: Session = Depends(get_db),
 ):
     """Обменивает refresh-токен на новую пару токенов."""
-    _check_refresh_rate(_client_ip(request))
     user_id = auth_service.verify_refresh_token(req.refresh_token)
     if not user_id:
         raise HTTPException(
@@ -261,6 +261,7 @@ def refresh_access_token(
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    _check_refresh_rate(user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")

@@ -13,7 +13,7 @@ from config import IS_PRODUCTION, REDIS_URL
 from dependencies import get_current_admin, get_current_user
 from time_utils import BISHKEK_TZ, get_bishkek_now, get_bishkek_today_str, parse_time_minutes
 from realtime import is_trip_participant, start_realtime, stop_realtime
-from rate_limit import close_rate_limiter, enforce_user_limit_sync
+from rate_limit import close_rate_limiter, enforce_user_limit_sync, get_rate_limiter
 from logging_config import bind_request_id, configure_logging, reset_request_id
 from sentry_config import init_sentry
 from routers.auth import router as auth_router
@@ -329,6 +329,9 @@ TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 INTERNAL_SYNC_SECRET = os.environ.get("INTERNAL_SYNC_SECRET", "")
 INTERNAL_SYNC_ENABLED = os.environ.get("INTERNAL_SYNC_ENABLED", "").lower() == "true"
 
+_BOT_LOGIN_CODE_WINDOW_SECONDS = 60
+_BOT_LOGIN_CODE_MAX_PER_WINDOW = 10
+
 
 # --- TELEGRAM BOT WEBHOOK ---
 @app.post("/bot/webhook")
@@ -372,6 +375,7 @@ async def telegram_webhook(
         main_keyboard = {
             "keyboard": [
                 [{"text": "📱 Поделиться номером", "request_contact": True}],
+                [{"text": "🔐 Войти в приложение"}],
                 [{"text": "🔍 Проверить статус"}, {"text": "🔔 Тест связи"}],
                 [{"text": "❓ Помощь"}],
             ],
@@ -381,6 +385,47 @@ async def telegram_webhook(
 
         async def _reply(reply_text: str, custom_kb: dict | None = main_keyboard) -> None:
             await auth.send_telegram_message(chat_id, reply_text, reply_markup=custom_kb)
+
+        def _bound_user(binding):
+            """Resolve a Telegram binding to a Birge account."""
+            from models import User
+
+            phone_tail = (
+                binding.phone_normalized
+                or "".join(filter(str.isdigit, binding.phone or ""))
+            )[-9:]
+            query = db.query(User).filter(User.phone == binding.phone)
+            if phone_tail:
+                query = db.query(User).filter(
+                    (User.phone == binding.phone)
+                    | (User.phone.like(f"%{phone_tail}%"))
+                )
+            return query.first()
+
+        async def _send_login_link(user) -> None:
+            """Issue a one-time code and send its frontend login link."""
+            allowed = get_rate_limiter().hit_sync(
+                f"bot:login-code:{user.id}",
+                _BOT_LOGIN_CODE_MAX_PER_WINDOW,
+                _BOT_LOGIN_CODE_WINDOW_SECONDS,
+            )
+            if not allowed:
+                await _reply("⏳ Слишком много ссылок для входа. Попробуйте через минуту.")
+                return
+
+            code = auth.issue_login_code(user, db)
+            db.commit()
+            login_url = auth.build_login_url(code)
+            await _reply(
+                "🔐 *Вход в приложение Birge*\n\n"
+                f"Ссылка действует {auth.LOGIN_CODE_TTL_SECONDS} секунд и срабатывает один раз.\n"
+                "Нажмите кнопку ниже, чтобы войти.",
+                {
+                    "inline_keyboard": [[
+                        {"text": "🔐 Войти в Birge", "url": login_url}
+                    ]]
+                },
+            )
 
         async def _process_phone_binding(raw_phone: str) -> None:
             is_valid, p_e164, p_digits, p_formatted, op_or_err = auth.normalize_kg_phone(raw_phone)
@@ -464,6 +509,7 @@ async def telegram_webhook(
                     f"• Напоминания за 1 час до выезда\n"
                     f"• Экстренные уведомления (SOS)"
                 )
+                await _send_login_link(user)
             else:
                 await _reply(
                     f"⚠️ *Номер {p_formatted} ({op_or_err}) распознан, но пока НЕ зарегистрирован в Birge.*\n\n"
@@ -500,7 +546,32 @@ async def telegram_webhook(
             )
             return {"ok": True}
 
-        # 3. Команда /status или "Проверить статус"
+        # 3. Команда /login или кнопка «Войти в приложение»
+        if text in ("/login", "🔐 Войти в приложение", "войти", "вход"):
+            from models import TelegramBinding
+
+            binding = db.query(TelegramBinding).filter(
+                TelegramBinding.chat_id == chat_id
+            ).first()
+            if not binding:
+                await _reply(
+                    "❌ Сначала привяжите номер телефона через кнопку "
+                    "*«📱 Поделиться номером»*."
+                )
+                return {"ok": True}
+
+            user = _bound_user(binding)
+            if not user:
+                await _reply(
+                    f"⚠️ Telegram привязан к номеру `{binding.phone}`, но профиль "
+                    "в Birge ещё не создан. Зарегистрируйтесь в приложении и повторите."
+                )
+                return {"ok": True}
+
+            await _send_login_link(user)
+            return {"ok": True}
+
+        # 4. Команда /status или "Проверить статус"
         if text in ("/status", "🔍 Проверить статус", "проверить статус", "статус"):
             from models import TelegramBinding, User
             binding = db.query(TelegramBinding).filter(TelegramBinding.chat_id == chat_id).first()
@@ -581,6 +652,7 @@ async def telegram_webhook(
             await _reply(
                 "ℹ️ *Справка по боту Birge:*\n\n"
                 "• Нажмите *«📱 Поделиться номером»* для безопасной привязки аккаунта\n"
+                "• `/login` — получить одноразовую ссылку для входа в приложение\n"
                 "• `/status` — проверить ваш статус привязки и верификации\n"
                 "• `/check <номер>` — проверить наличие номера в системе Birge\n"
                 "• `/test` — проверить доставку сообщений\n\n"

@@ -5,6 +5,7 @@ import secrets
 import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from urllib.parse import quote
 import jwt
 
 try:
@@ -37,6 +38,9 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "30"
 # refresh (another tab or an immediate retry), not a stolen-token replay.
 REFRESH_REUSE_GRACE_SECONDS = int(os.environ.get("REFRESH_REUSE_GRACE_SECONDS", "10"))
 LOGIN_CODE_TTL_SECONDS = int(os.environ.get("LOGIN_CODE_TTL_SECONDS", "120"))
+APP_PUBLIC_URL = os.environ.get(
+    "APP_PUBLIC_URL", "https://birge-professional.vercel.app"
+).rstrip("/")
 
 SMS_CODE_TTL_MINUTES = 5        # Код действителен 5 минут
 SMS_RATE_LIMIT_SECONDS = 60     # Повторная отправка — не чаще 1 раза в 60 сек
@@ -273,6 +277,11 @@ def verify_refresh_token(token: str) -> Optional[int]:
 def hash_login_code(code: str) -> str:
     """One-time login codes are high-entropy; a SHA-256 digest is enough."""
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def build_login_url(code: str) -> str:
+    """Build the frontend magic link for a one-time code."""
+    return f"{APP_PUBLIC_URL}/?code={quote(code, safe='')}"
 
 
 def issue_login_code(user, db) -> str:

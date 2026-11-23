@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, takeLoginCodeFromUrl, tokenStorage } from '../utils/api';
 import { loadTrip, saveTrip } from '../utils/tripStorage';
 
@@ -9,6 +9,10 @@ export default function useAuth({ clearActiveTrip }) {
   const [authRetry, setAuthRetry] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [orphanedTrip, setOrphanedTrip] = useState(null);
+  // StrictMode runs the auth effect twice. The first run removes ?code= from
+  // the URL, so the second run must await the same exchange instead of
+  // treating the session as empty.
+  const loginCodeExchangeRef = useRef(null);
 
   // Инициализация авторизации по JWT-токену.
   // Сетевая ошибка НЕ должна разлогинивать: токен остаётся, показываем retry.
@@ -21,11 +25,15 @@ export default function useAuth({ clearActiveTrip }) {
       // Magic links carry a one-time code, never an access token.
       const loginCode = takeLoginCodeFromUrl();
       if (loginCode) {
-        try {
-          await api.exchangeLoginCode(loginCode);
-        } catch (_) {
-          // Expired or already used link: continue to the normal login screen.
-        }
+        loginCodeExchangeRef.current = api.exchangeLoginCode(loginCode)
+          .catch(() => null);
+      }
+      const exchange = loginCodeExchangeRef.current;
+      if (exchange) {
+        await exchange;
+        loginCodeExchangeRef.current = null;
+        // The first StrictMode pass is already superseded by the second one.
+        if (cancelled) return;
       }
 
       const token = tokenStorage.get();
