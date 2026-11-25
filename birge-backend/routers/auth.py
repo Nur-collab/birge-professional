@@ -79,6 +79,29 @@ def _from_auth_proxy(request: Request) -> bool:
     return bool(provided) and hmac.compare_digest(provided, AUTH_PROXY_SECRET)
 
 
+_proxy_fallback_warned = False
+
+
+def _warn_proxy_fallback_once() -> None:
+    """Report a proxied request with a bad signature once per process.
+
+    The Vercel middleware header is present but the rewrite did not inject a
+    matching secret: ORIGIN_SECRET is unset in Vercel (or differs from
+    AUTH_PROXY_SECRET), so every visitor lands in one shared rate-limit bucket
+    instead. Direct calls to the origin never reach this branch.
+    """
+    global _proxy_fallback_warned
+    if _proxy_fallback_warned or not IS_PRODUCTION:
+        return
+    _proxy_fallback_warned = True
+    logger.warning(
+        "Auth request from the Vercel middleware has no valid "
+        "x-auth-proxy-secret; falling back to CF-Connecting-IP, so all "
+        "visitors share one rate-limit bucket. Check that ORIGIN_SECRET is "
+        "set in Vercel and equals AUTH_PROXY_SECRET."
+    )
+
+
 def _client_ip(request: Request) -> str:
     """Return the visitor address verified by the Vercel proxy.
 
@@ -96,6 +119,9 @@ def _client_ip(request: Request) -> str:
         visitor = _usable_ip(request.headers.get("x-auth-client-ip", ""))
         if visitor:
             return visitor
+    elif request.headers.get("x-auth-client-ip", "").strip():
+        # The Vercel middleware ran but the rewrite did not sign the request.
+        _warn_proxy_fallback_once()
     cloudflare_ip = _usable_ip(request.headers.get("cf-connecting-ip", ""))
     if cloudflare_ip:
         return cloudflare_ip
