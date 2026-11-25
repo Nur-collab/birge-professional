@@ -288,6 +288,37 @@ export const api = {
     return data;
   },
 
+  createTelegramChallenge: async () => {
+    return authFetch('/auth/telegram-challenge', {
+      method: 'POST',
+    });
+  },
+
+  getTelegramChallengeStatus: async (challengeId, verifier) => {
+    return authFetch('/auth/telegram-challenge/status', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge_id: challengeId,
+        verifier,
+      }),
+    });
+  },
+
+  completeTelegramChallenge: async (challengeId, verifier, name = '') => {
+    const data = await authFetch('/auth/telegram-challenge/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge_id: challengeId,
+        verifier,
+        ...(name ? { name } : {}),
+      }),
+    });
+    if (data.access_token) {
+      tokenStorage.setPair(data.access_token, data.csrf_token);
+    }
+    return data;
+  },
+
   restoreSession,
 
   requestLoginCode: async () => {

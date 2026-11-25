@@ -80,3 +80,21 @@ test('a ?code= link signs in once and a legacy ?token= is stripped from history'
   await page.goForward();
   await expect(page).not.toHaveURL(/[?&]token=/);
 });
+
+test('first screen surfaces Telegram prerequisite and starts Telegram challenge', async ({ page }) => {
+  await page.goto('/');
+  await expectLoginScreen(page);
+
+  await expect(page.getByText('Важно перед получением кода')).toBeVisible();
+  const tgButton = page.getByRole('button', { name: /Войти через @BirgeAuthBot/ });
+  await expect(tgButton).toBeVisible();
+
+  await tgButton.click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Подтвердите в Telegram' }),
+  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('link', { name: /Открыть @BirgeAuthBot/ })).toHaveAttribute(
+    'href',
+    /^https:\/\/t\.me\/.+[?&]start=auth_/,
+  );
+});

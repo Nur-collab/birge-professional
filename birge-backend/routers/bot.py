@@ -72,16 +72,11 @@ async def telegram_webhook(
             await auth.send_telegram_message(chat_id, reply_text, reply_markup=custom_kb)
 
         def _bound_user(binding):
-            phone_tail = (
+            phone_digits = (
                 binding.phone_normalized
                 or "".join(filter(str.isdigit, binding.phone or ""))
-            )[-9:]
-            query = db.query(models.User).filter(models.User.phone == binding.phone)
-            if phone_tail:
-                query = db.query(models.User).filter(
-                    (models.User.phone == binding.phone) | (models.User.phone.like(f"%{phone_tail}%"))
-                )
-            return query.first()
+            )
+            return auth.find_user_by_phone(db, binding.phone, phone_digits=phone_digits)
 
         async def _send_login_link(user) -> None:
             allowed = get_rate_limiter().hit_sync(
@@ -112,16 +107,7 @@ async def telegram_webhook(
                 )
                 return
 
-            user = (
-                db.query(models.User)
-                .filter(
-                    (models.User.phone == p_formatted)
-                    | (models.User.phone == p_e164)
-                    | (models.User.phone == p_digits)
-                    | (models.User.phone.like(f"%{p_digits[-9:]}%"))
-                )
-                .first()
-            )
+            user = auth.find_user_by_phone(db, p_e164, p_formatted, p_digits)
 
             binding = (
                 db.query(models.TelegramBinding)
@@ -150,11 +136,19 @@ async def telegram_webhook(
             if user:
                 user.is_verified = True
 
+            verified_challenge = auth.verify_challenge_for_chat(
+                chat_id,
+                p_e164,
+                p_formatted,
+                db,
+            )
+
             try:
                 db.commit()
             except Exception as exc:
                 logger.warning("[Telegram] Binding save conflict (%s); retrying", type(exc).__name__)
                 db.rollback()
+                verified_challenge = None
                 try:
                     db.query(models.TelegramBinding).filter(
                         (models.TelegramBinding.chat_id == chat_id)
@@ -170,12 +164,23 @@ async def telegram_webhook(
                     )
                     if user:
                         user.is_verified = True
+                    verified_challenge = auth.verify_challenge_for_chat(
+                        chat_id,
+                        p_e164,
+                        p_formatted,
+                        db,
+                    )
                     db.commit()
                 except Exception:
                     logger.exception("[Telegram] Binding retry failed")
                     db.rollback()
 
             if user:
+                challenge_note = (
+                    "\n\n🌐 *Можете вернуться во вкладку браузера — вход завершится автоматически.*"
+                    if verified_challenge
+                    else ""
+                )
                 await _reply(
                     f"✅ *Номер подтверждён и найден в системе Birge!*\n\n"
                     f"👤 *Профиль:* {user.name}\n"
@@ -187,15 +192,20 @@ async def telegram_webhook(
                     f"• Запросы от попутчиков\n"
                     f"• Напоминания за 1 час до выезда\n"
                     f"• Экстренные уведомления (SOS)"
+                    f"{challenge_note}"
                 )
                 await _send_login_link(user)
+            elif verified_challenge:
+                await _reply(
+                    f"✅ *Номер {p_formatted} ({op_or_err}) подтверждён!*\n\n"
+                    f"Мы привязали ваш Telegram-аккаунт к этому номеру.\n\n"
+                    f"👉 *Вернитесь во вкладку браузера* — там уже можно ввести имя и завершить вход (ждать 6-значный код не нужно)."
+                )
             else:
                 await _reply(
-                    f"⚠️ *Номер {p_formatted} ({op_or_err}) распознан, но пока НЕ зарегистрирован в Birge.*\n\n"
-                    f"Мы успешно привязали ваш Telegram-аккаунт к этому номеру.\n\n"
-                    f"👉 Зарегистрируйтесь на сайте или в приложении Birge с этим номером, "
-                    f"и ваш профиль автоматически станет верифицированным ✅, "
-                    f"а все уведомления начнут мгновенно приходить сюда!"
+                    f"✅ *Telegram привязан к номеру {p_formatted} ({op_or_err})!*\n\n"
+                    f"👉 Вернитесь на сайт Birge, введите этот номер и нажмите *«Получить код»* "
+                    f"(или *«Отправить код повторно»*) — 6-значный код сразу придёт сюда, а профиль автоматически получит галочку ✅."
                 )
 
         if contact:
@@ -211,6 +221,56 @@ async def telegram_webhook(
                 return {"ok": True}
 
         if text.startswith("/start"):
+            start_parts = text.split(maxsplit=1)
+            start_arg = start_parts[1].strip() if len(start_parts) > 1 else ""
+            if start_arg.startswith("auth_"):
+                challenge_id = start_arg[len("auth_"):].strip()
+                if challenge_id:
+                    existing_binding = (
+                        db.query(models.TelegramBinding)
+                        .filter(models.TelegramBinding.chat_id == chat_id)
+                        .first()
+                    )
+                    if existing_binding:
+                        is_valid, p_e164, p_digits, p_formatted, _ = auth.normalize_kg_phone(
+                            existing_binding.phone_normalized or existing_binding.phone or ""
+                        )
+                        if is_valid:
+                            verified = auth.verify_challenge_for_chat(
+                                chat_id,
+                                p_e164,
+                                p_formatted,
+                                db,
+                                challenge_id=challenge_id,
+                            )
+                            if verified:
+                                db.commit()
+                                user = _bound_user(existing_binding)
+                                if user:
+                                    await _reply(
+                                        f"✅ *Вход в Birge подтверждён!*\n\n"
+                                        f"📱 Телефон: `{p_formatted}`\n"
+                                        f"🌐 *Вернитесь во вкладку браузера* — вход завершится автоматически, либо нажмите кнопку ниже."
+                                    )
+                                    await _send_login_link(user)
+                                else:
+                                    await _reply(
+                                        f"✅ *Номер `{p_formatted}` подтверждён!*\n\n"
+                                        f"🌐 *Вернитесь во вкладку браузера* — введите имя, чтобы завершить регистрацию."
+                                    )
+                                return {"ok": True}
+
+                    attached = auth.attach_chat_to_challenge(challenge_id, chat_id, db)
+                    if attached:
+                        db.commit()
+                        await _reply(
+                            f"👋 Привет, *{first_name}*!\n\n"
+                            f"Чтобы подтвердить номер и войти в *Birge*, нажмите кнопку ниже:\n"
+                            f"*«📱 Поделиться номером»*.\n\n"
+                            f"После этого вернитесь во вкладку браузера — ждать 6-значный код не придётся."
+                        )
+                        return {"ok": True}
+
             await _reply(
                 f"👋 Привет, *{first_name}*!\n\n"
                 f"Я официальный бот сервиса совместных поездок *Birge* (Бишкек и Кыргызстан) 🚗\n\n"

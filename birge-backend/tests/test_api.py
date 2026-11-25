@@ -1358,3 +1358,189 @@ def test_redis_rate_limiter_does_not_extend_ttl_when_blocked():
     assert RateLimiter._redis_hit(fake, "k", 2, 60) is True
     assert RateLimiter._redis_hit(fake, "k", 2, 60) is False
     assert fake.expire_calls == 2
+
+
+def test_telegram_challenge_new_user_via_bot_contact(client, db, monkeypatch):
+    async def fake_send(chat_id, text, reply_markup=None):
+        return True
+
+    monkeypatch.setattr(auth, "send_telegram_message", fake_send)
+
+    created = client.post("/auth/telegram-challenge")
+    assert created.status_code == 200
+    payload = created.json()
+    challenge_id = payload["challenge_id"]
+    verifier = payload["verifier"]
+    assert payload["telegram_url"] == f"https://t.me/{auth.TELEGRAM_BOT_USERNAME}?start=auth_{challenge_id}"
+
+    # Wrong verifier must not leak challenge state.
+    bad_status = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": "wrong_" + verifier},
+    )
+    assert bad_status.status_code == 404
+
+    initial = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert initial.status_code == 200
+    assert initial.json()["status"] == "pending"
+
+    # User taps Start in Telegram with the deep link payload.
+    start_resp = client.post(
+        "/bot/webhook",
+        json={
+            "message": {
+                "chat": {"id": 900000101},
+                "from": {"id": 900000101, "first_name": "Айбек"},
+                "text": f"/start auth_{challenge_id}",
+            }
+        },
+    )
+    assert start_resp.status_code == 200
+
+    started = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert started.status_code == 200
+    assert started.json()["status"] == "bot_started"
+
+    # Sharing someone else's contact must be rejected and must not verify.
+    spoof_contact = client.post(
+        "/bot/webhook",
+        json={
+            "message": {
+                "chat": {"id": 900000101},
+                "from": {"id": 900000101, "first_name": "Айбек"},
+                "contact": {"user_id": 999999, "phone_number": "+996555000101"},
+            }
+        },
+    )
+    assert spoof_contact.status_code == 200
+    still_waiting = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert still_waiting.json()["status"] == "bot_started"
+
+    # Sharing own Telegram contact verifies the challenge.
+    own_contact = client.post(
+        "/bot/webhook",
+        json={
+            "message": {
+                "chat": {"id": 900000101},
+                "from": {"id": 900000101, "first_name": "Айбек"},
+                "contact": {"user_id": 900000101, "phone_number": "996555000101"},
+            }
+        },
+    )
+    assert own_contact.status_code == 200
+
+    verified = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert verified.status_code == 200
+    assert verified.json()["status"] == "verified"
+    assert verified.json()["is_new_user"] is True
+    assert verified.json()["phone"] == "+996 555 000 101"
+
+    completed = client.post(
+        "/auth/telegram-challenge/complete",
+        json={"challenge_id": challenge_id, "verifier": verifier, "name": "Айбек"},
+    )
+    assert completed.status_code == 200
+    body = completed.json()
+    assert body["access_token"]
+    assert body["user"]["name"] == "Айбек"
+    assert body["user"]["is_verified"] is True
+
+    # Challenge cannot be replayed after completion.
+    replay = client.post(
+        "/auth/telegram-challenge/complete",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert replay.status_code == 401
+
+
+def test_telegram_challenge_existing_binding_verifies_on_start_and_expires(client, db, monkeypatch):
+    _user(db, "+996555000102", "Элдар")
+    db.add(
+        models.TelegramBinding(
+            phone="+996 555 000 102",
+            phone_normalized="996555000102",
+            chat_id=900000102,
+        )
+    )
+    db.commit()
+
+    sent: list[str] = []
+
+    async def fake_send(chat_id, text, reply_markup=None):
+        sent.append(text)
+        return True
+
+    monkeypatch.setattr(auth, "send_telegram_message", fake_send)
+
+    created = client.post("/auth/telegram-challenge").json()
+    challenge_id = created["challenge_id"]
+    verifier = created["verifier"]
+
+    start_resp = client.post(
+        "/bot/webhook",
+        json={
+            "message": {
+                "chat": {"id": 900000102},
+                "from": {"id": 900000102, "first_name": "Элдар"},
+                "text": f"/start auth_{challenge_id}",
+            }
+        },
+    )
+    assert start_resp.status_code == 200
+    assert any("подтверждён" in msg for msg in sent)
+
+    status_resp = client.post(
+        "/auth/telegram-challenge/status",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "verified"
+    assert status_resp.json()["is_new_user"] is False
+
+    completed = client.post(
+        "/auth/telegram-challenge/complete",
+        json={"challenge_id": challenge_id, "verifier": verifier},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["user"]["name"] == "Элдар"
+
+    # Expired challenge reports expired status and cannot be completed.
+    expired_created = client.post("/auth/telegram-challenge").json()
+    row = (
+        db.query(models.TelegramAuthChallenge)
+        .filter_by(challenge_hash=auth.hash_challenge_token(expired_created["challenge_id"]))
+        .first()
+    )
+    row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=5)
+    db.commit()
+
+    exp_status = client.post(
+        "/auth/telegram-challenge/status",
+        json={
+            "challenge_id": expired_created["challenge_id"],
+            "verifier": expired_created["verifier"],
+        },
+    )
+    assert exp_status.status_code == 200
+    assert exp_status.json()["status"] == "expired"
+
+    exp_complete = client.post(
+        "/auth/telegram-challenge/complete",
+        json={
+            "challenge_id": expired_created["challenge_id"],
+            "verifier": expired_created["verifier"],
+        },
+    )
+    assert exp_complete.status_code == 401

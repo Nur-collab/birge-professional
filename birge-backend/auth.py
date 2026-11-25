@@ -40,6 +40,11 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "30"
 # refresh (another tab or an immediate retry), not a stolen-token replay.
 REFRESH_REUSE_GRACE_SECONDS = int(os.environ.get("REFRESH_REUSE_GRACE_SECONDS", "10"))
 LOGIN_CODE_TTL_SECONDS = int(os.environ.get("LOGIN_CODE_TTL_SECONDS", "120"))
+TELEGRAM_CHALLENGE_TTL_SECONDS = int(os.environ.get("TELEGRAM_CHALLENGE_TTL_SECONDS", "300"))
+TELEGRAM_BOT_USERNAME = (
+    os.environ.get("TELEGRAM_BOT_USERNAME", "BirgeAuthBot").strip().lstrip("@")
+    or "BirgeAuthBot"
+)
 APP_PUBLIC_URL = os.environ.get(
     "APP_PUBLIC_URL", "https://birge-professional.vercel.app"
 ).rstrip("/")
@@ -276,9 +281,190 @@ def verify_refresh_token(token: str) -> Optional[int]:
     return _decode_token(token, "refresh")
 
 
+def _ensure_utc(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+def find_user_by_phone(
+    db,
+    phone_e164: str,
+    phone_formatted: str = "",
+    phone_digits: str = "",
+):
+    """Look up a User matching any stored KG phone representation."""
+    from models import User
+
+    digits = phone_digits or "".join(filter(str.isdigit, phone_e164 or ""))
+    clauses = [User.phone == phone_e164]
+    if phone_formatted:
+        clauses.append(User.phone == phone_formatted)
+    if digits:
+        clauses.append(User.phone == digits)
+        tail = digits[-9:]
+        if tail:
+            clauses.append(User.phone.like(f"%{tail}%"))
+    expr = clauses[0]
+    for clause in clauses[1:]:
+        expr = expr | clause
+    return db.query(User).filter(expr).first()
+
+
+def build_telegram_bot_url(start_payload: Optional[str] = None) -> str:
+    """Build the public t.me link for the auth bot, optionally with /start payload."""
+    base = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
+    if not start_payload:
+        return base
+    return f"{base}?start={quote(start_payload, safe='')}"
+
+
 def hash_login_code(code: str) -> str:
     """One-time login codes are high-entropy; a SHA-256 digest is enough."""
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def hash_challenge_token(token: str) -> str:
+    """Hash a challenge identifier or verifier with SHA-256 before persistence."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def purge_telegram_challenges(db, now: Optional[datetime] = None) -> int:
+    """Remove expired or already-consumed browser auth challenges."""
+    from models import TelegramAuthChallenge
+
+    now = now or datetime.now(timezone.utc)
+    return (
+        db.query(TelegramAuthChallenge)
+        .filter(
+            (TelegramAuthChallenge.expires_at < now)
+            | (TelegramAuthChallenge.consumed_at.isnot(None))
+        )
+        .delete(synchronize_session="fetch")
+    )
+
+
+def issue_telegram_challenge(db) -> tuple[str, str, int]:
+    """Create a short-lived browser-bound Telegram verification challenge."""
+    from models import TelegramAuthChallenge
+
+    now = datetime.now(timezone.utc)
+    purge_telegram_challenges(db, now=now)
+    challenge_id = secrets.token_urlsafe(24)
+    verifier = secrets.token_urlsafe(32)
+    db.add(
+        TelegramAuthChallenge(
+            challenge_hash=hash_challenge_token(challenge_id),
+            verifier_hash=hash_challenge_token(verifier),
+            status="pending",
+            expires_at=now + timedelta(seconds=TELEGRAM_CHALLENGE_TTL_SECONDS),
+        )
+    )
+    return challenge_id, verifier, TELEGRAM_CHALLENGE_TTL_SECONDS
+
+
+def lookup_telegram_challenge(
+    challenge_id: str,
+    verifier: str,
+    db,
+    *,
+    for_update: bool = False,
+) -> tuple[Optional[object], Optional[str]]:
+    """Validate challenge_id + verifier and return (row, status_override)."""
+    from models import TelegramAuthChallenge
+
+    query = db.query(TelegramAuthChallenge).filter(
+        TelegramAuthChallenge.challenge_hash == hash_challenge_token(challenge_id)
+    )
+    if for_update:
+        query = query.with_for_update()
+    row = query.first()
+    if not row:
+        return None, None
+    expected_verifier_hash = hash_challenge_token(verifier)
+    if not hmac.compare_digest(row.verifier_hash, expected_verifier_hash):
+        return None, None
+
+    now = datetime.now(timezone.utc)
+    expires_at = _ensure_utc(row.expires_at)
+    if row.consumed_at is not None or expires_at is None or expires_at < now:
+        return row, "expired"
+    return row, None
+
+
+def attach_chat_to_challenge(challenge_id: str, chat_id: int, db):
+    """Bind a Telegram chat_id to an active challenge when /start auth_<id> arrives."""
+    from models import TelegramAuthChallenge
+
+    now = datetime.now(timezone.utc)
+    row = (
+        db.query(TelegramAuthChallenge)
+        .filter(TelegramAuthChallenge.challenge_hash == hash_challenge_token(challenge_id))
+        .first()
+    )
+    if not row or row.consumed_at is not None:
+        return None
+    expires_at = _ensure_utc(row.expires_at)
+    if expires_at is None or expires_at < now:
+        return None
+    if row.status not in ("pending", "bot_started"):
+        return None
+    if row.chat_id is not None and int(row.chat_id) != int(chat_id):
+        return None
+    row.chat_id = chat_id
+    if row.status == "pending":
+        row.status = "bot_started"
+    return row
+
+
+def verify_challenge_for_chat(
+    chat_id: int,
+    phone_e164: str,
+    phone_formatted: str,
+    db,
+    *,
+    challenge_id: Optional[str] = None,
+):
+    """Mark an active challenge verified with the contact's confirmed phone."""
+    from models import TelegramAuthChallenge
+
+    now = datetime.now(timezone.utc)
+    if challenge_id:
+        row = (
+            db.query(TelegramAuthChallenge)
+            .filter(TelegramAuthChallenge.challenge_hash == hash_challenge_token(challenge_id))
+            .first()
+        )
+        if not row or row.consumed_at is not None:
+            return None
+        expires_at = _ensure_utc(row.expires_at)
+        if expires_at is None or expires_at < now:
+            return None
+        if row.chat_id is not None and int(row.chat_id) != int(chat_id):
+            return None
+    else:
+        row = (
+            db.query(TelegramAuthChallenge)
+            .filter(
+                TelegramAuthChallenge.chat_id == chat_id,
+                TelegramAuthChallenge.status.in_(("pending", "bot_started")),
+                TelegramAuthChallenge.consumed_at.is_(None),
+            )
+            .order_by(TelegramAuthChallenge.created_at.desc(), TelegramAuthChallenge.id.desc())
+            .first()
+        )
+        if not row:
+            return None
+        expires_at = _ensure_utc(row.expires_at)
+        if expires_at is None or expires_at < now:
+            return None
+
+    row.chat_id = chat_id
+    row.phone_e164 = phone_e164
+    row.phone_formatted = phone_formatted
+    row.status = "verified"
+    row.verified_at = now
+    return row
 
 
 def build_login_url(code: str) -> str:

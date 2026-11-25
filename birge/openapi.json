@@ -237,6 +237,135 @@
         "title": "SendCodeRequest",
         "type": "object"
       },
+      "TelegramChallengeCompleteRequest": {
+        "properties": {
+          "challenge_id": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "verifier": {
+            "maxLength": 128,
+            "minLength": 20,
+            "title": "Verifier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "verifier"
+        ],
+        "title": "TelegramChallengeCompleteRequest",
+        "type": "object"
+      },
+      "TelegramChallengeResponse": {
+        "properties": {
+          "bot_username": {
+            "title": "Bot Username",
+            "type": "string"
+          },
+          "challenge_id": {
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "telegram_url": {
+            "title": "Telegram Url",
+            "type": "string"
+          },
+          "verifier": {
+            "title": "Verifier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "verifier",
+          "bot_username",
+          "telegram_url",
+          "expires_in"
+        ],
+        "title": "TelegramChallengeResponse",
+        "type": "object"
+      },
+      "TelegramChallengeStatusRequest": {
+        "properties": {
+          "challenge_id": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "verifier": {
+            "maxLength": 128,
+            "minLength": 20,
+            "title": "Verifier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "verifier"
+        ],
+        "title": "TelegramChallengeStatusRequest",
+        "type": "object"
+      },
+      "TelegramChallengeStatusResponse": {
+        "properties": {
+          "expires_in": {
+            "default": 0,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "is_new_user": {
+            "default": false,
+            "title": "Is New User",
+            "type": "boolean"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "bot_started",
+              "verified",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TelegramChallengeStatusResponse",
+        "type": "object"
+      },
       "Trip": {
         "description": "Ответ API. Без input-валидаторов: в БД могут быть legacy-форматы времени.",
         "properties": {
@@ -1152,6 +1281,110 @@
           }
         },
         "summary": "Send Code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/telegram-challenge": {
+      "post": {
+        "description": "Create a browser-bound challenge for one-tap Telegram contact auth.",
+        "operationId": "create_telegram_challenge_auth_telegram_challenge_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramChallengeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Telegram Challenge",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/telegram-challenge/complete": {
+      "post": {
+        "description": "Exchange a verified browser-bound Telegram challenge for session tokens.",
+        "operationId": "complete_telegram_challenge_auth_telegram_challenge_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramChallengeCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Telegram Challenge",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/telegram-challenge/status": {
+      "post": {
+        "description": "Poll whether the creating browser tab's Telegram challenge was verified.",
+        "operationId": "get_telegram_challenge_status_auth_telegram_challenge_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramChallengeStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramChallengeStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Telegram Challenge Status",
         "tags": [
           "auth"
         ]

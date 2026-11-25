@@ -124,6 +124,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/telegram-challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Telegram Challenge
+         * @description Create a browser-bound challenge for one-tap Telegram contact auth.
+         */
+        post: operations["create_telegram_challenge_auth_telegram_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/telegram-challenge/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Telegram Challenge
+         * @description Exchange a verified browser-bound Telegram challenge for session tokens.
+         */
+        post: operations["complete_telegram_challenge_auth_telegram_challenge_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/telegram-challenge/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get Telegram Challenge Status
+         * @description Poll whether the creating browser tab's Telegram challenge was verified.
+         */
+        post: operations["get_telegram_challenge_status_auth_telegram_challenge_status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/verify-code": {
         parameters: {
             query?: never;
@@ -824,6 +884,55 @@ export interface components {
             /** Phone */
             phone: string;
         };
+        /** TelegramChallengeCompleteRequest */
+        TelegramChallengeCompleteRequest: {
+            /** Challenge Id */
+            challenge_id: string;
+            /** Name */
+            name?: string | null;
+            /** Verifier */
+            verifier: string;
+        };
+        /** TelegramChallengeResponse */
+        TelegramChallengeResponse: {
+            /** Bot Username */
+            bot_username: string;
+            /** Challenge Id */
+            challenge_id: string;
+            /** Expires In */
+            expires_in: number;
+            /** Telegram Url */
+            telegram_url: string;
+            /** Verifier */
+            verifier: string;
+        };
+        /** TelegramChallengeStatusRequest */
+        TelegramChallengeStatusRequest: {
+            /** Challenge Id */
+            challenge_id: string;
+            /** Verifier */
+            verifier: string;
+        };
+        /** TelegramChallengeStatusResponse */
+        TelegramChallengeStatusResponse: {
+            /**
+             * Expires In
+             * @default 0
+             */
+            expires_in: number;
+            /**
+             * Is New User
+             * @default false
+             */
+            is_new_user: boolean;
+            /** Phone */
+            phone?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "bot_started" | "verified" | "expired";
+        };
         /**
          * Trip
          * @description Ответ API. Без input-валидаторов: в БД могут быть legacy-форматы времени.
@@ -1232,6 +1341,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_telegram_challenge_auth_telegram_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramChallengeResponse"];
+                };
+            };
+        };
+    };
+    complete_telegram_challenge_auth_telegram_challenge_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramChallengeCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_telegram_challenge_status_auth_telegram_challenge_status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramChallengeStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramChallengeStatusResponse"];
                 };
             };
             /** @description Validation Error */

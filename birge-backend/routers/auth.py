@@ -1,4 +1,5 @@
 """Authentication endpoints: phone code delivery, verification and refresh."""
+from datetime import datetime, timezone
 import hmac
 import ipaddress
 import logging
@@ -40,6 +41,12 @@ _LOGIN_CODE_WINDOW_SECONDS = 60
 _LOGIN_CODE_MAX_PER_WINDOW = 10
 _EXCHANGE_CODE_WINDOW_SECONDS = 60
 _EXCHANGE_CODE_MAX_PER_WINDOW = 20
+_TG_CHALLENGE_CREATE_WINDOW_SECONDS = 60
+_TG_CHALLENGE_CREATE_MAX_PER_WINDOW = 20
+_TG_CHALLENGE_STATUS_WINDOW_SECONDS = 60
+_TG_CHALLENGE_STATUS_MAX_PER_WINDOW = 120
+_TG_CHALLENGE_COMPLETE_WINDOW_SECONDS = 60
+_TG_CHALLENGE_COMPLETE_MAX_PER_WINDOW = 20
 
 # Deliberately neutral: the response must not reveal whether the phone has a
 # Telegram binding or which delivery channel was used.
@@ -226,37 +233,50 @@ def _check_refresh_rate(user_id: int) -> None:
         )
 
 
-async def _check_exchange_code_rate(ip: str) -> None:
+async def _check_ip_rate(
+    ip: str,
+    bucket: str,
+    max_hits: int,
+    window_seconds: int,
+    detail: str,
+) -> None:
     allowed = await get_rate_limiter().hit(
-        f"auth:exchange-code:{ip}",
-        _EXCHANGE_CODE_MAX_PER_WINDOW,
-        _EXCHANGE_CODE_WINDOW_SECONDS,
+        f"{bucket}:{ip}",
+        max_hits,
+        window_seconds,
     )
     if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail="Слишком много попыток входа. Попробуйте позже.",
-        )
+        raise HTTPException(status_code=429, detail=detail)
+
+
+async def _check_exchange_code_rate(ip: str) -> None:
+    await _check_ip_rate(
+        ip,
+        "auth:exchange-code",
+        _EXCHANGE_CODE_MAX_PER_WINDOW,
+        _EXCHANGE_CODE_WINDOW_SECONDS,
+        "Слишком много попыток входа. Попробуйте позже.",
+    )
 
 
 async def _check_send_code_rate(ip: str) -> None:
-    allowed = await get_rate_limiter().hit(
-        f"auth:send-code:{ip}",
+    await _check_ip_rate(
+        ip,
+        "auth:send-code",
         _SEND_CODE_MAX_PER_WINDOW,
         _SEND_CODE_WINDOW_SECONDS,
+        "Слишком много запросов кода. Попробуйте позже.",
     )
-    if not allowed:
-        raise HTTPException(status_code=429, detail="Слишком много запросов кода. Попробуйте позже.")
 
 
 async def _check_verify_code_rate(ip: str) -> None:
-    allowed = await get_rate_limiter().hit(
-        f"auth:verify-code:{ip}",
+    await _check_ip_rate(
+        ip,
+        "auth:verify-code",
         _VERIFY_CODE_MAX_PER_WINDOW,
         _VERIFY_CODE_WINDOW_SECONDS,
+        "Слишком много попыток ввода кода. Подождите минуту.",
     )
-    if not allowed:
-        raise HTTPException(status_code=429, detail="Слишком много попыток ввода кода. Подождите минуту.")
 
 
 @router.post("/send-code")
@@ -326,16 +346,7 @@ async def verify_code(
         raise HTTPException(status_code=400, detail="Invalid, expired, or locked code")
 
     # Ищем существующего пользователя по любому представлению номера
-    user = (
-        db.query(models.User)
-        .filter(
-            (models.User.phone == p_e164)
-            | (models.User.phone == p_formatted)
-            | (models.User.phone == p_digits)
-            | (models.User.phone.like(f"%{p_digits[-9:]}%"))
-        )
-        .first()
-    )
+    user = auth_service.find_user_by_phone(db, p_e164, p_formatted, p_digits)
     if not user:
         # Автоматическая верификация если контакт уже был подтверждён в Telegram боте
         has_tg = db.query(models.TelegramBinding).filter(
@@ -355,6 +366,139 @@ async def verify_code(
 
     # Создаём JWT токены (sub строго строковый). Профиль отдаём сразу,
     # чтобы клиент не делал второй запрос и не зависел от гонки сети.
+    payload = _session_payload(user, db, response)
+    db.commit()
+    return payload
+
+
+@router.post("/telegram-challenge", response_model=schemas.TelegramChallengeResponse)
+async def create_telegram_challenge(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Create a browser-bound challenge for one-tap Telegram contact auth."""
+    await _check_ip_rate(
+        _client_ip(request),
+        "auth:tg-challenge-create",
+        _TG_CHALLENGE_CREATE_MAX_PER_WINDOW,
+        _TG_CHALLENGE_CREATE_WINDOW_SECONDS,
+        "Слишком много запросов на вход через Telegram. Попробуйте позже.",
+    )
+    challenge_id, verifier, expires_in = auth_service.issue_telegram_challenge(db)
+    db.commit()
+    return {
+        "challenge_id": challenge_id,
+        "verifier": verifier,
+        "bot_username": auth_service.TELEGRAM_BOT_USERNAME,
+        "telegram_url": auth_service.build_telegram_bot_url(f"auth_{challenge_id}"),
+        "expires_in": expires_in,
+    }
+
+
+@router.post("/telegram-challenge/status", response_model=schemas.TelegramChallengeStatusResponse)
+async def get_telegram_challenge_status(
+    req: schemas.TelegramChallengeStatusRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Poll whether the creating browser tab's Telegram challenge was verified."""
+    await _check_ip_rate(
+        _client_ip(request),
+        "auth:tg-challenge-status",
+        _TG_CHALLENGE_STATUS_MAX_PER_WINDOW,
+        _TG_CHALLENGE_STATUS_WINDOW_SECONDS,
+        "Слишком частая проверка статуса. Подождите несколько секунд.",
+    )
+    row, status_override = auth_service.lookup_telegram_challenge(
+        req.challenge_id,
+        req.verifier,
+        db,
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if status_override == "expired":
+        return {
+            "status": "expired",
+            "phone": None,
+            "is_new_user": False,
+            "expires_in": 0,
+        }
+
+    expires_at = row.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    remaining = max(0, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
+
+    if row.status == "verified" and row.phone_e164:
+        existing_user = auth_service.find_user_by_phone(
+            db,
+            row.phone_e164,
+            row.phone_formatted or "",
+        )
+        return {
+            "status": "verified",
+            "phone": row.phone_formatted or row.phone_e164,
+            "is_new_user": existing_user is None,
+            "expires_in": remaining,
+        }
+
+    return {
+        "status": row.status if row.status in ("pending", "bot_started") else "pending",
+        "phone": None,
+        "is_new_user": False,
+        "expires_in": remaining,
+    }
+
+
+@router.post("/telegram-challenge/complete")
+async def complete_telegram_challenge(
+    req: schemas.TelegramChallengeCompleteRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Exchange a verified browser-bound Telegram challenge for session tokens."""
+    await _check_ip_rate(
+        _client_ip(request),
+        "auth:tg-challenge-complete",
+        _TG_CHALLENGE_COMPLETE_MAX_PER_WINDOW,
+        _TG_CHALLENGE_COMPLETE_WINDOW_SECONDS,
+        "Слишком много попыток входа. Попробуйте позже.",
+    )
+    row, status_override = auth_service.lookup_telegram_challenge(
+        req.challenge_id,
+        req.verifier,
+        db,
+        for_update=True,
+    )
+    if not row or status_override == "expired" or row.status != "verified" or not row.phone_e164:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid, unverified, or expired Telegram challenge",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    is_valid, p_e164, p_digits, p_formatted, _ = auth_service.normalize_kg_phone(row.phone_e164)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Unsupported phone number")
+
+    row.status = "consumed"
+    row.consumed_at = datetime.now(timezone.utc)
+
+    name = (req.name or "").strip()
+    user = auth_service.find_user_by_phone(db, p_e164, p_formatted, p_digits)
+    if not user:
+        user = models.User(
+            name=name or "Новый пользователь",
+            phone=p_e164,
+            is_verified=True,
+            photo=f"https://i.pravatar.cc/150?u={p_digits}",
+        )
+        db.add(user)
+        db.flush()
+    elif not user.is_verified:
+        user.is_verified = True
+
     payload = _session_payload(user, db, response)
     db.commit()
     return payload

@@ -239,3 +239,28 @@ class TelegramBinding(Base):
     phone_normalized = Column(String, index=True)             # "996555123456" (только цифры, для быстрого поиска)
     chat_id = Column(BigInteger, index=True)                  # Telegram chat_id (BigInteger для 64-бит ID в PostgreSQL)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TelegramAuthChallenge(Base):
+    """Browser-bound one-time Telegram contact verification challenge."""
+
+    __tablename__ = "telegram_auth_challenges"
+    __table_args__ = (
+        Index("ix_tg_auth_challenges_chat_status", "chat_id", "status"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    challenge_hash = Column(String(64), unique=True, nullable=False, index=True)
+    verifier_hash = Column(String(64), nullable=False)
+    chat_id = Column(BigInteger, nullable=True, index=True)
+    phone_e164 = Column(String(24), nullable=True)
+    phone_formatted = Column(String(32), nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)

@@ -14,6 +14,32 @@ class ExchangeCodeRequest(BaseModel):
     code: str = Field(..., min_length=20, max_length=128)
 
 
+class TelegramChallengeResponse(BaseModel):
+    challenge_id: str
+    verifier: str
+    bot_username: str
+    telegram_url: str
+    expires_in: int
+
+
+class TelegramChallengeStatusRequest(BaseModel):
+    challenge_id: str = Field(..., min_length=16, max_length=128)
+    verifier: str = Field(..., min_length=20, max_length=128)
+
+
+class TelegramChallengeStatusResponse(BaseModel):
+    status: Literal["pending", "bot_started", "verified", "expired"]
+    phone: Optional[str] = None
+    is_new_user: bool = False
+    expires_in: int = 0
+
+
+class TelegramChallengeCompleteRequest(BaseModel):
+    challenge_id: str = Field(..., min_length=16, max_length=128)
+    verifier: str = Field(..., min_length=20, max_length=128)
+    name: Optional[str] = Field(default=None, max_length=80)
+
+
 class TripStatusUpdate(BaseModel):
     status: Literal["active", "matched", "in_progress", "completed", "cancelled", "passenger_cancelled"]
 

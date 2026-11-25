@@ -17,19 +17,19 @@
   - `npm test`
   - `npm run build`
   - `npm run e2e` (Playwright; starts ephemeral PostgreSQL 16.2, runs Alembic, seeds a user and starts the Vite app)
-- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` has 33 paths on commit `2748929`.
-- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD `2748929`; P1 hardening is committed and live.
-- CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks. PostgreSQL/E2E workflow and CI/Security are green on `2748929`.
+- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` has 36 paths.
+- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD includes P1 hardening, Sentry setup, and Stage 1+2 Telegram-first login flow.
+- CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks.
 
 ## 2. Current Metrics (2026-11-25)
 
-- Backend tests: 89 passed (ruff `E9,F,B` ignoring `B008`; includes auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 35 passed in 9 files (`useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
-- Browser E2E: 3 passed on PostgreSQL 16.2 (ticket + EventSource with `?ticket=`; access token in SSE query rejected; logout revokes ticket).
-- Production build: passed; 18 precache entries; Vite + PWA `injectManifest`.
+- Backend tests: 91 passed (ruff `E9,F,B` ignoring `B008`; includes Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
+- Frontend tests: 37 passed in 9 files (`Login` Stage 1+2 Telegram challenge & rescue flow, `useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
+- Browser E2E: 5 passed on PostgreSQL 16.2 (`login-code` + Telegram challenge UI + `sse-ticket`).
+- Production build: passed; 18 precache entries; Vite + PWA `injectManifest` + `@sentry/bundler-plugins`.
 - `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
 - OpenAPI: regenerated `birge/openapi.json` and `birge/src/types/api.d.ts`.
-- P0: complete. P1: core code complete; P1 hardening done on 2026-11-15; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation and Python 3.12 runtime/CI are in place. Manual Render restore drill and post-migration backup remain; GitHub CI/Security passed on 2748929. P2: deep links, OpenAPI types and accessibility baseline complete.
+- P0: complete. P1: complete & deployed; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation, Sentry, and Stage 1+2 Telegram-first auth are live. Manual Render restore drill and post-migration backup remain before `2026-12-14`. P2: deep links, OpenAPI types and accessibility baseline complete.
 
 ## 3. Active Work State
 
@@ -96,9 +96,8 @@
 
 ## 6. Rolling Changelog (max 5)
 
-- 2026-11-15: P1 hardening: XSS escaping, security headers, safe API/webhook config, session revocation + `/auth/logout`, SSE ticket + WS version binding, migration `4d1e2f3a5b6c`; 47 backend / 19 frontend tests.
 - 2026-11-15: PostgreSQL 16.2 migration check and Playwright SSE-ticket E2E on PostgreSQL; 3 E2E passed; ephemeral PG cleanup verified.
 - 2026-11-16: PII/OTP hardening, refresh-token rotation/cleanup and Python 3.12 CI/runtime; 53 backend tests on 3.12.10.
-- 2026-11-17: P1 hardening committed/deployed as `2748929`; Render/Vercel live, CI/Security green; production OpenAPI 33 paths.
 - 2026-11-25: Hardening & cleanup: fixed `vercel.json` `routes`/`headers` conflict, `.gitignore` `.backups/`, driver SSE + WS incremental chat + reconnect, `AudioContext`/timer leaks, `sw.js` `notificationclick`, `i18n.js` 6-digit copy, extracted `main.py` -> `routers/{admin,bot,reviews}.py` + `trip_maintenance.py`, Redis panic cooldown & TTL fix, Python 3.12 alignment + expanded ruff (`E9,F,B`), `i18next ^27.2.9`; 89 backend / 35 frontend tests pass.
-- 2026-11-25: Sentry wired end-to-end (`birge/birge-api` + `birge/birge-web`): verified real test events, added `VITE_SENTRY_DSN` on Vercel, `@sentry/bundler-plugins` Vite source maps (active when `SENTRY_AUTH_TOKEN` is set), and fixed `tests/conftest.py` to set empty `SENTRY_DSN` so `load_dotenv()` never restores `.env` DSN during pytest.
+- 2026-11-25: Sentry wired end-to-end (`birge/birge-api` + `birge/birge-web`): verified real test events, added `VITE_SENTRY_DSN` on Vercel, `@sentry/bundler-plugins` Vite source maps (active when `SENTRY_AUTH_TOKEN` is set), and fixed `tests/conftest.py` to set empty `SENTRY_DSN`.
+- 2026-11-25: Stage 1+2 Telegram-first auth redesign: added `TelegramAuthChallenge` (`a7f1c3e8b9d2`), `/auth/telegram-challenge{,/status,/complete}`, bot deep-link `?start=auth_<id>` auto-verify & contact binding, `Login.jsx` Telegram-first CTA + inline prerequisite callout + 8s rescue hint & 60s resend cooldown + `sessionStorage` resume; 91 backend, 37 frontend, 5 Playwright E2E pass.
