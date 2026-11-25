@@ -19,21 +19,54 @@
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
 export const API_URL = configuredApiUrl || 'https://birge-api.onrender.com';
-const TOKEN_KEY = 'birge_token';
-const REFRESH_TOKEN_KEY = 'birge_refresh_token';
+
+// Auth is always requested from the same-origin /api/auth proxy (Vite in
+// development, vercel.json in production), so the HttpOnly refresh cookie is
+// first-party. Other API calls stay on API_URL.
+export const AUTH_URL = '/api/auth';
+
+const LEGACY_ACCESS_TOKEN_KEY = 'birge_token';
+const LEGACY_REFRESH_TOKEN_KEY = 'birge_refresh_token';
+const CSRF_TOKEN_KEY = 'birge_csrf_token';
+
+// Access and CSRF tokens live in memory; the refresh token never reaches JS.
+// The CSRF value is only a nonce paired with an HttpOnly cookie, not a bearer
+// credential. It is persisted so a page reload can refresh the session.
+let accessToken = null;
+let csrfToken = null;
+try {
+  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+  csrfToken = localStorage.getItem(CSRF_TOKEN_KEY) || null;
+} catch (_) {
+  // Storage can be unavailable in private browsing modes.
+}
 
 export const tokenStorage = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token) => localStorage.setItem(TOKEN_KEY, token),
-  getRefresh: () => localStorage.getItem(REFRESH_TOKEN_KEY),
-  setRefresh: (token) => localStorage.setItem(REFRESH_TOKEN_KEY, token),
-  setPair: (accessToken, refreshToken) => {
-    localStorage.setItem(TOKEN_KEY, accessToken);
-    if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  get: () => accessToken,
+  set: (token) => { accessToken = token || null; },
+  getCsrf: () => csrfToken,
+  setCsrf: (token) => {
+    csrfToken = token || null;
+    try {
+      if (csrfToken) localStorage.setItem(CSRF_TOKEN_KEY, csrfToken);
+      else localStorage.removeItem(CSRF_TOKEN_KEY);
+    } catch (_) {}
+  },
+  setPair: (newAccessToken, newCsrfToken) => {
+    accessToken = newAccessToken || null;
+    if (newCsrfToken) {
+      csrfToken = newCsrfToken;
+      try { localStorage.setItem(CSRF_TOKEN_KEY, newCsrfToken); } catch (_) {}
+    }
   },
   clear: () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    accessToken = null;
+    tokenStorage.setCsrf(null);
+    try {
+      localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+      localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+    } catch (_) {}
   },
 };
 
@@ -102,28 +135,39 @@ function apiError(message, status = 0) {
  */
 let refreshPromise = null;
 
+const requestUrl = (endpoint) => {
+  if (endpoint.startsWith('/auth/')) {
+    return `${AUTH_URL}${endpoint.slice('/auth'.length)}`;
+  }
+  return `${API_URL}${endpoint}`;
+};
+
 async function refreshAccessToken() {
-  const refreshToken = tokenStorage.getRefresh();
-  if (!refreshToken) return false;
+  const csrf = tokenStorage.getCsrf();
+  if (!csrf) return false;
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`${API_URL}/auth/refresh`, {
+      const response = await fetch(`${AUTH_URL}/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': csrf },
         signal: controller.signal,
       });
-      if (!response.ok) return false;
+      if (response.status === 401 || response.status === 403) return false;
+      if (!response.ok) {
+        throw apiError(`Ошибка ${response.status}`, response.status);
+      }
       const data = await response.json();
       if (!data?.access_token) return false;
-      tokenStorage.setPair(data.access_token, data.refresh_token);
+      tokenStorage.setPair(data.access_token, data.csrf_token);
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if (error.status) throw error;
+      throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
     } finally {
       clearTimeout(timeoutId);
       refreshPromise = null;
@@ -131,6 +175,11 @@ async function refreshAccessToken() {
   })();
 
   return refreshPromise;
+}
+
+async function restoreSession() {
+  if (tokenStorage.get()) return true;
+  return refreshAccessToken();
 }
 
 async function authFetch(endpoint, options = {}, allowRefresh = true) {
@@ -142,12 +191,17 @@ async function authFetch(endpoint, options = {}, allowRefresh = true) {
     ...(options.headers || {}),
   };
 
-  const url = `${API_URL}${endpoint}`;
+  const url = requestUrl(endpoint);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000);
   let response;
   try {
-    response = await fetch(url, { ...options, headers, signal: controller.signal });
+    response = await fetch(url, {
+      credentials: 'include',
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
   } catch (netErr) {
     if (netErr.name === 'AbortError') {
       throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
@@ -158,8 +212,15 @@ async function authFetch(endpoint, options = {}, allowRefresh = true) {
   }
 
   if (response.status === 401) {
-    if (allowRefresh && await refreshAccessToken()) {
-      return authFetch(endpoint, options, false);
+    if (allowRefresh) {
+      let refreshed = false;
+      try {
+        refreshed = await refreshAccessToken();
+      } catch (error) {
+        // A network/API outage must not destroy a valid local session.
+        throw error;
+      }
+      if (refreshed) return authFetch(endpoint, options, false);
     }
     tokenStorage.clear();
     window.dispatchEvent(new Event('birge:unauthorized'));
@@ -211,7 +272,7 @@ export const api = {
       body: JSON.stringify({ phone, code, ...(name ? { name } : {}) }),
     });
     if (data.access_token) {
-      tokenStorage.setPair(data.access_token, data.refresh_token);
+      tokenStorage.setPair(data.access_token, data.csrf_token);
     }
     return data;
   },
@@ -222,10 +283,12 @@ export const api = {
       body: JSON.stringify({ code }),
     });
     if (data.access_token) {
-      tokenStorage.setPair(data.access_token, data.refresh_token);
+      tokenStorage.setPair(data.access_token, data.csrf_token);
     }
     return data;
   },
+
+  restoreSession,
 
   requestLoginCode: async () => {
     return authFetch('/auth/login-code', { method: 'POST' });
@@ -249,7 +312,6 @@ export const api = {
   // ─── ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ────────────────────────────────
 
   getCurrentUser: async () => {
-    if (!tokenStorage.get()) return null;
     try {
       const data = await authFetch('/users/me');
       if (!data) return null;

@@ -36,8 +36,22 @@ export default function useAuth({ clearActiveTrip }) {
         if (cancelled) return;
       }
 
-      const token = tokenStorage.get();
-      if (!token) {
+      // Access token is memory-only, so a reload must restore the session
+      // from the HttpOnly refresh cookie before deciding to show the login.
+      let restored = Boolean(tokenStorage.get());
+      if (!restored) {
+        try {
+          restored = await api.restoreSession();
+        } catch (e) {
+          if (cancelled) return;
+          // Do not sign out on a cold Render / network error.
+          setAuthError(true);
+          setAuthLoading(false);
+          return;
+        }
+        if (cancelled) return;
+      }
+      if (!restored) {
         setAuthLoading(false);
         setIsLoggedIn(false);
         setCurrentUser(null);

@@ -10,9 +10,6 @@ class VerifyCodeRequest(BaseModel):
     phone: str = Field(..., min_length=4, max_length=32)
     code: str = Field(..., min_length=4, max_length=8)
 
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=20, max_length=4096)
-
 class ExchangeCodeRequest(BaseModel):
     code: str = Field(..., min_length=20, max_length=128)
 

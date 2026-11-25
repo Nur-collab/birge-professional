@@ -77,6 +77,22 @@ Production builds read `VITE_API_URL` from `.env.production` or from the
 hosting provider's environment. The build fails if that value points to
 `localhost`, `127.0.0.1` or `0.0.0.0`.
 
+Auth requests always use the same-origin `/api/auth` base. Vite forwards that
+path to `VITE_API_URL` in development and preview; `birge/vercel.json` rewrites
+it to the Render API in production. The `HttpOnly` refresh cookie is therefore
+first-party everywhere and its path is always `/api/auth`; override
+`AUTH_COOKIE_PATH` only for a different deployment topology.
+
+The Vercel rewrite also injects `x-auth-proxy-secret` from `ORIGIN_SECRET`.
+Vercel forwards a caller-supplied `X-Forwarded-For` on rewrites to external
+origins, so the backend never trusts that header. Instead, `birge/proxy.js`
+(Vercel Routing Middleware) resolves the edge-sanitized address with
+`ipAddress()` and sets `x-auth-client-ip`. The backend accepts that header only
+when the proxy secret matches `AUTH_PROXY_SECRET`; without the middleware it
+falls back to the shared `CF-Connecting-IP` (safe, but one bucket per edge).
+Set the same random value in Vercel (`ORIGIN_SECRET`) and on Render
+(`AUTH_PROXY_SECRET`).
+
 ### OpenAPI types
 
 `birge/openapi.json` is the committed frontend contract. After a backend
@@ -128,6 +144,8 @@ Backend (see `birge-backend/.env.example`):
 | `OTP_HASH_KEY` | no | Optional separate HMAC key for OTP hashes; defaults to `SECRET_KEY` |
 | `DATABASE_URL` | yes | PostgreSQL URL in production, SQLite locally |
 | `ALLOWED_ORIGINS` | production | Comma-separated exact frontend origins |
+| `AUTH_COOKIE_PATH` | no | Cookie path shared by the frontend proxy and API (default `/api/auth`) |
+| `AUTH_PROXY_SECRET` | production | Must equal Vercel `ORIGIN_SECRET`; gates trust in the middleware `x-auth-client-ip` |
 | `TELEGRAM_BOT_TOKEN` | production | Telegram code delivery and bot |
 | `TELEGRAM_WEBHOOK_SECRET` | production | Telegram webhook verification |
 | `ADMIN_PHONES` | production | Comma-separated phones allowed to call admin endpoints |

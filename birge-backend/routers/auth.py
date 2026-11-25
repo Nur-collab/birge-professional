@@ -1,18 +1,23 @@
 """Authentication endpoints: phone code delivery, verification and refresh."""
+import hmac
+import ipaddress
+import logging
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import Field
 from sqlalchemy.orm import Session
 
 import auth as auth_service
 import models
 import schemas
-from config import IS_PRODUCTION
+from config import ALLOWED_ORIGINS, AUTH_COOKIE_PATH, AUTH_PROXY_SECRET, IS_PRODUCTION
 from database import get_db
 from dependencies import get_current_user
 from rate_limit import get_rate_limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -35,16 +40,63 @@ _LOGIN_CODE_MAX_PER_WINDOW = 10
 _EXCHANGE_CODE_WINDOW_SECONDS = 60
 _EXCHANGE_CODE_MAX_PER_WINDOW = 20
 
+# Deliberately neutral: the response must not reveal whether the phone has a
+# Telegram binding or which delivery channel was used.
+_SEND_CODE_ACCEPTED_MESSAGE = "Запрос на отправку кода принят"
+
+REFRESH_COOKIE_NAME = "birge_refresh"
+CSRF_COOKIE_NAME = "birge_csrf"
+CSRF_HEADER_NAME = "X-CSRF-Token"
+_COOKIE_MAX_AGE = auth_service.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+
+
+_AUTH_PROXY_HEADER = "x-auth-proxy-secret"
+# Carrier-grade NAT is common for mobile operators; it is not globally
+# routable but it is a real visitor address that must keep its own bucket.
+_CGNAT_NETWORKS = (ipaddress.ip_network("100.64.0.0/10"),)
+
+
+def _usable_ip(value: str) -> Optional[str]:
+    """Return a canonical visitor address, or None for spoofable values."""
+    try:
+        address = ipaddress.ip_address((value or "").strip())
+    except ValueError:
+        return None
+    if any(address in network for network in _CGNAT_NETWORKS):
+        return str(address)
+    return str(address) if address.is_global else None
+
+
+def _from_auth_proxy(request: Request) -> bool:
+    """True only for requests signed by the Vercel rewrite.
+
+    Vercel overwrites x-auth-proxy-secret on the way to the origin, so a direct
+    caller cannot forge it. Without the secret, X-Forwarded-For is ignored.
+    """
+    if not AUTH_PROXY_SECRET:
+        return False
+    provided = request.headers.get(_AUTH_PROXY_HEADER, "")
+    return bool(provided) and hmac.compare_digest(provided, AUTH_PROXY_SECRET)
+
 
 def _client_ip(request: Request) -> str:
-    """Return a client key that a caller cannot spoof.
+    """Return the visitor address verified by the Vercel proxy.
 
-    Render sits behind Cloudflare, which overwrites CF-Connecting-IP with the
-    real visitor address. X-Forwarded-For is intentionally ignored: Render
-    appends to it and the caller-controlled leftmost entries would let an
-    attacker reset every per-IP auth bucket.
+    Vercel's routing middleware resolves the edge-sanitized address and writes
+    it to x-auth-client-ip before the external rewrite. X-Forwarded-For is
+    never trusted: on rewrites to external origins Vercel forwards a
+    caller-supplied value, so reading it would reopen the per-IP bypass.
+
+    Cloudflare in front of Render overwrites CF-Connecting-IP with the address
+    that connected to it. For /api/auth that is the shared Vercel egress, so
+    it is only a safe fallback (no bypass, but all visitors share a bucket)
+    when the middleware header is absent or unusable.
     """
-    cloudflare_ip = request.headers.get("cf-connecting-ip", "").strip()
+    if _from_auth_proxy(request):
+        visitor = _usable_ip(request.headers.get("x-auth-client-ip", ""))
+        if visitor:
+            return visitor
+    cloudflare_ip = _usable_ip(request.headers.get("cf-connecting-ip", ""))
     if cloudflare_ip:
         return cloudflare_ip
     return request.client.host if request.client else "unknown"
@@ -55,12 +107,76 @@ def _token_payload(user: models.User) -> dict:
     return {"sub": str(user.id), "ver": int(user.token_version or 0)}
 
 
-def _session_payload(user: models.User, db: Session) -> dict:
-    """Access/refresh pair returned by every successful login step."""
+def _cookie_options() -> dict:
+    """Cookie attributes for the first-party auth proxy.
+
+    Production uses the Vercel /api/auth proxy so the refresh cookie is
+    first-party. Lax is therefore both sufficient and safer than None, which
+    would be a third-party cookie in a direct Vercel -> Render setup.
+    """
+    return {
+        "max_age": _COOKIE_MAX_AGE,
+        "path": AUTH_COOKIE_PATH,
+        "secure": IS_PRODUCTION,
+        "httponly": True,
+        "samesite": "lax",
+    }
+
+
+def _set_session_cookies(response: Response, refresh_token: str, csrf_token: str) -> None:
+    options = _cookie_options()
+    response.set_cookie(REFRESH_COOKIE_NAME, refresh_token, **options)
+    response.set_cookie(CSRF_COOKIE_NAME, csrf_token, **options)
+
+
+def _clear_session_cookies(response: Response) -> None:
+    options = _cookie_options()
+    options.pop("max_age", None)
+    response.delete_cookie(REFRESH_COOKIE_NAME, **options)
+    response.delete_cookie(CSRF_COOKIE_NAME, **options)
+
+
+def _origin_allowed(request: Request, origin: str) -> bool:
+    if origin in ALLOWED_ORIGINS:
+        return True
+    # Every Vercel preview deployment gets its own host. Vercel overwrites
+    # x-forwarded-host with the host the browser requested, so a same-origin
+    # request from a preview matches itself without trusting every
+    # *.vercel.app subdomain. The CSRF token is still required.
+    forwarded_host = request.headers.get("x-forwarded-host", "").split(",", 1)[0].strip()
+    if not forwarded_host:
+        return False
+    proto = request.headers.get("x-forwarded-proto", "https").split(",", 1)[0].strip()
+    if proto not in ("http", "https"):
+        proto = "https"
+    return origin == f"{proto}://{forwarded_host}"
+
+
+def _require_csrf(request: Request) -> None:
+    """Validate the cookie-bound CSRF token before rotating a refresh session."""
+    cookie_token = request.cookies.get(CSRF_COOKIE_NAME, "")
+    header_token = request.headers.get(CSRF_HEADER_NAME, "")
+    if (
+        not cookie_token
+        or not header_token
+        or not hmac.compare_digest(cookie_token, header_token)
+    ):
+        raise HTTPException(status_code=403, detail="CSRF validation failed")
+
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    if origin and not _origin_allowed(request, origin):
+        raise HTTPException(status_code=403, detail="Origin is not allowed")
+
+
+def _session_payload(user: models.User, db: Session, response: Response) -> dict:
+    """Issue access token and HttpOnly refresh/CSRF cookie pair."""
     token_data = _token_payload(user)
+    refresh_token = auth_service.issue_refresh_token(user, db)
+    csrf_token = secrets.token_urlsafe(32)
+    _set_session_cookies(response, refresh_token, csrf_token)
     return {
         "access_token": auth_service.create_access_token(token_data),
-        "refresh_token": auth_service.issue_refresh_token(user, db),
+        "csrf_token": csrf_token,
         "token_type": "bearer",
         "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "user_id": user.id,
@@ -117,7 +233,7 @@ async def _check_verify_code_rate(ip: str) -> None:
 
 @router.post("/send-code")
 async def send_code(req: schemas.SendCodeRequest, request: Request, db: Session = Depends(get_db)):
-    """Отправка кода через Telegram Bot. В production без доставки возвращает 503."""
+    """Отправка кода через Telegram Bot с нейтральным ответом для любого номера."""
     await _check_send_code_rate(_client_ip(request))
 
     raw_phone = req.phone.strip()
@@ -139,31 +255,35 @@ async def send_code(req: schemas.SendCodeRequest, request: Request, db: Session 
 
     # Пробуем отправить через Telegram Bot (ищем по normalized digits)
     chat_id = auth_service.get_telegram_chat_id(p_digits, db)
-    tg_sent = False
+    delivered = False
     if chat_id:
-        tg_sent = await auth_service.send_telegram_code(chat_id, code)
+        delivered = await auth_service.send_telegram_code(chat_id, code)
 
-    if not tg_sent:
+    if not delivered:
         if IS_PRODUCTION:
             # Не оставляем валидный код в БД, если его невозможно доставить.
+            # Клиент всё равно получает нейтральный ответ, чтобы не раскрывать
+            # наличие привязки Telegram.
             db.query(models.SmsCode).filter(models.SmsCode.phone == p_e164).delete(synchronize_session=False)
             db.commit()
-            raise HTTPException(
-                status_code=503,
-                detail="Не удалось доставить код. Привяжите Telegram через @BirgeAuthBot и повторите.",
-            )
-        # Локальная разработка без Telegram: код печатается только в консоль.
-        print(f"\n{'='*40}")
-        print(f"📱 КОД ДЛЯ {p_formatted} ({p_e164})")
-        print(f"👉 ВАШ КОД БИРГЕ: {code} 👈")
-        print(f"{'='*40}\n")
+            logger.warning("Code delivery unavailable; generated code discarded")
+        else:
+            # Локальная разработка без Telegram: код печатается только в консоль.
+            print(f"\n{'='*40}")
+            print(f"📱 КОД ДЛЯ {p_formatted} ({p_e164})")
+            print(f"👉 ВАШ КОД БИРГЕ: {code} 👈")
+            print(f"{'='*40}\n")
 
-    channel = "telegram" if tg_sent else "console"
-    return {"message": f"Code sent via {channel}", "tg_linked": bool(chat_id)}
+    return {"message": _SEND_CODE_ACCEPTED_MESSAGE}
 
 
 @router.post("/verify-code")
-async def verify_code(req: VerifyCodePayload, request: Request, db: Session = Depends(get_db)):
+async def verify_code(
+    req: VerifyCodePayload,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     """Проверяет SMS-код и выдает JWT токен."""
     await _check_verify_code_rate(_client_ip(request))
     raw_phone = req.phone.strip()
@@ -207,7 +327,7 @@ async def verify_code(req: VerifyCodePayload, request: Request, db: Session = De
 
     # Создаём JWT токены (sub строго строковый). Профиль отдаём сразу,
     # чтобы клиент не делал второй запрос и не зависел от гонки сети.
-    payload = _session_payload(user, db)
+    payload = _session_payload(user, db, response)
     db.commit()
     return payload
 
@@ -235,6 +355,7 @@ def create_login_code(
 async def exchange_login_code(
     req: schemas.ExchangeCodeRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     """Обменивает одноразовый код из ссылки на пару токенов."""
@@ -248,19 +369,28 @@ async def exchange_login_code(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = _session_payload(user, db)
+    payload = _session_payload(user, db, response)
     db.commit()
     return payload
 
 
 @router.post("/refresh")
 def refresh_access_token(
-    req: schemas.RefreshTokenRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
-    """Обменивает refresh-токен на новую пару токенов."""
-    user_id = auth_service.verify_refresh_token(req.refresh_token)
+    """Rotate the HttpOnly refresh cookie and return a new access token."""
+    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME, "")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh session is missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    _require_csrf(request)
+
+    user_id = auth_service.verify_refresh_token(refresh_token)
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -272,11 +402,11 @@ def refresh_access_token(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    token_version = auth_service.get_token_version(req.refresh_token, "refresh")
+    token_version = auth_service.get_token_version(refresh_token, "refresh")
     if token_version is None or token_version != (user.token_version or 0):
         raise HTTPException(status_code=401, detail="Session has been revoked")
 
-    new_refresh_token = auth_service.rotate_refresh_token(req.refresh_token, user, db)
+    new_refresh_token = auth_service.rotate_refresh_token(refresh_token, user, db)
     if not new_refresh_token:
         # A replayed token revokes its whole family; persist that before 401.
         db.commit()
@@ -287,10 +417,15 @@ def refresh_access_token(
         )
     db.commit()
 
+    # Keep the existing CSRF token for this session; rotating it would race
+    # concurrent tabs that share the same cookie-bound value.
+    csrf_token = request.cookies.get(CSRF_COOKIE_NAME, "")
+    _set_session_cookies(response, new_refresh_token, csrf_token)
+
     token_data = _token_payload(user)
     return {
         "access_token": auth_service.create_access_token(token_data),
-        "refresh_token": new_refresh_token,
+        "csrf_token": csrf_token,
         "token_type": "bearer",
         "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
@@ -298,6 +433,7 @@ def refresh_access_token(
 
 @router.post("/logout")
 def logout(
+    response: Response,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -308,4 +444,5 @@ def logout(
         models.RefreshSession.user_id == current_user.id
     ).delete(synchronize_session=False)
     db.commit()
+    _clear_session_cookies(response)
     return {"ok": True}

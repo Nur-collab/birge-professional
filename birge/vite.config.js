@@ -6,6 +6,16 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '')
     const apiUrl = (env.VITE_API_URL || '').trim()
+    // Auth must be same-origin so the HttpOnly refresh cookie is first-party.
+    // Vite (dev/preview) and Vercel both expose the same /api/auth path and
+    // forward it to the backend's /auth router.
+    const authProxy = {
+        '/api/auth': {
+            target: apiUrl || 'http://127.0.0.1:8000',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/auth/, '/auth'),
+        },
+    }
 
     // .env.local is loaded in every Vite mode, including production.
     // Fail loudly instead of shipping a build that calls a developer machine.
@@ -17,6 +27,8 @@ export default defineConfig(({ mode }) => {
     }
 
     return {
+    server: { proxy: authProxy },
+    preview: { proxy: authProxy },
     plugins: [
         react(),
         VitePWA({

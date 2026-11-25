@@ -2,6 +2,11 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-
 import { clientsClaim } from 'workbox-core';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst } from 'workbox-strategies';
+import {
+    PAGE_CACHE_NAME,
+    purgeSensitivePageCache,
+    shouldCacheNavigation,
+} from './swPolicy.js';
 
 // Это обязательная часть для vite-plugin-pwa injectManifest
 cleanupOutdatedCaches();
@@ -12,12 +17,17 @@ precacheAndRoute(self.__WB_MANIFEST, { directoryIndex: null });
 // HTML всегда запрашивается из сети. Прекеш index.html используется только
 // как офлайн-запас для навигаций, которых ещё нет в runtime-кеше.
 const navigationRoute = registerRoute(
-    ({ request }) => request.mode === 'navigate',
-    new NetworkFirst({ cacheName: 'pages', networkTimeoutSeconds: 3 })
+    shouldCacheNavigation,
+    new NetworkFirst({ cacheName: PAGE_CACHE_NAME, networkTimeoutSeconds: 3 })
 );
 navigationRoute.setCatchHandler(async ({ request }) => {
     if (request.mode !== 'navigate') return Response.error();
     return (await matchPrecache('/index.html')) || Response.error();
+});
+
+// Удаляем из runtime-кеша навигации, оставленные старой версией SW.
+self.addEventListener('activate', (event) => {
+    event.waitUntil(purgeSensitivePageCache());
 });
 
 // Позволяет Service Worker моментально взять контроль над страницей

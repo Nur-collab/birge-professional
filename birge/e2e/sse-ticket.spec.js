@@ -10,17 +10,22 @@ function readAuth() {
   );
 }
 
-async function openAuthenticatedApp(page, auth) {
-  await page.addInitScript(({ token }) => {
-    localStorage.setItem('birge_token', token);
-    localStorage.removeItem('birge_refresh_token');
-  }, { token: auth.token });
-  await page.goto('/');
+async function openAuthenticatedApp(page, request, auth) {
+  const issued = await request.post(`${apiUrl}/auth/login-code`, {
+    headers: { Authorization: `Bearer ${auth.token}` },
+  });
+  expect(issued.ok()).toBeTruthy();
+  const { code } = await issued.json();
+
+  await page.goto(`/?code=${encodeURIComponent(code)}`);
+  await expect(page.getByRole('button', {
+    name: 'Найти подходящего водителя',
+  })).toBeVisible({ timeout: 15_000 });
 }
 
-test('passenger search exchanges the access token for an SSE ticket', async ({ page }) => {
+test('passenger search exchanges the access token for an SSE ticket', async ({ page, request }) => {
   const auth = readAuth();
-  await openAuthenticatedApp(page, auth);
+  await openAuthenticatedApp(page, request, auth);
 
   const searchButton = page.getByRole('button', {
     name: 'Найти подходящего водителя',
@@ -51,7 +56,7 @@ test('passenger search exchanges the access token for an SSE ticket', async ({ p
   expect(ticketBody.expires_in).toBe(60);
 
   const ticketRequest = await ticketRequestPromise;
-  expect(ticketRequest.headers().authorization).toBe(`Bearer ${auth.token}`);
+  expect(ticketRequest.headers().authorization).toMatch(/^Bearer \S+$/);
 
   const sseRequest = await sseRequestPromise;
   const sseUrl = new URL(sseRequest.url());
@@ -69,9 +74,9 @@ test('passenger search exchanges the access token for an SSE ticket', async ({ p
   expect(sseResponse.headers()['content-type']).toContain('text/event-stream');
 });
 
-test('access token in the SSE query is rejected by the browser', async ({ page }) => {
+test('access token in the SSE query is rejected by the browser', async ({ page, request }) => {
   const auth = readAuth();
-  await openAuthenticatedApp(page, auth);
+  await openAuthenticatedApp(page, request, auth);
 
   const result = await page.evaluate(async ({ userId, token, api }) => {
     const source = new EventSource(
@@ -91,9 +96,9 @@ test('access token in the SSE query is rejected by the browser', async ({ page }
   expect(result).toBe('rejected');
 });
 
-test('logout revokes an already issued SSE ticket in the browser', async ({ page }) => {
+test('logout revokes an already issued SSE ticket in the browser', async ({ page, request }) => {
   const auth = readAuth();
-  await openAuthenticatedApp(page, auth);
+  await openAuthenticatedApp(page, request, auth);
 
   const result = await page.evaluate(async ({ userId, token, api }) => {
     const ticketResponse = await fetch(

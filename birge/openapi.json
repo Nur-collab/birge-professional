@@ -105,21 +105,6 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "RefreshTokenRequest": {
-        "properties": {
-          "refresh_token": {
-            "maxLength": 4096,
-            "minLength": 20,
-            "title": "Refresh Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "refresh_token"
-        ],
-        "title": "RefreshTokenRequest",
-        "type": "object"
-      },
       "Review": {
         "description": "Ответ API; без input-валидаторов для совместимости со старыми отзывами.",
         "properties": {
@@ -1111,18 +1096,8 @@
     },
     "/auth/refresh": {
       "post": {
-        "description": "Обменивает refresh-токен на новую пару токенов.",
+        "description": "Rotate the HttpOnly refresh cookie and return a new access token.",
         "operationId": "refresh_access_token_auth_refresh_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
@@ -1131,16 +1106,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Refresh Access Token",
@@ -1151,7 +1116,7 @@
     },
     "/auth/send-code": {
       "post": {
-        "description": "Отправка кода через Telegram Bot. В production без доставки возвращает 503.",
+        "description": "Отправка кода через Telegram Bot с нейтральным ответом для любого номера.",
         "operationId": "send_code_auth_send_code_post",
         "requestBody": {
           "content": {

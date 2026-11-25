@@ -15,6 +15,7 @@ function makeToken(payload) {
 describe('getCurrentUserId', () => {
   beforeEach(() => {
     localStorage.clear();
+    tokenStorage.clear();
   });
 
   it('reads sub from a base64url JWT', () => {
@@ -31,6 +32,7 @@ describe('getCurrentUserId', () => {
 describe('SSE tickets', () => {
   beforeEach(() => {
     localStorage.clear();
+    tokenStorage.clear();
     tokenStorage.set('access-token');
   });
 
@@ -59,6 +61,7 @@ describe('SSE tickets', () => {
 describe('login exchange code', () => {
   beforeEach(() => {
     localStorage.clear();
+    tokenStorage.clear();
     window.history.replaceState({}, '', '/');
   });
 
@@ -80,7 +83,7 @@ describe('login exchange code', () => {
 
     expect(window.location.search).toBe('?ref=bot');
     expect(tokenStorage.get()).toBeNull();
-    expect(tokenStorage.getRefresh()).toBeNull();
+    expect(tokenStorage.getCsrf()).toBeNull();
   });
 
   it('removes a one-time code from the URL before exchanging it', async () => {
@@ -92,24 +95,27 @@ describe('login exchange code', () => {
     global.fetch = vi.fn(async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ access_token: 'new-access', refresh_token: 'new-refresh' }),
+      json: async () => ({ access_token: 'new-access', csrf_token: 'csrf-token' }),
     }));
 
     await api.exchangeLoginCode('one-time-code');
 
     expect(tokenStorage.get()).toBe('new-access');
-    expect(tokenStorage.getRefresh()).toBe('new-refresh');
+    expect(tokenStorage.getCsrf()).toBe('csrf-token');
+    expect(localStorage.getItem('birge_token')).toBeNull();
     const [url, options] = global.fetch.mock.calls[0];
     expect(url).toContain('/auth/exchange-code');
     expect(options.body).toContain('one-time-code');
+    expect(options.credentials).toBe('include');
   });
 });
 
 describe('auth refresh', () => {
   beforeEach(() => {
     localStorage.clear();
+    tokenStorage.clear();
     window.history.replaceState({}, '', '/');
-    tokenStorage.setPair('expired-access', 'valid-refresh');
+    tokenStorage.setPair('expired-access', 'csrf-token');
   });
 
   afterEach(() => {
@@ -122,7 +128,7 @@ describe('auth refresh', () => {
       {
         ok: true,
         status: 200,
-        json: async () => ({ access_token: 'new-access', refresh_token: 'new-refresh' }),
+        json: async () => ({ access_token: 'new-access', csrf_token: 'csrf-token' }),
       },
       {
         ok: true,
@@ -141,8 +147,14 @@ describe('auth refresh', () => {
 
     expect(user.id).toBe(7);
     expect(tokenStorage.get()).toBe('new-access');
-    expect(tokenStorage.getRefresh()).toBe('new-refresh');
+    expect(tokenStorage.getCsrf()).toBe('csrf-token');
     expect(global.fetch).toHaveBeenCalledTimes(3);
+
+    const [refreshUrl, refreshOptions] = global.fetch.mock.calls[1];
+    expect(refreshUrl).toContain('/auth/refresh');
+    expect(refreshOptions.body).toBeUndefined();
+    expect(refreshOptions.credentials).toBe('include');
+    expect(refreshOptions.headers['X-CSRF-Token']).toBe('csrf-token');
   });
 
   it('clears the session when refresh fails', async () => {
@@ -152,11 +164,36 @@ describe('auth refresh', () => {
 
     await expect(api.getCurrentUser()).resolves.toBeNull();
     expect(tokenStorage.get()).toBeNull();
-    expect(tokenStorage.getRefresh()).toBeNull();
+    expect(tokenStorage.getCsrf()).toBeNull();
     expect(unauthorized).toHaveBeenCalledOnce();
   });
 
+  it('restores a reloaded session from the HttpOnly refresh cookie', async () => {
+    tokenStorage.clear();
+    tokenStorage.setCsrf('csrf-token');
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'restored-access', csrf_token: 'csrf-token' }),
+    }));
+
+    await expect(api.restoreSession()).resolves.toBe(true);
+    expect(tokenStorage.get()).toBe('restored-access');
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain('/auth/refresh');
+    expect(options.credentials).toBe('include');
+  });
+
+  it('does not call refresh without the CSRF nonce', async () => {
+    tokenStorage.clear();
+    global.fetch = vi.fn();
+
+    await expect(api.restoreSession()).resolves.toBe(false);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('clears local tokens even when the logout request fails', async () => {
+    tokenStorage.setPair('access-token', 'csrf-token');
     global.fetch = vi.fn(async () => {
       throw new Error('offline');
     });
@@ -165,6 +202,6 @@ describe('auth refresh', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(tokenStorage.get()).toBeNull();
-    expect(tokenStorage.getRefresh()).toBeNull();
+    expect(tokenStorage.getCsrf()).toBeNull();
   });
 });

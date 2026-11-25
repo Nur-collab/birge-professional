@@ -71,6 +71,8 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    DATABASE_URL=<Postgres internal connection string>
    REDIS_URL=<Key Value internal connection string>
    ALLOWED_ORIGINS=https://<frontend-origin>
+   AUTH_COOKIE_PATH=/api/auth
+   AUTH_PROXY_SECRET=<random; must equal Vercel ORIGIN_SECRET>
    TELEGRAM_BOT_TOKEN=<production bot token>
    TELEGRAM_WEBHOOK_SECRET=<random webhook secret>
    TELEGRAM_ADMIN_CHAT_ID=<optional>
@@ -104,6 +106,28 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    `/ready` checks Postgres and, when configured, Redis.
 7. Set the frontend API URL to the backend host and add the exact frontend
    origin to `ALLOWED_ORIGINS`. Redeploy the backend after changing CORS.
+   Auth uses a same-origin proxy: keep the Vercel rewrite
+   `/api/auth/:path*` → `https://birge-api.onrender.com/auth/:path*` before the
+   SPA catch-all, and leave `AUTH_COOKIE_PATH=/api/auth` in production. This
+   makes the refresh cookie first-party; do not replace it with a direct
+   cross-site `SameSite=None` cookie. Vite proxies the same `/api/auth` path in
+   development and preview, so local and production exercise one cookie path.
+
+   The same `vercel.json` must inject a signed proxy header on that rewrite
+   (`routes` + `transforms`, `x-auth-proxy-secret` from `ORIGIN_SECRET`).
+   Set `ORIGIN_SECRET` in Vercel (Preview and Production) and the identical
+   value as `AUTH_PROXY_SECRET` on Render; otherwise deploys fail (the config
+   lists the variable) or forwarded IPs are ignored.
+
+   Per-IP auth limits read `x-auth-client-ip` only when the request carries
+   that secret. Vercel Routing Middleware (`proxy.js`) sets it from the
+   edge-sanitized visitor address; do not read `X-Forwarded-For`, because
+   Vercel forwards a caller-supplied value on external rewrites. A direct
+   request to Render cannot forge the header: it has no secret, so the backend
+   keys it by the Cloudflare-set `CF-Connecting-IP`. CGNAT addresses
+   (`100.64.0.0/10`, common for mobile operators) are kept as valid visitor
+   buckets. Do not key these limits on `CF-Connecting-IP` alone: behind the
+   Vercel proxy it is the shared edge address.
 8. Webhook обычно регистрируется автоматически при старте backend. Ручная
    регистрация и полная проверка Telegram-входа описаны в §3.
 
@@ -147,10 +171,15 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
 6. Откройте `@BirgeAuthBot` → `/start` → **«Поделиться номером»**. Бот должен
    подтвердить привязку; `/status` показывает номер и профиль.
 7. На сайте введите тот же номер → **«Получить код»**. Бот пришлёт 6-значный
-   код; `POST /auth/send-code` должен вернуть 200 и `tg_linked: true`.
-   Если номер не привязан, production вернёт 503 — это ожидаемо.
+   код; `POST /auth/send-code` должен вернуть 200 с нейтральным ответом.
+   Наличие привязки проверяйте по сообщению в Telegram, а не по ответу API:
+   production намеренно не раскрывает `tg_linked` и канал доставки.
 8. Введите код на сайте. Успешный `POST /auth/verify-code` возвращает
-   `access_token` и `refresh_token`; после этого `/users/me` отвечает 200.
+   `access_token` и `csrf_token`, а refresh-токен приходит только в
+   `HttpOnly` cookie `birge_refresh`; после этого `/users/me` отвечает 200.
+   Через сайт refresh идёт на `/api/auth/refresh`; прямой `POST /auth/refresh`
+   не принимает JSON-body: он читает cookie и требует заголовок
+   `X-CSRF-Token`, совпадающий с cookie `birge_csrf`.
 9. Проверка защиты webhook: запрос без заголовка
    `X-Telegram-Bot-Api-Secret-Token` должен вернуть 403 (если секрет задан):
 
@@ -168,8 +197,8 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
      --data '{"phone":"+996700000000"}'
    ```
 
-   Ожидаем 200, `"tg_linked": true` и сообщение с кодом в Telegram. Затем
-   проверьте код (подставьте код из бота):
+   Ожидаем 200 и нейтральный ответ; сообщение с кодом должно прийти в Telegram.
+   Затем проверьте код (подставьте код из бота):
 
    ```bash
    curl -i -X POST https://birge-api.onrender.com/auth/verify-code \
@@ -177,7 +206,8 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
      --data '{"phone":"+996700000000","code":"123456"}'
    ```
 
-   Успешный ответ содержит `access_token` и `refresh_token`.
+   Успешный ответ содержит `access_token` и `csrf_token`; refresh-токен
+   остаётся в `HttpOnly` cookie.
 
 Если webhook не зарегистрировался автоматически, зарегистрируйте вручную:
 
@@ -295,7 +325,14 @@ staging at it.
       operator IPs.
 - [ ] `/health` and `/ready` pass for `https://birge-api.onrender.com`.
 - [ ] Telegram `getWebhookInfo` has no `last_error_message`; `/bot/webhook` without the secret returns 403.
-- [ ] A bound phone receives a code; `/auth/send-code` returns 200 with `tg_linked: true`.
+- [ ] A bound phone receives a code; `/auth/send-code` returns 200 with a neutral response that does not reveal `tg_linked` or the delivery channel.
+- [ ] Login response has no `refresh_token` in JSON; `birge_refresh` is `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api/auth` in production.
+- [ ] `Set-Cookie` from the backend reaches the browser through the Vercel `/api/auth` rewrite unmodified (DevTools → Application → Cookies shows `Path=/api/auth`, and the request URL is the Vercel host, not `onrender.com`).
+- [ ] `POST /api/auth/refresh` without `X-CSRF-Token` returns 403; with the matching token it rotates the cookie and returns a new access token.
+- [ ] Reloading the SPA restores the session through `/api/auth/refresh` without reading the refresh token from JS.
+- [ ] Vercel `ORIGIN_SECRET` equals Render `AUTH_PROXY_SECRET`; a Vercel request with a forged `X-Forwarded-For` still shares the real visitor bucket, and a direct request to Render with a forged header and no secret does not reset the `/auth/send-code` limit.
+- [ ] Two clients behind the same Vercel edge get independent `/auth/send-code` limits (one client's 429 does not block the other).
+- [ ] CGNAT visitors (`100.64.0.0/10`) are rate-limited per address, not dropped as unknown.
 - [ ] Free plan is accepted: Postgres has no PITR and expires 2026-12-14; upgrade before that date if the data must survive.
 - [ ] A logical backup has been downloaded and its checksum recorded.
 - [ ] A PITR restore into a non-production instance has been verified.

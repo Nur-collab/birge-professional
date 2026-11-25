@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft, ShieldCheck, Loader2, Send, CheckCircle2, AlertCircle, Users } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ShieldCheck, Loader2, Send, AlertCircle, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 
@@ -57,8 +57,8 @@ function PhoneStep({ onNext }) {
 
     try {
       const fullPhone = '+996' + digits;
-      const res = await api.sendCode(fullPhone);
-      onNext(fullPhone, res);
+      await api.sendCode(fullPhone);
+      onNext(fullPhone);
     } catch (err) {
       console.error('[PhoneStep]', err);
       setError(mapAuthError(err.message) || 'Ошибка отправки кода. Попробуйте еще раз.');
@@ -71,7 +71,7 @@ function PhoneStep({ onNext }) {
     <div className="login-step">
       <div className="login-step-header">
         <h1 className="login-title">Вход в BIRGE</h1>
-        <p className="login-desc">Войдите по номеру телефона — код придёт в Telegram или SMS.</p>
+        <p className="login-desc">Войдите по номеру телефона — код придёт в Telegram.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="login-form">
@@ -141,13 +141,11 @@ function PhoneStep({ onNext }) {
 }
 
 // ─── Шаг 2: Ввод кода подтверждения ─────────────────────────
-function CodeStep({ phone, sendInfo, onBack, onVerified }) {
+function CodeStep({ phone, onBack, onVerified }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const isTelegram = sendInfo?.tg_linked;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -174,16 +172,12 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
     <div className="login-step">
       <div className="login-step-header">
         <h1 className="login-title">Подтверждение</h1>
-        <p className="login-desc">Код отправлен на номер <strong>{phone}</strong></p>
+        <p className="login-desc">Введите код для номера <strong>{phone}</strong></p>
       </div>
 
-      <div className={`delivery-notice ${isTelegram ? 'telegram-delivery' : ''}`}>
-        <CheckCircle2 size={16} aria-hidden="true" />
-        <span>
-          {isTelegram
-            ? 'Код отправлен в Telegram бот @BirgeAuthBot'
-            : 'Проверьте входящие SMS или Telegram бот'}
-        </span>
+      <div className="delivery-notice">
+        <Send size={16} aria-hidden="true" />
+        <span>Если номер доступен, код придёт в Telegram-бот @BirgeAuthBot.</span>
       </div>
 
       <form onSubmit={handleSubmit} className="login-form">
@@ -259,7 +253,6 @@ function CodeStep({ phone, sendInfo, onBack, onVerified }) {
 export default function Login({ onLoggedIn }) {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
-  const [sendInfo, setSendInfo] = useState(null);
 
   return (
     <main className="login-screen">
@@ -330,16 +323,14 @@ export default function Login({ onLoggedIn }) {
 
           {step === 'phone' ? (
             <PhoneStep
-              onNext={(ph, info) => {
+              onNext={(ph) => {
                 setPhone(ph);
-                setSendInfo(info);
                 setStep('code');
               }}
             />
           ) : (
             <CodeStep
               phone={phone}
-              sendInfo={sendInfo}
               onBack={() => setStep('phone')}
               onVerified={onLoggedIn}
             />
@@ -794,11 +785,6 @@ export default function Login({ onLoggedIn }) {
           font-size: 0.78rem;
           font-weight: 600;
           line-height: 1.45;
-        }
-
-        .delivery-notice.telegram-delivery {
-          background: var(--info-soft);
-          color: var(--info);
         }
 
         .auth-channel-card {

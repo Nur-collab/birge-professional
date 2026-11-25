@@ -226,6 +226,8 @@ PII_ENCRYPTION_KEY=<long random, do not rotate without re-encryption>
 OTP_HASH_KEY=<optional separate random key>
 DATABASE_URL=postgresql://...
 ALLOWED_ORIGINS=https://<frontend>
+AUTH_COOKIE_PATH=/api/auth
+AUTH_PROXY_SECRET=<random; must equal Vercel ORIGIN_SECRET>
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_WEBHOOK_SECRET=...
 ADMIN_PHONES=...
@@ -246,6 +248,9 @@ Frontend production build:
 - production URL задаётся в `.env.production` или в env хостинга;
 - `vite.config.js` намеренно падает, если production `VITE_API_URL` указывает
   на `localhost`, `127.0.0.1` или `0.0.0.0`.
+- auth-запросы всегда идут через same-origin `/api/auth`: Vite проксирует этот
+  путь на backend `/auth` локально, `vercel.json` — в production, поэтому
+  refresh-cookie остаётся first-party и имеет `Path=/api/auth` везде.
 
 ### Фактический production-деплой (2026-11-17, commit `2748929`)
 
@@ -269,6 +274,13 @@ Frontend deployment:
 - Vercel project `birge-professional`, root `birge`, framework Vite;
 - production alias `https://birge-professional.vercel.app`;
 - `VITE_API_URL=https://birge-api.onrender.com` задан в Vercel Environment.
+- `vercel.json` проксирует `/api/auth/*` на Render через `routes` + `transforms`
+  и добавляет `x-auth-proxy-secret` из `ORIGIN_SECRET`; `proxy.js` (Routing
+  Middleware) передаёт санитизированный edge-IP в `x-auth-client-ip`, потому
+  что Vercel на external rewrite пробрасывает клиентский `X-Forwarded-For`;
+  куки выставляются с
+  `Path=/api/auth`, `HttpOnly`, `Secure`, `SameSite=Lax`. `ORIGIN_SECRET` в
+  Vercel должен совпадать с `AUTH_PROXY_SECRET` на Render.
 
 Backend deployment:
 

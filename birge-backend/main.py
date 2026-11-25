@@ -9,7 +9,7 @@ from typing import Optional
 from uuid import uuid4
 import database, models, schemas, auth
 import redis
-from config import IS_PRODUCTION, REDIS_URL
+from config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, IS_PRODUCTION, REDIS_URL
 from dependencies import get_current_admin, get_current_user
 from time_utils import BISHKEK_TZ, get_bishkek_now, get_bishkek_today_str, parse_time_minutes
 from realtime import is_trip_participant, start_realtime, stop_realtime
@@ -176,29 +176,7 @@ def readiness_check():
 
     return {"status": "ready"}
 
-# Разрешаем запросы с нашего React приложения (CORS).
-# В production задайте точный список через ALLOWED_ORIGINS; regex-послабление
-# для preview-доменов включается только явно через CORS_ORIGIN_REGEX.
-_DEFAULT_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:4173",
-    "https://birge-professional.vercel.app",
-    "https://birge-nine.vercel.app",
-    "https://birge.vercel.app",
-    "https://birge-5c900.web.app",
-    "https://birge-5c900.firebaseapp.com",
-]
-_env_allowed_origins = [
-    origin.strip().rstrip("/")
-    for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
-    if origin.strip()
-]
-ALLOWED_ORIGINS = list(dict.fromkeys(_env_allowed_origins or _DEFAULT_ALLOWED_ORIGINS))
-ALLOWED_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", "").strip() or None
-
+# CORS origins and the auth-cookie path are shared with routers/auth.py.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,

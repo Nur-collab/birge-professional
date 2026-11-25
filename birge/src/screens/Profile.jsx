@@ -376,9 +376,9 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           if (onLogout) {
             void onLogout();
           } else {
-            localStorage.removeItem('birge_token');
-            localStorage.removeItem('birge_refresh_token');
-            window.location.reload();
+            // Standalone profile usage: clear the server session and cookie
+            // instead of only deleting legacy localStorage keys.
+            void api.logout().finally(() => window.location.reload());
           }
         }}>
           <LogOut size={20} color="var(--danger)" />

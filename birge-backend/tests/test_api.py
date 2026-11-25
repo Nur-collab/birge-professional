@@ -85,6 +85,37 @@ def _age_consumed_sessions(db, user):
     db.commit()
 
 
+_TEST_CSRF = "test-csrf-token"
+
+
+def _set_auth_cookies(client, refresh_token, csrf_token=_TEST_CSRF):
+    # The public cookie path is /api/auth; tests post to the internal /auth
+    # router, so pin the simulated cookies to that route and drop stale ones.
+    client.cookies.clear()
+    client.cookies.clear()
+    client.cookies.set(
+        "birge_refresh", refresh_token, domain="testserver.local", path="/auth"
+    )
+    client.cookies.set(
+        "birge_csrf", csrf_token, domain="testserver.local", path="/auth"
+    )
+
+
+def _refresh(client, refresh_token, csrf_token=_TEST_CSRF, headers=None):
+    _set_auth_cookies(client, refresh_token, csrf_token)
+    request_headers = {"X-CSRF-Token": csrf_token}
+    request_headers.update(headers or {})
+    return client.post("/auth/refresh", headers=request_headers)
+
+
+def _refresh_cookie(client):
+    return client.cookies.get("birge_refresh", path="/api/auth")
+
+
+def _set_cookie_headers(response):
+    return "; ".join(response.headers.get_list("set-cookie")).lower()
+
+
 def _accepted_request(db, trip, passenger, requester_trip_id=None):
     req = models.TripRequest(
         trip_id=trip.id,
@@ -222,11 +253,12 @@ def test_current_user_and_refresh_token_flow(client, db):
     assert response.status_code == 200
     assert response.json()["mbank_phone"] == user.mbank_phone
 
-    refresh_response = client.post("/auth/refresh", json={"refresh_token": refresh})
+    refresh_response = _refresh(client, refresh)
     assert refresh_response.status_code == 200
     assert refresh_response.json()["access_token"]
+    assert "refresh_token" not in refresh_response.json()
 
-    failed = client.post("/auth/refresh", json={"refresh_token": access})
+    failed = _refresh(client, access)
     assert failed.status_code == 401
 
 
@@ -239,11 +271,88 @@ def test_verify_code_issues_a_rotatable_refresh_token(client, db):
         json={"phone": phone, "code": "123456", "name": "Новый"},
     )
     assert response.status_code == 200
-    issued = response.json()["refresh_token"]
+    assert "refresh_token" not in response.json()
+    issued = _refresh_cookie(client)
+    assert issued
+    csrf = response.json()["csrf_token"]
 
-    rotated = client.post("/auth/refresh", json={"refresh_token": issued})
+    # The real cookie path is /api/auth; the test client posts to the internal
+    # /auth router, so pin the jar path to the internal route.
+    _set_auth_cookies(client, issued, csrf)
+    rotated = client.post("/auth/refresh", headers={"X-CSRF-Token": csrf})
     assert rotated.status_code == 200
-    assert rotated.json()["refresh_token"] != issued
+    assert "refresh_token" not in rotated.json()
+    assert _refresh_cookie(client) != issued
+
+    cookie_headers = _set_cookie_headers(response)
+    assert "birge_refresh" in cookie_headers
+    assert "httponly" in cookie_headers
+    assert "path=/api/auth" in cookie_headers
+    assert "samesite=lax" in cookie_headers
+
+
+def test_refresh_requires_matching_csrf_and_checks_origin(client, db):
+    user = _user(db, "+996555000090", "CSRF")
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
+
+    _set_auth_cookies(client, refresh)
+    assert client.post("/auth/refresh").status_code == 403
+    assert client.post(
+        "/auth/refresh", headers={"X-CSRF-Token": "wrong"}
+    ).status_code == 403
+
+    client.cookies.delete("birge_csrf", domain="testserver.local", path="/auth")
+    assert client.post(
+        "/auth/refresh", headers={"X-CSRF-Token": _TEST_CSRF}
+    ).status_code == 403
+
+    _set_auth_cookies(client, refresh)
+    assert client.post(
+        "/auth/refresh",
+        headers={"X-CSRF-Token": _TEST_CSRF, "Origin": "https://evil.example"},
+    ).status_code == 403
+
+    _set_auth_cookies(client, refresh)
+    allowed = client.post(
+        "/auth/refresh",
+        headers={"X-CSRF-Token": _TEST_CSRF, "Origin": main.ALLOWED_ORIGINS[0]},
+    )
+    assert allowed.status_code == 200
+
+
+def test_csrf_accepts_the_forwarded_preview_origin(client, db):
+    user = _user(db, "+996555000099", "Preview")
+    refresh = auth.issue_refresh_token(user, db)
+    db.commit()
+    _set_auth_cookies(client, refresh)
+
+    response = client.post(
+        "/auth/refresh",
+        headers={
+            "X-CSRF-Token": _TEST_CSRF,
+            "Origin": "https://birge-professional-abc123.vercel.app",
+            "X-Forwarded-Host": "birge-professional-abc123.vercel.app",
+            "X-Forwarded-Proto": "https",
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_production_auth_cookies_are_secure(client, db, monkeypatch):
+    monkeypatch.setattr("routers.auth.IS_PRODUCTION", True)
+    phone = "+996555000091"
+    assert auth.save_sms_code(phone, "123456", db)[0] is True
+
+    response = client.post(
+        "/auth/verify-code",
+        json={"phone": phone, "code": "123456"},
+    )
+    assert response.status_code == 200
+    cookie_headers = _set_cookie_headers(response)
+    assert "secure" in cookie_headers
+    assert "httponly" in cookie_headers
+    assert "samesite=lax" in cookie_headers
 
 
 def test_refresh_token_replay_revokes_every_session_and_access_token(client, db):
@@ -256,17 +365,17 @@ def test_refresh_token_replay_revokes_every_session_and_access_token(client, db)
     headers = {"Authorization": f"Bearer {access}"}
     assert client.get("/users/me", headers=headers).status_code == 200
 
-    first = client.post("/auth/refresh", json={"refresh_token": refresh})
+    first = _refresh(client, refresh)
     assert first.status_code == 200
-    rotated = first.json()["refresh_token"]
+    rotated = _refresh_cookie(client)
     assert rotated != refresh
 
     _age_consumed_sessions(db, user)
-    replay = client.post("/auth/refresh", json={"refresh_token": refresh})
+    replay = _refresh(client, refresh)
     assert replay.status_code == 401
 
     # The stolen successor must not survive the replay either.
-    second = client.post("/auth/refresh", json={"refresh_token": rotated})
+    second = _refresh(client, rotated)
     assert second.status_code == 401
 
     # Detected theft bumps the user-wide version: the stolen access token
@@ -289,21 +398,15 @@ def test_refresh_replay_signs_every_device_out(client, db):
     second_login = auth.issue_refresh_token(user, db)
     db.commit()
 
-    rotated = client.post("/auth/refresh", json={"refresh_token": first_login})
+    rotated = _refresh(client, first_login)
     assert rotated.status_code == 200
-    successor = rotated.json()["refresh_token"]
+    successor = _refresh_cookie(client)
 
     _age_consumed_sessions(db, user)
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": first_login}
-    ).status_code == 401
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": successor}
-    ).status_code == 401
+    assert _refresh(client, first_login).status_code == 401
+    assert _refresh(client, successor).status_code == 401
     # Minimal user-wide revocation: other device families die too.
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": second_login}
-    ).status_code == 401
+    assert _refresh(client, second_login).status_code == 401
 
     db.expire_all()
     db.refresh(user)
@@ -315,29 +418,23 @@ def test_immediate_refresh_reuse_is_a_benign_retry(client, db):
     refresh = auth.issue_refresh_token(user, db)
     db.commit()
 
-    first = client.post("/auth/refresh", json={"refresh_token": refresh})
+    first = _refresh(client, refresh)
     assert first.status_code == 200
-    successor = first.json()["refresh_token"]
+    successor = _refresh_cookie(client)
 
-    retry = client.post("/auth/refresh", json={"refresh_token": refresh})
+    retry = _refresh(client, refresh)
     assert retry.status_code == 200
-    branch = retry.json()["refresh_token"]
+    branch = _refresh_cookie(client)
     assert branch not in (refresh, successor)
 
     # Only one extra branch is minted; further duplicates are ignored.
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": refresh}
-    ).status_code == 401
+    assert _refresh(client, refresh).status_code == 401
 
     db.refresh(user)
     assert user.token_version == 0
     # Both branches stay usable: the parallel request was not punished.
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": successor}
-    ).status_code == 200
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": branch}
-    ).status_code == 200
+    assert _refresh(client, successor).status_code == 200
+    assert _refresh(client, branch).status_code == 200
 
 
 def test_refresh_rate_limit_returns_429(client, db, monkeypatch):
@@ -352,102 +449,211 @@ def test_refresh_rate_limit_returns_429(client, db, monkeypatch):
         {"X-Forwarded-For": "192.0.2.44"},
     ]
 
-    first = client.post(
-        "/auth/refresh", json={"refresh_token": token}, headers=forged_headers[0]
-    )
+    first = _refresh(client, token, headers=forged_headers[0])
     assert first.status_code == 200
-    second = client.post(
-        "/auth/refresh",
-        json={"refresh_token": first.json()["refresh_token"]},
-        headers=forged_headers[1],
-    )
+    second = _refresh(client, _refresh_cookie(client), headers=forged_headers[1])
     assert second.status_code == 200
 
-    blocked = client.post(
-        "/auth/refresh",
-        json={"refresh_token": second.json()["refresh_token"]},
-        headers=forged_headers[2],
-    )
+    blocked = _refresh(client, _refresh_cookie(client), headers=forged_headers[2])
     assert blocked.status_code == 429
     assert blocked.headers["Cache-Control"] == "no-store"
 
 
-def test_client_ip_ignores_spoofed_forwarded_for():
-    spoofed = Request(
+def _request(headers, client=("10.0.0.5", 1234)):
+    return Request(
         {
             "type": "http",
             "method": "GET",
             "path": "/",
-            "client": ("10.0.0.5", 1234),
-            "headers": [
-                (b"cf-connecting-ip", b"198.51.100.7"),
-                (b"x-forwarded-for", b"203.0.113.9, 198.51.100.7"),
-            ],
+            "client": client,
+            "headers": headers,
         }
     )
-    assert _client_ip(spoofed) == "198.51.100.7"
-
-    no_cloudflare_header = Request(
-        {
-            "type": "http",
-            "method": "GET",
-            "path": "/",
-            "client": ("10.0.0.5", 1234),
-            "headers": [(b"x-forwarded-for", b"203.0.113.9")],
-        }
-    )
-    assert _client_ip(no_cloudflare_header) == "10.0.0.5"
 
 
-def test_exchange_code_limit_ignores_xff(client, monkeypatch):
+def test_client_ip_trusts_edge_header_only_behind_the_signed_proxy(monkeypatch):
+    monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
+
+    proxied = _request([
+        (b"x-auth-proxy-secret", b"proxy-secret"),
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-auth-client-ip", b"8.8.8.8"),
+    ])
+    assert _client_ip(proxied) == "8.8.8.8"
+
+    # X-Forwarded-For is caller-controlled even behind the signed proxy.
+    forwarded_spoof = _request([
+        (b"x-auth-proxy-secret", b"proxy-secret"),
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-forwarded-for", b"8.8.8.8"),
+    ])
+    assert _client_ip(forwarded_spoof) == "1.1.1.1"
+
+    # A direct caller cannot make the backend trust its own edge header.
+    spoofed = _request([
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-auth-client-ip", b"6.6.6.6"),
+    ])
+    assert _client_ip(spoofed) == "1.1.1.1"
+
+    wrong_secret = _request([
+        (b"x-auth-proxy-secret", b"not-the-secret"),
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-auth-client-ip", b"8.8.8.8"),
+    ])
+    assert _client_ip(wrong_secret) == "1.1.1.1"
+
+    # Private ranges stay spoofable, even with the proxy secret.
+    private_hop = _request([
+        (b"x-auth-proxy-secret", b"proxy-secret"),
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-auth-client-ip", b"10.0.0.9"),
+    ])
+    assert _client_ip(private_hop) == "1.1.1.1"
+
+    socket_only = _request([])
+    assert _client_ip(socket_only) == "10.0.0.5"
+
+
+def test_cgnat_mobile_addresses_keep_their_own_bucket(monkeypatch):
+    monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
+    proxied = _request([
+        (b"x-auth-proxy-secret", b"proxy-secret"),
+        (b"cf-connecting-ip", b"1.1.1.1"),
+        (b"x-auth-client-ip", b"100.64.12.34"),
+    ])
+    assert _client_ip(proxied) == "100.64.12.34"
+
+
+def test_exchange_code_limit_is_per_forwarded_visitor(client, monkeypatch):
     monkeypatch.setattr("routers.auth._EXCHANGE_CODE_MAX_PER_WINDOW", 2)
-    headers = [
-        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
-        for i in range(1, 4)
-    ]
+    monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
+    headers = {
+        "x-auth-proxy-secret": "proxy-secret",
+        "x-auth-client-ip": "8.8.8.8",
+    }
     statuses = [
         client.post(
             "/auth/exchange-code",
             json={"code": char * 32},
-            headers=headers[index],
+            headers=headers,
         ).status_code
-        for index, char in enumerate(("a", "b", "c"))
+        for char in ("a", "b", "c")
     ]
     assert statuses == [401, 401, 429]
 
+    # A different visitor behind the same shared Vercel edge is not blocked.
+    other = client.post(
+        "/auth/exchange-code",
+        json={"code": "d" * 32},
+        headers={
+            "x-auth-proxy-secret": "proxy-secret",
+            "x-auth-client-ip": "9.9.9.9",
+        },
+    )
+    assert other.status_code == 401
 
-def test_verify_code_limit_ignores_xff(client, monkeypatch):
+
+def test_auth_code_limits_are_per_forwarded_visitor(client, monkeypatch):
+    monkeypatch.setattr("routers.auth._SEND_CODE_MAX_PER_WINDOW", 2)
+    monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
+    visitor = "8.8.4.4"
+    headers = {
+        "x-auth-proxy-secret": "proxy-secret",
+        "x-auth-client-ip": visitor,
+    }
+    for phone in (84, 85):
+        assert client.post(
+            "/auth/send-code",
+            json={"phone": f"+9965550000{phone}"},
+            headers=headers,
+        ).status_code == 200
+    assert client.post(
+        "/auth/send-code",
+        json={"phone": "+996555000086"},
+        headers=headers,
+    ).status_code == 429
+    assert client.post(
+        "/auth/send-code",
+        json={"phone": "+996555000087"},
+        headers={
+            "x-auth-proxy-secret": "proxy-secret",
+            "x-auth-client-ip": "9.9.9.9",
+        },
+    ).status_code == 200
+
     monkeypatch.setattr("routers.auth._VERIFY_CODE_MAX_PER_WINDOW", 2)
-    headers = [
-        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
-        for i in range(11, 14)
-    ]
+    verify_headers = {
+        "x-auth-proxy-secret": "proxy-secret",
+        "x-auth-client-ip": "8.8.4.4",
+    }
     statuses = [
         client.post(
             "/auth/verify-code",
             json={"phone": f"+9965550000{phone}", "code": "123456"},
-            headers=headers[index],
+            headers=verify_headers,
         ).status_code
-        for index, phone in enumerate((81, 82, 83))
+        for phone in (81, 82, 83)
     ]
     assert statuses == [400, 400, 429]
 
 
-def test_send_code_limit_ignores_xff(client, monkeypatch):
+def test_spoofed_forwarded_for_cannot_reset_a_limit(client, monkeypatch):
     monkeypatch.setattr("routers.auth._SEND_CODE_MAX_PER_WINDOW", 2)
-    headers = [
-        {"X-Forwarded-For": f"203.0.113.{i}, 198.51.100.7"}
-        for i in range(21, 24)
-    ]
-    statuses = [
-        client.post(
+    monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
+
+    for spoof, phone in zip(("6.6.6.1", "6.6.6.2", "6.6.6.3"), (91, 92, 93)):
+        response = client.post(
             "/auth/send-code",
             json={"phone": f"+9965550000{phone}"},
-            headers=headers[index],
-        ).status_code
-        for index, phone in enumerate((84, 85, 86))
-    ]
-    assert statuses == [200, 200, 429]
+            headers={
+                "cf-connecting-ip": "1.1.1.1",
+                "X-Forwarded-For": f"{spoof}, 1.1.1.1",
+            },
+        )
+        expected = 200 if phone < 93 else 429
+        assert response.status_code == expected
+
+
+def test_send_code_response_does_not_reveal_telegram_binding(client, monkeypatch):
+    def chat_id_for(phone, db):
+        return 900000087 if phone.endswith("87") else None
+
+    async def delivered(chat_id, code):
+        assert chat_id == 900000087
+        return True
+
+    monkeypatch.setattr(auth, "get_telegram_chat_id", chat_id_for)
+    monkeypatch.setattr(auth, "send_telegram_code", delivered)
+
+    linked = client.post(
+        "/auth/send-code",
+        json={"phone": "+996555000087"},
+    )
+    unlinked = client.post(
+        "/auth/send-code",
+        json={"phone": "+996555000088"},
+    )
+
+    assert linked.status_code == 200
+    assert unlinked.status_code == 200
+    assert linked.json() == unlinked.json()
+    assert linked.json() == {"message": "Запрос на отправку кода принят"}
+    assert "tg_linked" not in linked.json()
+    assert "telegram" not in linked.text.lower()
+    assert "console" not in linked.text.lower()
+
+
+def test_send_code_hides_delivery_failure_and_discards_code(client, db, monkeypatch):
+    monkeypatch.setattr("routers.auth.IS_PRODUCTION", True)
+    monkeypatch.setattr(auth, "get_telegram_chat_id", lambda phone, db: None)
+    phone = "+996555000089"
+
+    response = client.post("/auth/send-code", json={"phone": phone})
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Запрос на отправку кода принят"}
+    assert db.query(models.SmsCode).filter(models.SmsCode.phone == phone).count() == 0
 
 
 def test_login_exchange_code_is_single_use(client, db):
@@ -458,7 +664,8 @@ def test_login_exchange_code_is_single_use(client, db):
     exchanged = client.post("/auth/exchange-code", json={"code": code})
     assert exchanged.status_code == 200
     tokens = exchanged.json()
-    assert tokens["refresh_token"]
+    assert "refresh_token" not in tokens
+    assert tokens["csrf_token"]
     me = client.get(
         "/users/me",
         headers={"Authorization": f"Bearer {tokens['access_token']}"},
@@ -669,6 +876,7 @@ def test_logout_revokes_access_and_refresh_tokens(client, db):
     refresh = auth.issue_refresh_token(user, db)
     db.commit()
     headers = {"Authorization": f"Bearer {access}"}
+    _set_auth_cookies(client, refresh)
 
     assert client.get("/users/me", headers=headers).status_code == 200
 
@@ -679,9 +887,7 @@ def test_logout_revokes_access_and_refresh_tokens(client, db):
     assert db.query(models.RefreshSession).filter_by(user_id=user.id).count() == 0
 
     assert client.get("/users/me", headers=headers).status_code == 401
-    assert client.post(
-        "/auth/refresh", json={"refresh_token": refresh}
-    ).status_code == 401
+    assert _refresh(client, refresh).status_code == 401
 
     fresh_access = auth.create_access_token({"sub": str(user.id), "ver": 1})
     assert client.get(
@@ -969,7 +1175,7 @@ def test_auth_and_profile_responses_are_not_cached(client, db):
     assert trip_detail.status_code == 200
     assert trip_detail.headers["Cache-Control"] == "no-store"
 
-    auth_failure = client.post("/auth/refresh", json={"refresh_token": "x" * 20})
+    auth_failure = client.post("/auth/refresh")
     assert auth_failure.status_code == 401
     assert auth_failure.headers["Cache-Control"] == "no-store"
 
