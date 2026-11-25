@@ -19,12 +19,12 @@ logger = logging.getLogger("birge")
 def _sample_rate() -> float:
     raw = os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "").strip()
     if not raw:
-        return 0.05
+        return 0.05 if IS_PRODUCTION else 1.0
     try:
         value = float(raw)
     except ValueError:
-        logger.warning("[Sentry] Invalid SENTRY_TRACES_SAMPLE_RATE; using 0.05")
-        return 0.05
+        logger.warning("[Sentry] Invalid SENTRY_TRACES_SAMPLE_RATE; using default")
+        return 0.05 if IS_PRODUCTION else 1.0
     return min(max(value, 0.0), 1.0)
 
 

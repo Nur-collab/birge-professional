@@ -1,11 +1,14 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/bundler-plugins/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '')
     const apiUrl = (env.VITE_API_URL || '').trim()
+    const sentryAuthToken = (env.SENTRY_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN || '').trim()
+    const enableSentrySourcemaps = mode === 'production' && Boolean(sentryAuthToken)
     // Auth must be same-origin so the HttpOnly refresh cookie is first-party.
     // Vite (dev/preview) and Vercel both expose the same /api/auth path and
     // forward it to the backend's /auth router.
@@ -37,8 +40,9 @@ export default defineConfig(({ mode }) => {
             filename: 'sw.js',
             registerType: 'autoUpdate',
             injectManifest: {
-                // Избегаем кеширования больших ассетов
-                maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
+                // Избегаем кеширования больших ассетов и source maps
+                maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+                globIgnores: ['**/*.map'],
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'apple-touch-icon.svg', 'mask-icon.svg'],
             manifest: {
@@ -76,9 +80,20 @@ export default defineConfig(({ mode }) => {
                     }
                 ]
             }
-        })
+        }),
+        ...(enableSentrySourcemaps ? [
+            sentryVitePlugin({
+                org: 'birge',
+                project: 'birge-web',
+                authToken: sentryAuthToken,
+                sourcemaps: {
+                    filesToDeleteAfterUpload: ['./dist/**/*.map'],
+                },
+            }),
+        ] : []),
     ],
     build: {
+        sourcemap: enableSentrySourcemaps ? 'hidden' : false,
         rollupOptions: {
             output: {
                 manualChunks(id) {
