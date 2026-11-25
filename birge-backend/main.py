@@ -9,7 +9,13 @@ from typing import Optional
 from uuid import uuid4
 import database, models, schemas, auth
 import redis
-from config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, IS_PRODUCTION, REDIS_URL
+from config import (
+    ALLOWED_ORIGIN_REGEX,
+    ALLOWED_ORIGINS,
+    IS_PRODUCTION,
+    REDIS_URL,
+    require_auth_proxy_secret,
+)
 from dependencies import get_current_admin, get_current_user
 from time_utils import BISHKEK_TZ, get_bishkek_now, get_bishkek_today_str, parse_time_minutes
 from realtime import is_trip_participant, start_realtime, stop_realtime
@@ -40,6 +46,14 @@ for _stream in (sys.stdout, sys.stderr):
 configure_logging()
 logger = logging.getLogger("birge")
 init_sentry()
+
+# Fail at import time (before uvicorn serves) instead of silently collapsing
+# every visitor into one shared auth rate-limit bucket.
+try:
+    require_auth_proxy_secret()
+except RuntimeError as exc:
+    logger.critical("[Config] %s", exc)
+    raise
 
 # Схема БД управляется Alembic. Перед запуском приложения выполните:
 # alembic upgrade head

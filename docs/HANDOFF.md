@@ -280,7 +280,9 @@ Frontend deployment:
   что Vercel на external rewrite пробрасывает клиентский `X-Forwarded-For`;
   куки выставляются с
   `Path=/api/auth`, `HttpOnly`, `Secure`, `SameSite=Lax`. `ORIGIN_SECRET` в
-  Vercel должен совпадать с `AUTH_PROXY_SECRET` на Render.
+  Vercel должен совпадать с `AUTH_PROXY_SECRET` на Render. В production пустой
+  `AUTH_PROXY_SECRET` роняет старт с CRITICAL-логом, а не переключает лимиты
+  на общий Cloudflare IP незаметно.
 
 Backend deployment:
 

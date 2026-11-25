@@ -43,9 +43,26 @@ ALLOWED_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", "").strip() or None
 AUTH_COOKIE_PATH = os.environ.get("AUTH_COOKIE_PATH", "/api/auth").strip() or "/api/auth"
 
 # Shared secret that the Vercel rewrite injects into /api/auth requests. Only a
-# request carrying it may trust X-Forwarded-For for the visitor IP; direct
-# requests keep using Cloudflare's overwritten CF-Connecting-IP. Empty disables
-# forwarded-IP trust (safe, but the auth proxy then shares one edge bucket).
+# request carrying it may trust the middleware's x-auth-client-ip header;
+# without it the backend falls back to Cloudflare's CF-Connecting-IP, which is
+# not spoofable but is shared by every visitor behind the Vercel edge.
 AUTH_PROXY_SECRET = os.environ.get("AUTH_PROXY_SECRET", "").strip()
 if not AUTH_COOKIE_PATH.startswith("/"):
     AUTH_COOKIE_PATH = f"/{AUTH_COOKIE_PATH}"
+
+
+def require_auth_proxy_secret() -> None:
+    """Refuse to start production without the Vercel proxy secret.
+
+    An unset secret silently places every visitor in one shared Cloudflare
+    rate-limit bucket, so per-IP limits stop protecting individual users. That
+    is a deployment mistake: a failed deploy with a clear log is safer than a
+    quiet degradation nobody notices.
+    """
+    if IS_PRODUCTION and not AUTH_PROXY_SECRET:
+        raise RuntimeError(
+            "AUTH_PROXY_SECRET is required when IS_PRODUCTION is true. Set it "
+            "on Render to the same value as ORIGIN_SECRET in the Vercel "
+            "project; otherwise every /api/auth request falls back to one "
+            "shared Cloudflare IP bucket."
+        )

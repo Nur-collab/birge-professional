@@ -72,7 +72,7 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    REDIS_URL=<Key Value internal connection string>
    ALLOWED_ORIGINS=https://<frontend-origin>
    AUTH_COOKIE_PATH=/api/auth
-   AUTH_PROXY_SECRET=<random; must equal Vercel ORIGIN_SECRET>
+   AUTH_PROXY_SECRET=<random; must equal Vercel ORIGIN_SECRET; production startup fails without it>
    TELEGRAM_BOT_TOKEN=<production bot token>
    TELEGRAM_WEBHOOK_SECRET=<random webhook secret>
    TELEGRAM_ADMIN_CHAT_ID=<optional>
@@ -116,8 +116,10 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    The same `vercel.json` must inject a signed proxy header on that rewrite
    (`routes` + `transforms`, `x-auth-proxy-secret` from `ORIGIN_SECRET`).
    Set `ORIGIN_SECRET` in Vercel (Preview and Production) and the identical
-   value as `AUTH_PROXY_SECRET` on Render; otherwise deploys fail (the config
-   lists the variable) or forwarded IPs are ignored.
+   value as `AUTH_PROXY_SECRET` on Render. Production calls
+   `require_auth_proxy_secret()` at import: an empty value logs CRITICAL and
+   raises `RuntimeError`, so the deploy fails instead of silently putting all
+   visitors into one shared Cloudflare rate-limit bucket.
 
    Per-IP auth limits read `x-auth-client-ip` only when the request carries
    that secret. Vercel Routing Middleware (`proxy.js`) sets it from the

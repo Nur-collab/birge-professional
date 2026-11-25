@@ -91,7 +91,9 @@ origins, so the backend never trusts that header. Instead, `birge/proxy.js`
 when the proxy secret matches `AUTH_PROXY_SECRET`; without the middleware it
 falls back to the shared `CF-Connecting-IP` (safe, but one bucket per edge).
 Set the same random value in Vercel (`ORIGIN_SECRET`) and on Render
-(`AUTH_PROXY_SECRET`).
+(`AUTH_PROXY_SECRET`). In production the backend refuses to start when
+`AUTH_PROXY_SECRET` is empty (`require_auth_proxy_secret()` in `config.py`),
+so the shared-bucket fallback cannot happen silently.
 
 ### OpenAPI types
 
@@ -145,7 +147,7 @@ Backend (see `birge-backend/.env.example`):
 | `DATABASE_URL` | yes | PostgreSQL URL in production, SQLite locally |
 | `ALLOWED_ORIGINS` | production | Comma-separated exact frontend origins |
 | `AUTH_COOKIE_PATH` | no | Cookie path shared by the frontend proxy and API (default `/api/auth`) |
-| `AUTH_PROXY_SECRET` | production | Must equal Vercel `ORIGIN_SECRET`; gates trust in the middleware `x-auth-client-ip` |
+| `AUTH_PROXY_SECRET` | production | Must equal Vercel `ORIGIN_SECRET`; gates trust in the middleware `x-auth-client-ip`; production startup fails without it |
 | `TELEGRAM_BOT_TOKEN` | production | Telegram code delivery and bot |
 | `TELEGRAM_WEBHOOK_SECRET` | production | Telegram webhook verification |
 | `ADMIN_PHONES` | production | Comma-separated phones allowed to call admin endpoints |
