@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 import httpx
@@ -7,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import quote
 import jwt
+
+logger = logging.getLogger("birge")
 
 try:
     from dotenv import load_dotenv
@@ -24,10 +27,9 @@ if not _env_secret:
     # Генерируем случайный ключ как временный fallback (сессии не переживут рестарт).
     # Это нормально для разработки, но недопустимо в продакшене.
     _env_secret = secrets.token_hex(32)
-    print(
-        "[Auth] [!] Переменная окружения SECRET_KEY не задана. "
-        "JWT-токены будут сбрасываться при каждом рестарте сервера. "
-        "Задайте SECRET_KEY в настройках Render."
+    logger.warning(
+        "[Auth] SECRET_KEY is not set; using ephemeral development key "
+        "(sessions will reset on restart)"
     )
 
 SECRET_KEY: str = _env_secret
@@ -514,7 +516,7 @@ async def send_telegram_message(
     """Отправляет сообщение через Telegram Bot с поддержкой Markdown и клавиатуры."""
     token = TELEGRAM_BOT_TOKEN
     if not token:
-        print("[Telegram] [!] TELEGRAM_BOT_TOKEN не задан в переменных окружения.")
+        logger.warning("[Telegram] TELEGRAM_BOT_TOKEN is not configured")
         return False
     api_url = f"https://api.telegram.org/bot{token}"
     try:
@@ -531,7 +533,7 @@ async def send_telegram_message(
             return resp.status_code == 200 and resp.json().get("ok", False)
     except Exception as e:
         # Telegram/client errors may include the request URL with the bot token.
-        print(f"[Telegram] Ошибка отправки: {type(e).__name__}")
+        logger.warning("[Telegram] Delivery error: %s", type(e).__name__)
         return False
 
 

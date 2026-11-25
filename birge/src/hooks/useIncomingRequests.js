@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../utils/api';
+import { api, API_URL } from '../utils/api';
+
+const FALLBACK_POLL_MS = 15000;
 
 export default function useIncomingRequests({ currentUser, myTripId, activeTrip }) {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const seenRequestIds = useRef(new Set());
+  const audioCtxRef = useRef(null);
 
-  // Подписка на входящие запросы для ВОДИТЕЛЯ через опрос бэкенда.
-  // Активна пока водитель в поиске (myTripId) или в активной поездке (activeTrip).
-  useEffect(() => {
-    if (!currentUser || (!myTripId && !activeTrip)) return;
-
-    /** Звук + вибрация при новом запросе */
-    const playNotificationSound = () => {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const playNotificationSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+          audioCtxRef.current = new AudioCtx();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
@@ -25,29 +30,121 @@ export default function useIncomingRequests({ currentUser, myTripId, activeTrip 
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.4);
-      } catch (_) { }
+      }
+    } catch (_) {
+      // Audio playback can be blocked before user interaction.
+    }
+    try {
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-    };
+    } catch (_) {}
+  }, []);
 
-    const unsubscribe = api.subscribeIncomingRequests((requests) => {
-      setPendingRequestCount(requests.length);
-      // Показываем модал для новых запросов
-      const newReq = requests.find((r) => !seenRequestIds.current.has(r.id));
-      if (newReq) {
-        seenRequestIds.current.add(newReq.id);
-        setIncomingRequest(newReq);
-        playNotificationSound();
+  useEffect(() => () => {
+    const ctx = audioCtxRef.current;
+    audioCtxRef.current = null;
+    if (ctx && typeof ctx.close === 'function') {
+      ctx.close().catch(() => {});
+    }
+  }, []);
+
+  // Подписка на входящие запросы для ВОДИТЕЛЯ: мгновенный SSE + резервный polling.
+  // Активна пока водитель в поиске (myTripId) или в активной поездке (activeTrip).
+  useEffect(() => {
+    if (!currentUser || (!myTripId && !activeTrip)) return undefined;
+
+    let cancelled = false;
+    let es = null;
+    let reconnectTimer = null;
+    let reconnectDelay = 3000;
+
+    const notifyNewRequest = (req) => {
+      if (!req?.id || seenRequestIds.current.has(req.id)) return;
+      seenRequestIds.current.add(req.id);
+      setIncomingRequest(req);
+      playNotificationSound();
+      try {
         if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
           new Notification('Новый запрос на поездку', {
-            body: `${newReq.requester_name} хочет присоединиться`,
+            body: `${req.requester_name} хочет присоединиться`,
             icon: '/pwa-192x192.png',
           });
         }
-      }
-    });
+      } catch (_) {}
+    };
 
-    return () => unsubscribe();
-  }, [currentUser, myTripId, activeTrip]);
+    const syncRequests = async () => {
+      if (cancelled) return;
+      try {
+        const requests = await api.getIncomingRequests();
+        if (cancelled || !Array.isArray(requests)) return;
+        setPendingRequestCount(requests.length);
+        const newReq = requests.find((r) => !seenRequestIds.current.has(r.id));
+        if (newReq) notifyNewRequest(newReq);
+      } catch (_) {}
+    };
+
+    const handleSseEvent = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.event === 'passenger_cancelled') {
+          syncRequests();
+          return;
+        }
+        if (payload?.id && payload?.status === 'pending') {
+          if (!seenRequestIds.current.has(payload.id)) {
+            setPendingRequestCount((prev) => prev + 1);
+          }
+          notifyNewRequest(payload);
+        }
+      } catch (_) {}
+    };
+
+    const connectSse = async () => {
+      if (cancelled || typeof EventSource === 'undefined') return;
+      try {
+        const ticketData = await api.createSseTicket('driver');
+        if (cancelled) return;
+        if (!ticketData?.ticket) throw new Error('SSE ticket is missing');
+
+        const source = new EventSource(
+          `${API_URL}/trip-requests/driver-events/${currentUser.id}?ticket=${encodeURIComponent(ticketData.ticket)}`
+        );
+        es = source;
+        source.onopen = () => {
+          reconnectDelay = 3000;
+        };
+        source.addEventListener('new_request', handleSseEvent);
+        source.onerror = () => {
+          source.close();
+          if (es === source) es = null;
+          if (!cancelled) {
+            clearTimeout(reconnectTimer);
+            const delay = reconnectDelay;
+            reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+            reconnectTimer = setTimeout(connectSse, delay);
+          }
+        };
+      } catch (_) {
+        if (!cancelled) {
+          clearTimeout(reconnectTimer);
+          const delay = reconnectDelay;
+          reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+          reconnectTimer = setTimeout(connectSse, delay);
+        }
+      }
+    };
+
+    syncRequests();
+    connectSse();
+    const fallbackPoll = setInterval(syncRequests, FALLBACK_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(reconnectTimer);
+      clearInterval(fallbackPoll);
+      es?.close();
+    };
+  }, [currentUser, myTripId, activeTrip, playNotificationSound]);
 
   const dismissIncomingRequest = useCallback(() => setIncomingRequest(null), []);
   const decrementPendingRequestCount = useCallback(() => {

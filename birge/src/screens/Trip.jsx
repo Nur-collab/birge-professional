@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertTriangle, MapPin, Navigation, MessageCircle, Star, ShieldCheck,
   Car, Zap, Users, Calendar, XCircle, CreditCard, Smartphone, Copy, Check
@@ -25,6 +25,15 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
     elkartNumber: trip?.driverElkartNumber || '',
   });
   const [paymentError, setPaymentError] = useState('');
+  const copiedTimerRef = useRef(null);
+  const copiedElkartTimerRef = useRef(null);
+  const cancelTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(copiedTimerRef.current);
+    clearTimeout(copiedElkartTimerRef.current);
+    clearTimeout(cancelTimerRef.current);
+  }, []);
 
   // Определяем: поездка запланирована (дата в будущем)?
   const today = localDateStr();
@@ -40,19 +49,23 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
   const [showAcceptedCard, setShowAcceptedCard] = useState(() => {
     if (isDriver || !tripId) return false;
     const key = `birge_trip_card_shown_${tripId}`;
-    if (sessionStorage.getItem(key)) return false;
-    sessionStorage.setItem(key, '1');
-    return true;
+    try {
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, '1');
+      return true;
+    } catch (_) {
+      return false;
+    }
   });
 
   // Загружаем список пассажиров для водителя (и обновляем каждые 5 сек)
   useEffect(() => {
-    if (!trip?.id || !isDriver) return;
+    if (!trip?.id || !isDriver) return undefined;
     const load = () => {
       api.getTripPassengers(trip.id).then(data => {
         setPassengers(data.passengers || []);
         setSeats(data.seats || 3);
-      });
+      }).catch(() => {});
     };
     load();
     const interval = setInterval(load, 5000);
@@ -82,9 +95,10 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
     setPaymentError('');
     navigator.clipboard?.writeText(targetPhone);
     setCopied(true);
-    setTimeout(() => setCopied(false), 3500);
+    clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 3500);
     // Открываем веб/приложение MBank
-    window.open('https://app.mbank.kg/', '_blank');
+    window.open('https://app.mbank.kg/', '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyElkart = () => {
@@ -96,7 +110,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
     setPaymentError('');
     navigator.clipboard?.writeText(targetCard);
     setCopiedElkart(true);
-    setTimeout(() => setCopiedElkart(false), 3000);
+    clearTimeout(copiedElkartTimerRef.current);
+    copiedElkartTimerRef.current = setTimeout(() => setCopiedElkart(false), 3000);
   };
 
   if (!trip) return null;
@@ -133,8 +148,9 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
     if (!cancelConfirm) {
       // Первый тап — показываем кнопку подтверждения
       setCancelConfirm(true);
+      clearTimeout(cancelTimerRef.current);
       // Авто-сброс через 4 сек (не нажал — передумал)
-      setTimeout(() => setCancelConfirm(false), 4000);
+      cancelTimerRef.current = setTimeout(() => setCancelConfirm(false), 4000);
       return;
     }
     // Второй тап — подтверждение получено, отменяем

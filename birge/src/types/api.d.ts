@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Run Admin Cleanup
-         * @description Принудительный запуск очистки старых поездок администратором.
+         * @description Force stale-trip cleanup by an allowlisted admin.
          */
         post: operations["run_admin_cleanup_admin_cleanup_trips_post"];
         delete?: never;
@@ -155,11 +155,7 @@ export interface paths {
         put?: never;
         /**
          * Telegram Webhook
-         * @description Telegram шлёт сюда все входящие сообщения.
-         *     Защищён проверкой X-Telegram-Bot-Api-Secret-Token.
-         *     Обрабатывает:
-         *       - Передачу контакта через кнопку «Поделиться номером» (с проверкой ownership)
-         *       - Команды /status, /check, /test, /help
+         * @description Telegram Bot webhook handler protected by X-Telegram-Bot-Api-Secret-Token.
          */
         post: operations["telegram_webhook_bot_webhook_post"];
         delete?: never;
@@ -177,7 +173,7 @@ export interface paths {
         };
         /**
          * Health Check
-         * @description Публичный liveness-эндпоинт для мониторинга (UptimeRobot, etc.).
+         * @description Public liveness probe for uptime monitoring.
          */
         get: operations["health_check_health_get"];
         put?: never;
@@ -197,10 +193,7 @@ export interface paths {
         };
         /**
          * Internal Get Binding
-         * @description Внутренний эндпоинт для синхронизации привязок Telegram.
-         *
-         *     По умолчанию выключен и в production не должен включаться без отдельного
-         *     секрета. Секрет webhook для этого не переиспользуется.
+         * @description Internal endpoint for syncing Telegram bindings in development.
          */
         get: operations["internal_get_binding_internal_get_binding_get"];
         put?: never;
@@ -242,12 +235,7 @@ export interface paths {
         put?: never;
         /**
          * Create Review
-         * @description Сохраняет отзыв о пользователе после поездки.
-         *
-         *     Правила:
-         *     - Нельзя оставить отзыв самому себе.
-         *     - Один пользователь может оставить только один отзыв конкретному человеку.
-         *       (защита от накрутки рейтинга)
+         * @description Сохраняет отзыв о пользователе после завершённой совместной поездки.
          */
         post: operations["create_review_reviews__post"];
         delete?: never;

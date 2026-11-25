@@ -49,9 +49,11 @@ class RateLimiter:
     @staticmethod
     def _redis_hit(client: redis.Redis, key: str, limit: int, window_seconds: int) -> bool:
         full_key = f"{_NAMESPACE}:{key}"
-        count = client.incr(full_key)
-        client.expire(full_key, window_seconds)
-        return int(count) <= limit
+        count = int(client.incr(full_key))
+        # Refresh TTL only while within budget so blocked callers cannot extend lockout.
+        if count <= limit:
+            client.expire(full_key, window_seconds)
+        return count <= limit
 
     def _memory_hit(self, key: str, limit: int, window_seconds: int) -> bool:
         now = time.monotonic()

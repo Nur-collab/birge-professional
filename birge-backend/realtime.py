@@ -223,9 +223,9 @@ async def start_realtime(redis_url: Optional[str] = None) -> None:
     thread.start()
     try:
         await asyncio.wait_for(ready.wait(), timeout=5)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
         await stop_realtime()
-        raise RuntimeError("Realtime Redis listener did not become ready")
+        raise RuntimeError("Realtime Redis listener did not become ready") from exc
     logger.info("[Realtime] Redis Pub/Sub listener started: %s", target)
 
 

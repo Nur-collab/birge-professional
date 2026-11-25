@@ -21,15 +21,11 @@ try:
     load_dotenv()
 except ImportError:
     pass
-from database import SessionLocal, engine, Base
-import models
-from main import telegram_webhook
+from database import SessionLocal
+from routers.bot import telegram_webhook
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 API_URL = f"https://api.telegram.org/bot{TOKEN}" if TOKEN else ""
-
-# Создаем таблицы если их нет
-Base.metadata.create_all(bind=engine)
 
 
 async def main():

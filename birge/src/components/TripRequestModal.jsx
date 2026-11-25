@@ -39,20 +39,19 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
 
     // Таймер: если водитель не ответил за 30 сек — автоотклонение
     useEffect(() => {
-        if (!request) return;
+        if (!request) return undefined;
         setTimeLeft(AUTO_DECLINE_SECONDS);
         const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    onDecline(request.id);
-                    return 0;
-                }
-                return prev - 1;
-            });
+            setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
         }, 1000);
         return () => clearInterval(timer);
     }, [request?.id]);
+
+    useEffect(() => {
+        if (request && timeLeft === 0) {
+            onDecline(request.id);
+        }
+    }, [request, timeLeft, onDecline]);
 
     if (!request) return null;
 

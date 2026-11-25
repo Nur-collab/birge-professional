@@ -4,9 +4,9 @@ target-version = "py312"
 exclude = ["venv", ".venv", "__pycache__", "alembic/versions"]
 
 [tool.ruff.lint]
-# Start with correctness rules only. Expand the rule set incrementally so the
-# existing codebase can be cleaned up without a noisy all-at-once rewrite.
-select = ["E9", "F63", "F7", "F82"]
+# Correctness, unused imports/variables, and bugbear checks; B008 is standard FastAPI Depends().
+select = ["E9", "F", "B"]
+ignore = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -63,19 +63,26 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    const targetUrl = event.notification.data.url || '/';
+    const rawUrl = event.notification.data?.url || '/';
+    const resolvedUrl = new URL(rawUrl, self.location.origin).href;
 
     event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Ищем открытую вкладку
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
             for (const client of clientList) {
-                if (client.url === targetUrl && 'focus' in client) {
+                if (client.url === resolvedUrl && 'focus' in client) {
                     return client.focus();
                 }
             }
-            // Если вкладка не найдена, открываем новую
+            for (const client of clientList) {
+                if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+                    if ('navigate' in client) {
+                        await client.navigate(resolvedUrl);
+                    }
+                    return client.focus();
+                }
+            }
             if (self.clients.openWindow) {
-                return self.clients.openWindow(targetUrl);
+                return self.clients.openWindow(resolvedUrl);
             }
         })
     );

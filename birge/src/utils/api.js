@@ -575,29 +575,59 @@ export const api = {
     const userId = getCurrentUserId();
     let ws = null;
     let pollInterval = null;
+    let reconnectTimer = null;
+    let reconnectDelay = 2000;
+    const messagesById = new Map();
+
+    const emitSorted = () => {
+      const sorted = [...messagesById.values()].sort((a, b) => a.id - b.id);
+      callback(sorted);
+    };
+
+    const replaceHistory = (list) => {
+      if (!Array.isArray(list)) return;
+      messagesById.clear();
+      for (const item of list) {
+        if (item?.id != null) messagesById.set(item.id, item);
+      }
+      emitSorted();
+    };
 
     const loadHistory = async () => {
       try {
         const history = await api.getTripMessages(tripId);
-        if (active) callback(history);
+        if (active) replaceHistory(history);
       } catch (_) {}
     };
 
+    const stopPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
+
     const startPolling = () => {
-      if (pollInterval) return;
+      if (pollInterval || !active) return;
       pollInterval = setInterval(async () => {
         if (!active) return;
         try {
           const fresh = await api.getTripMessages(tripId);
-          if (active) callback(fresh);
+          if (active) replaceHistory(fresh);
         } catch (_) {}
       }, 3000);
     };
 
-    loadHistory();
+    const scheduleReconnect = () => {
+      if (!active || !userId) return;
+      clearTimeout(reconnectTimer);
+      const delay = reconnectDelay;
+      reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      reconnectTimer = setTimeout(connect, delay);
+    };
 
     const connect = async () => {
-      if (!active || !userId) {
+      if (!active || !userId || typeof WebSocket === 'undefined') {
         startPolling();
         return;
       }
@@ -608,38 +638,66 @@ export const api = {
         if (!ticketData?.ticket) throw new Error('WebSocket ticket is missing');
 
         const wsUrl = API_URL.replace(/^https/, 'wss').replace(/^http/, 'ws');
-        ws = new WebSocket(
+        const socket = new WebSocket(
           `${wsUrl}/ws/chat/${tripId}/${userId}?ticket=${encodeURIComponent(ticketData.ticket)}`
         );
-        activeChatWs = ws;
+        ws = socket;
+        activeChatWs = socket;
         activeChatTripId = tripId;
 
-        ws.onmessage = async () => {
+        socket.onopen = () => {
+          reconnectDelay = 2000;
+          stopPolling();
+        };
+
+        socket.onmessage = (event) => {
           if (!active) return;
           try {
-            const all = await api.getTripMessages(tripId);
-            if (active) callback(all);
+            const payload = JSON.parse(event.data);
+            if (payload?.error) return;
+            if (payload?.id != null && typeof payload?.text === 'string') {
+              messagesById.set(payload.id, {
+                id: payload.id,
+                senderId: payload.sender_id,
+                senderName: payload.sender_name || 'Пользователь',
+                text: payload.text,
+                time: payload.timestamp || '',
+              });
+              emitSorted();
+              return;
+            }
           } catch (_) {}
+          loadHistory();
         };
-        ws.onerror = startPolling;
-        ws.onclose = () => {
-          if (activeChatWs === ws) {
+
+        socket.onerror = () => {
+          startPolling();
+        };
+
+        socket.onclose = () => {
+          if (activeChatWs === socket) {
             activeChatWs = null;
             activeChatTripId = null;
           }
-          // Сокет закрылся штатно (рестарт сервера) — polling продолжит работу.
-          if (active) startPolling();
+          if (ws === socket) ws = null;
+          if (active) {
+            startPolling();
+            scheduleReconnect();
+          }
         };
       } catch (_) {
         startPolling();
+        scheduleReconnect();
       }
     };
 
+    loadHistory();
     connect();
 
     return () => {
       active = false;
-      if (pollInterval) clearInterval(pollInterval);
+      clearTimeout(reconnectTimer);
+      stopPolling();
       if (ws) {
         try { ws.close(); } catch (_) {}
         if (activeChatWs === ws) {

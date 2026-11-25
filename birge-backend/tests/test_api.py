@@ -602,7 +602,7 @@ def test_spoofed_forwarded_for_cannot_reset_a_limit(client, monkeypatch):
     monkeypatch.setattr("routers.auth._SEND_CODE_MAX_PER_WINDOW", 2)
     monkeypatch.setattr("routers.auth.AUTH_PROXY_SECRET", "proxy-secret")
 
-    for spoof, phone in zip(("6.6.6.1", "6.6.6.2", "6.6.6.3"), (91, 92, 93)):
+    for spoof, phone in zip(("6.6.6.1", "6.6.6.2", "6.6.6.3"), (91, 92, 93), strict=True):
         response = client.post(
             "/auth/send-code",
             json={"phone": f"+9965550000{phone}"},
@@ -700,7 +700,7 @@ def test_login_code_endpoint_issues_and_rejects_expired(client, db):
 
 
 def test_telegram_login_command_issues_one_time_link(client, db, monkeypatch):
-    user = _user(db, "+996555000073", "Бот")
+    _user(db, "+996555000073", "Бот")
     db.add(
         models.TelegramBinding(
             phone="+996 555 000 073",
@@ -1303,3 +1303,58 @@ def test_active_trip_request_is_unique(client, db):
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
+
+
+def test_panic_cooldown_uses_shared_limiter_and_returns_429(client, db, monkeypatch):
+    driver = _user(db, "+996555000082", "Водитель")
+    trip = _driver_trip(db, driver)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", "12345")
+
+    class _FakeResponse:
+        status_code = 200
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, *args, **kwargs):
+            return _FakeResponse()
+
+    monkeypatch.setattr("routers.trips.httpx.AsyncClient", _FakeClient)
+
+    first = client.post(f"/trips/{trip.id}/panic", headers=_headers(driver))
+    assert first.status_code == 200
+    assert first.json() == {"sent": True}
+
+    second = client.post(f"/trips/{trip.id}/panic", headers=_headers(driver))
+    assert second.status_code == 429
+
+
+def test_redis_rate_limiter_does_not_extend_ttl_when_blocked():
+    from rate_limit import RateLimiter
+
+    class _FakeRedis:
+        def __init__(self):
+            self.counts = {}
+            self.expire_calls = 0
+
+        def incr(self, key):
+            self.counts[key] = self.counts.get(key, 0) + 1
+            return self.counts[key]
+
+        def expire(self, key, seconds):
+            self.expire_calls += 1
+            return True
+
+    fake = _FakeRedis()
+    assert RateLimiter._redis_hit(fake, "k", 2, 60) is True
+    assert RateLimiter._redis_hit(fake, "k", 2, 60) is True
+    assert RateLimiter._redis_hit(fake, "k", 2, 60) is False
+    assert fake.expire_calls == 2

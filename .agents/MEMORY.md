@@ -21,14 +21,14 @@
 - Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD `2748929`; P1 hardening is committed and live.
 - CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks. PostgreSQL/E2E workflow and CI/Security are green on `2748929`.
 
-## 2. Current Metrics (2026-11-17)
+## 2. Current Metrics (2026-11-25)
 
-- Backend tests: 53 passed (Sentry + participant-only trip detail + security headers + logout revocation + SSE ticket + encrypted PII + hashed OTP + refresh rotation/cleanup).
-- Frontend tests: 19 passed in 7 files (routing + API + date + a11y + XSS escaping + logout cleanup + SSE ticket).
+- Backend tests: 89 passed (ruff `E9,F,B` ignoring `B008`; includes auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
+- Frontend tests: 35 passed in 9 files (`useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
 - Browser E2E: 3 passed on PostgreSQL 16.2 (ticket + EventSource with `?ticket=`; access token in SSE query rejected; logout revokes ticket).
-- Production build: passed (~9s); 18 precache entries; main JS 219.20 KB (53.28 KB gzip), CSS 7.73 KB (2.38 KB gzip), vendor-react 226.63 KB (74.21 KB gzip), lazy Sentry chunk 461.58 KB (156.20 KB gzip).
-- `main.py`: 1007 lines; `App.jsx`: 489 lines; `index.css`: 424 lines.
-- OpenAPI: 33 paths, 18 schemas; WS `/ws/chat/{trip_id}/{user_id}` is registered but absent from OpenAPI. Generated `src/types/api.d.ts` is 2217 lines.
+- Production build: passed; 18 precache entries; Vite + PWA `injectManifest`.
+- `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
+- OpenAPI: regenerated `birge/openapi.json` and `birge/src/types/api.d.ts`.
 - P0: complete. P1: core code complete; P1 hardening done on 2026-11-15; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation and Python 3.12 runtime/CI are in place. Manual Render restore drill and post-migration backup remain; GitHub CI/Security passed on 2748929. P2: deep links, OpenAPI types and accessibility baseline complete.
 
 ## 3. Active Work State
@@ -100,3 +100,4 @@
 - 2026-11-15: PostgreSQL 16.2 migration check and Playwright SSE-ticket E2E on PostgreSQL; 3 E2E passed; ephemeral PG cleanup verified.
 - 2026-11-16: PII/OTP hardening, refresh-token rotation/cleanup and Python 3.12 CI/runtime; 53 backend tests on 3.12.10.
 - 2026-11-17: P1 hardening committed/deployed as `2748929`; Render/Vercel live, CI/Security green; production OpenAPI 33 paths.
+- 2026-11-25: Hardening & cleanup: fixed `vercel.json` `routes`/`headers` conflict, `.gitignore` `.backups/`, driver SSE + WS incremental chat + reconnect, `AudioContext`/timer leaks, `sw.js` `notificationclick`, `i18n.js` 6-digit copy, extracted `main.py` -> `routers/{admin,bot,reviews}.py` + `trip_maintenance.py`, Redis panic cooldown & TTL fix, Python 3.12 alignment + expanded ruff (`E9,F,B`); 89 backend / 35 frontend tests pass.

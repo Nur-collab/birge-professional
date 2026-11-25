@@ -125,9 +125,9 @@ def _read_line(process: subprocess.Popen, timeout: float = 20) -> str:
     threading.Thread(target=read, daemon=True).start()
     try:
         line = lines.get(timeout=timeout).strip()
-    except queue.Empty:
+    except queue.Empty as exc:
         process.kill()
-        raise AssertionError("child process did not respond in time")
+        raise AssertionError("child process did not respond in time") from exc
     if not line:
         stderr = process.stderr.read()
         raise AssertionError(f"child process exited without output: {stderr}")

@@ -205,3 +205,85 @@ describe('auth refresh', () => {
     expect(tokenStorage.getCsrf()).toBeNull();
   });
 });
+
+describe('WebSocket chat subscription', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    tokenStorage.clear();
+    tokenStorage.set(makeToken({ sub: '7' }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.WebSocket;
+  });
+
+  it('appends incoming WS messages without re-fetching full chat history', async () => {
+    const sockets = [];
+    class FakeWebSocket {
+      constructor(url) {
+        this.url = url;
+        this.readyState = 1;
+        sockets.push(this);
+      }
+      close() {
+        this.readyState = 3;
+      }
+    }
+    global.WebSocket = FakeWebSocket;
+
+    let historyCalls = 0;
+    global.fetch = vi.fn(async (url) => {
+      if (url.includes('/ws-ticket')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ticket: 'ws-ticket', expires_in: 60 }),
+        };
+      }
+      if (url.includes('/trips/10/messages')) {
+        historyCalls += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ([
+            { id: 1, sender_id: 7, sender: { name: 'Driver' }, text: 'Hi', timestamp: '08:00 AM' },
+          ]),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const updates = [];
+    const unsubscribe = api.subscribeTripMessages(10, (msgs) => updates.push(msgs));
+
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    await vi.waitFor(() => expect(updates.length).toBeGreaterThanOrEqual(1));
+    expect(historyCalls).toBe(1);
+
+    sockets[0].onopen?.();
+    sockets[0].onmessage?.({
+      data: JSON.stringify({
+        id: 2,
+        sender_id: 9,
+        sender_name: 'Passenger',
+        text: 'On my way',
+        timestamp: '08:01 AM',
+        trip_id: 10,
+      }),
+    });
+
+    expect(historyCalls).toBe(1);
+    expect(updates.at(-1)).toEqual([
+      { id: 1, senderId: 7, senderName: 'Driver', text: 'Hi', time: '08:00 AM' },
+      { id: 2, senderId: 9, senderName: 'Passenger', text: 'On my way', time: '08:01 AM' },
+    ]);
+
+    // Control frames must not trigger history reloads or add fake bubbles.
+    sockets[0].onmessage?.({ data: JSON.stringify({ error: 'rate_limited' }) });
+    expect(historyCalls).toBe(1);
+    expect(updates.at(-1)).toHaveLength(2);
+
+    unsubscribe();
+  });
+});

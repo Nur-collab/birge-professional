@@ -915,7 +915,7 @@
   "paths": {
     "/admin/cleanup-trips": {
       "post": {
-        "description": "Принудительный запуск очистки старых поездок администратором.",
+        "description": "Force stale-trip cleanup by an allowlisted admin.",
         "operationId": "run_admin_cleanup_admin_cleanup_trips_post",
         "parameters": [
           {
@@ -955,7 +955,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Run Admin Cleanup"
+        "summary": "Run Admin Cleanup",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/auth/exchange-code": {
@@ -1196,7 +1199,7 @@
     },
     "/bot/webhook": {
       "post": {
-        "description": "Telegram шлёт сюда все входящие сообщения.\nЗащищён проверкой X-Telegram-Bot-Api-Secret-Token.\nОбрабатывает:\n  - Передачу контакта через кнопку «Поделиться номером» (с проверкой ownership)\n  - Команды /status, /check, /test, /help",
+        "description": "Telegram Bot webhook handler protected by X-Telegram-Bot-Api-Secret-Token.",
         "operationId": "telegram_webhook_bot_webhook_post",
         "parameters": [
           {
@@ -1248,12 +1251,15 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Telegram Webhook"
+        "summary": "Telegram Webhook",
+        "tags": [
+          "bot"
+        ]
       }
     },
     "/health": {
       "get": {
-        "description": "Публичный liveness-эндпоинт для мониторинга (UptimeRobot, etc.).",
+        "description": "Public liveness probe for uptime monitoring.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
@@ -1270,7 +1276,7 @@
     },
     "/internal/get-binding": {
       "get": {
-        "description": "Внутренний эндпоинт для синхронизации привязок Telegram.\n\nПо умолчанию выключен и в production не должен включаться без отдельного\nсекрета. Секрет webhook для этого не переиспользуется.",
+        "description": "Internal endpoint for syncing Telegram bindings in development.",
         "operationId": "internal_get_binding_internal_get_binding_get",
         "parameters": [
           {
@@ -1319,7 +1325,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Internal Get Binding"
+        "summary": "Internal Get Binding",
+        "tags": [
+          "bot"
+        ]
       }
     },
     "/ready": {
@@ -1341,7 +1350,7 @@
     },
     "/reviews/": {
       "post": {
-        "description": "Сохраняет отзыв о пользователе после поездки.\n\nПравила:\n- Нельзя оставить отзыв самому себе.\n- Один пользователь может оставить только один отзыв конкретному человеку.\n  (защита от накрутки рейтинга)",
+        "description": "Сохраняет отзыв о пользователе после завершённой совместной поездки.",
         "operationId": "create_review_reviews__post",
         "parameters": [
           {
@@ -1393,7 +1402,10 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create Review"
+        "summary": "Create Review",
+        "tags": [
+          "reviews"
+        ]
       }
     },
     "/trip-requests/": {

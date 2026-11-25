@@ -18,11 +18,11 @@ const resources = {
             "auth.phone_number": "Номер телефона",
             "auth.enter_phone": "Введите номер телефона без +",
             "auth.get_code": "Получить код",
-            "auth.sms_code": "Код из SMS",
-            "auth.check_sms": "Проверьте консоль сервера для получения кода (имитация SMS).",
-            "auth.enter_code": "Введите 4-значный код",
+            "auth.sms_code": "Код подтверждения",
+            "auth.check_sms": "Если номер привязан, код придёт в Telegram-бот @BirgeAuthBot.",
+            "auth.enter_code": "Введите 6-значный код",
             "auth.verify": "Войти",
-            "auth.error_invalid_phone": "Введите 12 цифр, начиная с 996",
+            "auth.error_invalid_phone": "Введите 9 цифр после +996",
             "auth.error_generic": "Ошибка авторизации",
 
             // Навигация / Таббар
@@ -160,11 +160,11 @@ const resources = {
             "auth.phone_number": "Телефон номери",
             "auth.enter_phone": "Номерди + жок киргизиңиз",
             "auth.get_code": "Кодду алуу",
-            "auth.sms_code": "SMS код",
-            "auth.check_sms": "Кодду алуу үчүн сервердин консолун текшериңиз (SMS тууроосу).",
-            "auth.enter_code": "4 орундуу кодду киргизиңиз",
+            "auth.sms_code": "Ырастоо коду",
+            "auth.check_sms": "Номер байланган болсо, код @BirgeAuthBot Telegram-ботуна келет.",
+            "auth.enter_code": "6 орундуу кодду киргизиңиз",
             "auth.verify": "Кирүү",
-            "auth.error_invalid_phone": "996 менен башталган 12 санды киргизиңиз",
+            "auth.error_invalid_phone": "+996дан кийин 9 санды киргизиңиз",
             "auth.error_generic": "Авторизация катасы",
 
             // Навигация / Таббар
@@ -289,11 +289,18 @@ const resources = {
     }
 };
 
+let savedLng = "ru";
+try {
+    savedLng = localStorage.getItem('i18nextLng') || "ru";
+} catch (_) {
+    // Storage may be unavailable in restricted contexts.
+}
+
 i18n
     .use(initReactI18next)
     .init({
         resources,
-        lng: localStorage.getItem('i18nextLng') || "ru",
+        lng: savedLng,
         fallbackLng: "ru",
         interpolation: {
             escapeValue: false

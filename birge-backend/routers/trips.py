@@ -2,20 +2,21 @@
 import html
 import json
 import logging
+import math
 import os
-from datetime import datetime, timezone
 from typing import List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import or_ as _or
+from sqlalchemy.orm import Session, joinedload
 
 import auth as auth_service
 import models
 import schemas
 from database import get_db
 from dependencies import get_current_user
-from rate_limit import enforce_user_limit, enforce_user_limit_sync
+from rate_limit import enforce_user_limit, enforce_user_limit_sync, get_rate_limiter
 from realtime import (
     is_trip_participant,
     publish_chat_message,
@@ -26,6 +27,82 @@ from time_utils import get_bishkek_now, get_bishkek_today_str, parse_time_minute
 
 logger = logging.getLogger("birge")
 router = APIRouter(prefix="/trips", tags=["trips"])
+
+BISHKEK_LOCATIONS: dict[str, tuple[float, float]] = {
+    "ала-арча": (42.8380, 74.5520),
+    "ала арча": (42.8380, 74.5520),
+    "аламедин": (42.8700, 74.5200),
+    "джал": (42.8200, 74.5700),
+    "кара-жыгач": (42.8650, 74.5050),
+    "кара жыгач": (42.8650, 74.5050),
+    "асанбай": (42.8450, 74.6300),
+    "тунгуч": (42.8920, 74.5980),
+    "восток-5": (42.8750, 74.6100),
+    "восток 5": (42.8750, 74.6100),
+    "мкр 7": (42.8550, 74.5650),
+    "мкр. 7": (42.8550, 74.5650),
+    "ак-орго": (42.8600, 74.5300),
+    "ак орго": (42.8600, 74.5300),
+    "кожомкул": (42.8500, 74.5100),
+    "деревня": (42.8850, 74.6200),
+    "кеминчи": (42.8950, 74.5600),
+    "бай тюбе": (42.8300, 74.5900),
+    "байтюбе": (42.8300, 74.5900),
+    "новпостройка": (42.8650, 74.5800),
+    "интернациональный аэропорт": (42.8474, 74.4776),
+    "цум": (42.8760, 74.6050),
+    "центр": (42.8746, 74.5698),
+    "площадь": (42.8762, 74.6036),
+    "ала-тоо": (42.8762, 74.6036),
+    "ала тоо": (42.8762, 74.6036),
+    "ошский базар": (42.8820, 74.5780),
+    "ошский": (42.8820, 74.5780),
+    "дордой": (42.9100, 74.6300),
+    "кузнечная": (42.8780, 74.5850),
+    "карпинка": (42.8670, 74.6010),
+    "рушания": (42.8900, 74.5700),
+    "цум-азия": (42.8760, 74.6050),
+    "горький парк": (42.8820, 74.5980),
+    "фучик": (42.8800, 74.5900),
+    "ботанический сад": (42.8850, 74.5820),
+    "октябрьская": (42.8730, 74.5950),
+    "истанкул": (42.8680, 74.5720),
+    "меркентиль": (42.8940, 74.5940),
+    "манас": (42.8474, 74.4776),
+    "аэропорт": (42.8474, 74.4776),
+    "западный автовокзал": (42.8700, 74.5500),
+    "западный": (42.8700, 74.5500),
+    "восточный автовокзал": (42.8780, 74.6400),
+}
+
+
+def _geocode_bishkek(location_str: str) -> Optional[tuple[float, float]]:
+    if not location_str:
+        return None
+    lower = location_str.lower().strip()
+    for key, coords in BISHKEK_LOCATIONS.items():
+        if key in lower:
+            return coords
+    return None
+
+
+def _haversine_km(coord1: tuple[float, float], coord2: tuple[float, float]) -> float:
+    lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
+    lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(a))
+
+
+def _locations_match(loc_a: str, loc_b: str, radius_km: float = 2.0) -> bool:
+    coords_a = _geocode_bishkek(loc_a)
+    coords_b = _geocode_bishkek(loc_b)
+    if coords_a and coords_b:
+        return _haversine_km(coords_a, coords_b) <= radius_km
+    a_norm = " ".join(loc_a.lower().split())
+    b_norm = " ".join(loc_b.lower().split())
+    return a_norm in b_norm or b_norm in a_norm
 
 
 @router.post("/", response_model=schemas.Trip)
@@ -76,94 +153,7 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
     2. Fallback: текстовый поиск с нормализацией
     3. Время: разница не более 30 минут
     """
-    import math
-
-    # Геословарь Бишкека
-    BISHKEK_LOCATIONS = {
-        # Жилмассивы
-        'ала-арча': (42.8380, 74.5520),
-        'ала арча': (42.8380, 74.5520),
-        'аламедин': (42.8700, 74.5200),
-        'джал': (42.8200, 74.5700),
-        'кара-жыгач': (42.8650, 74.5050),
-        'кара жыгач': (42.8650, 74.5050),
-        'асанбай': (42.8450, 74.6300),
-        'тунгуч': (42.8920, 74.5980),
-        'восток-5': (42.8750, 74.6100),
-        'восток 5': (42.8750, 74.6100),
-        'мкр 7': (42.8550, 74.5650),
-        'мкр. 7': (42.8550, 74.5650),
-        'ак-орго': (42.8600, 74.5300),
-        'ак орго': (42.8600, 74.5300),
-        'кожомкул': (42.8500, 74.5100),
-        'деревня': (42.8850, 74.6200),
-        'кеминчи': (42.8950, 74.5600),
-        'бай тюбе': (42.8300, 74.5900),
-        'байтюбе': (42.8300, 74.5900),
-        'новпостройка': (42.8650, 74.5800),
-        'интернациональный аэропорт': (42.8474, 74.4776),
-        # Центр и районы
-        'цум': (42.8760, 74.6050),
-        'центр': (42.8746, 74.5698),
-        'площадь': (42.8762, 74.6036),
-        'ала-тоо': (42.8762, 74.6036),
-        'ала тоо': (42.8762, 74.6036),
-        'ошский базар': (42.8820, 74.5780),
-        'ошский': (42.8820, 74.5780),
-        'дордой': (42.9100, 74.6300),
-        'кузнечная': (42.8780, 74.5850),
-        'карпинка': (42.8670, 74.6010),
-        'рушания': (42.8900, 74.5700),
-        'цум-азия': (42.8760, 74.6050),
-        'горький парк': (42.8820, 74.5980),
-        'фучик': (42.8800, 74.5900),
-        'ботанический сад': (42.8850, 74.5820),
-        'октябрьская': (42.8730, 74.5950),
-        'истанкул': (42.8680, 74.5720),
-        'меркентиль': (42.8940, 74.5940),
-        # Аэропорт / Автовокзал
-        'манас': (42.8474, 74.4776),
-        'аэропорт': (42.8474, 74.4776),
-        'западный автовокзал': (42.8700, 74.5500),
-        'западный': (42.8700, 74.5500),
-        'восточный автовокзал': (42.8780, 74.6400),
-    }
-
-    def geocode(location_str: str):
-        """Ищем координаты по подстроке из словаря"""
-        if not location_str:
-            return None
-        lower = location_str.lower().strip()
-        for key, coords in BISHKEK_LOCATIONS.items():
-            if key in lower:
-                return coords
-        return None
-
-    def haversine_km(coord1, coord2):
-        """Расстояние между двумя координатами в километрах"""
-        lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
-        lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
-        dlat = lat2 - lat1
-        dlon = lon2 - lon1
-        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-        return 6371 * 2 * math.asin(math.sqrt(a))
-
-    def locations_match(loc_a: str, loc_b: str, radius_km: float = 2.0) -> bool:
-        """True, если локации идентичны или находятся в радиусе radius_km"""
-        # Сначала пробуем гео-матчинг
-        coords_a = geocode(loc_a)
-        coords_b = geocode(loc_b)
-        if coords_a and coords_b:
-            return haversine_km(coords_a, coords_b) <= radius_km
-        # Fallback: текстовый поиск
-        a_norm = " ".join(loc_a.lower().split())
-        b_norm = " ".join(loc_b.lower().split())
-        return a_norm in b_norm or b_norm in a_norm
-
     target_role = "passenger" if role == "driver" else "driver"
-    
-    from sqlalchemy.orm import joinedload
-    from sqlalchemy import or_ as _or
 
     # Показываем как 'active', так и 'scheduled' поездки
     trip_query = db.query(models.Trip).options(joinedload(models.Trip.user)).filter(
@@ -181,15 +171,15 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
     # Фильтр по дате: если дата передана — показываем только её (+ legacy записи без даты)
     if date:
         trip_query = trip_query.filter(
-            _or(models.Trip.date == date, models.Trip.date == None)
+            _or(models.Trip.date == date, models.Trip.date.is_(None))
         )
 
     potential_trips = trip_query.all()
 
     matches = []
     for trip in potential_trips:
-        from_match = locations_match(origin, trip.origin)
-        to_match = locations_match(destination, trip.destination)
+        from_match = _locations_match(origin, trip.origin)
+        to_match = _locations_match(destination, trip.destination)
 
         if not (from_match and to_match):
             continue
@@ -494,9 +484,6 @@ async def cancel_trip(
     return {"id": trip_id, "deleted": True}
 
 
-# Кулдаун тревожной кнопки: trip_id -> datetime
-_last_panic_time: dict[int, datetime] = {}
-
 @router.post("/{trip_id}/panic")
 async def send_panic_alert(
     trip_id: int,
@@ -506,19 +493,14 @@ async def send_panic_alert(
     """Пассажир нажал тревожную кнопку — отправляем уведомление в Telegram поддержки.
     TELEGRAM_ADMIN_CHAT_ID должен быть задан в env (chat_id группы или личного чата поддержки).
     """
-    import os, httpx
-
     await enforce_user_limit(current_user.id, "trip.panic", 5, 60)
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip or not is_trip_participant(db, trip_id, current_user.id):
         raise HTTPException(status_code=403, detail="Только участник поездки может отправить сигнал тревоги")
 
-    # Защита от флуда и исчерпания лимитов Telegram API (кулдаун 30 сек)
-    now_utc = datetime.now(timezone.utc)
-    last_sent = _last_panic_time.get(trip_id)
-    if last_sent and (now_utc - last_sent).total_seconds() < 30:
+    # Shared per-trip 30s cooldown via Redis (or bounded in-memory fallback).
+    if not await get_rate_limiter().hit(f"trip:panic:cooldown:{trip_id}", 1, 30):
         raise HTTPException(status_code=429, detail="Сигнал тревоги уже отправлен. Пожалуйста, подождите.")
-    _last_panic_time[trip_id] = now_utc
 
     admin_chat_id = os.environ.get("TELEGRAM_ADMIN_CHAT_ID")
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")

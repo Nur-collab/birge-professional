@@ -12,9 +12,9 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
   const prevLengthRef = useRef(0);
 
   useEffect(() => {
-    if (!currentUser || !tripId) return;
+    if (!currentUser || !tripId) return undefined;
 
-    // Подписываемся на сообщения через Firestore onSnapshot (вместо WebSocket)
+    prevLengthRef.current = 0;
     const unsubscribe = api.subscribeTripMessages(tripId, (msgs) => {
       setMessages(msgs);
       // Уведомляем о новых входящих сообщениях
@@ -24,10 +24,12 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
         if (hasIncoming && onNewMessage) {
           onNewMessage();
           // Push-уведомление если вкладка скрыта
-          if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-            const last = newMsgs.find(m => m.senderId !== currentUser.id);
-            if (last) new Notification(`Новое сообщение от ${last.senderName}`, { body: last.text });
-          }
+          try {
+            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+              const last = newMsgs.find(m => m.senderId !== currentUser.id);
+              if (last) new Notification(`Новое сообщение от ${last.senderName}`, { body: last.text });
+            }
+          } catch (_) {}
         }
       }
       prevLengthRef.current = msgs.length;
@@ -48,17 +50,23 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
     const text = input.trim();
     setInput('');
     try {
-      await api.sendChatMessage(tripId, text);
+      const created = await api.sendChatMessage(tripId, text);
+      if (created?.id != null) {
+        const nextMsg = {
+          id: created.id,
+          senderId: created.sender_id ?? currentUser.id,
+          senderName: created.sender?.name || currentUser.name || 'Пользователь',
+          text: created.text ?? text,
+          time: created.timestamp || '',
+        };
+        setMessages((prev) => (
+          prev.some((m) => m.id === nextMsg.id) ? prev : [...prev, nextMsg]
+        ));
+      }
     } catch (_) {
       // Возвращаем текст в поле, чтобы сообщение не потерялось.
       setInput(text);
-      return;
     }
-    try {
-      // Подстраховка на случай, если WebSocket-бродкаст не дошёл.
-      const fresh = await api.getTripMessages(tripId);
-      setMessages(fresh);
-    } catch (_) {}
   };
 
   return (
