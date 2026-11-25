@@ -16,6 +16,7 @@ from config import ALLOWED_ORIGINS, AUTH_COOKIE_PATH, AUTH_PROXY_SECRET, IS_PROD
 from database import get_db
 from dependencies import get_current_user
 from rate_limit import get_rate_limiter
+from sentry_config import capture_auth_proxy_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,7 @@ def _warn_proxy_fallback_once() -> None:
         "visitors share one rate-limit bucket. Check that ORIGIN_SECRET is "
         "set in Vercel and equals AUTH_PROXY_SECRET."
     )
+    capture_auth_proxy_fallback()
 
 
 def _client_ip(request: Request) -> str:

@@ -68,3 +68,27 @@ def init_sentry() -> bool:
         extra={"environment": environment, "traces_sample_rate": sample_rate},
     )
     return True
+
+
+_AUTH_PROXY_ALERT_MESSAGE = (
+    "Auth proxy is unsigned in production: ORIGIN_SECRET is not set in Vercel "
+    "or differs from AUTH_PROXY_SECRET, so every visitor shares one auth "
+    "rate-limit bucket"
+)
+
+
+def capture_auth_proxy_fallback() -> None:
+    """Capture one Sentry event for an unsigned Vercel auth proxy.
+
+    The caller already deduplicates per process. The explicit fingerprint keeps
+    repeat deploys in a single issue, so an alert rule can fire on it instead of
+    the event being buried in Render logs.
+    """
+    try:
+        with sentry_sdk.new_scope() as scope:
+            scope.set_level("error")
+            scope.set_tag("auth.proxy", "unsigned")
+            scope.set_fingerprint(["auth-proxy-missing-origin-secret"])
+            sentry_sdk.capture_message(_AUTH_PROXY_ALERT_MESSAGE)
+    except Exception:
+        logger.exception("[Sentry] Failed to report the unsigned auth proxy")

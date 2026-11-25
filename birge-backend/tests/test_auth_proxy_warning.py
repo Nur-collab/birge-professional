@@ -45,22 +45,28 @@ def test_unsigned_proxied_request_warns_once(production_proxy):
         }
     )
 
-    with patch.object(auth_router.logger, "warning") as warning:
+    with patch.object(auth_router.logger, "warning") as warning, patch.object(
+        auth_router, "capture_auth_proxy_fallback"
+    ) as alert:
         assert auth_router._client_ip(request) == VISITOR_IP
         assert auth_router._client_ip(request) == VISITOR_IP
 
     assert warning.call_count == 1
     assert "ORIGIN_SECRET" in warning.call_args.args[0]
+    alert.assert_called_once_with()
 
 
 def test_direct_origin_request_does_not_warn(production_proxy):
     # No middleware header: a direct caller uses its own CF-Connecting-IP.
     request = _request({"cf-connecting-ip": VISITOR_IP})
 
-    with patch.object(auth_router.logger, "warning") as warning:
+    with patch.object(auth_router.logger, "warning") as warning, patch.object(
+        auth_router, "capture_auth_proxy_fallback"
+    ) as alert:
         assert auth_router._client_ip(request) == VISITOR_IP
 
     warning.assert_not_called()
+    alert.assert_not_called()
 
 
 def test_signed_production_request_does_not_warn(production_proxy):
@@ -72,10 +78,13 @@ def test_signed_production_request_does_not_warn(production_proxy):
         }
     )
 
-    with patch.object(auth_router.logger, "warning") as warning:
+    with patch.object(auth_router.logger, "warning") as warning, patch.object(
+        auth_router, "capture_auth_proxy_fallback"
+    ) as alert:
         assert auth_router._client_ip(request) == MIDDLEWARE_IP
 
     warning.assert_not_called()
+    alert.assert_not_called()
 
 
 def test_development_without_signature_does_not_warn(monkeypatch):
@@ -88,7 +97,10 @@ def test_development_without_signature_does_not_warn(monkeypatch):
         }
     )
 
-    with patch.object(auth_router.logger, "warning") as warning:
+    with patch.object(auth_router.logger, "warning") as warning, patch.object(
+        auth_router, "capture_auth_proxy_fallback"
+    ) as alert:
         assert auth_router._client_ip(request) == VISITOR_IP
 
     warning.assert_not_called()
+    alert.assert_not_called()

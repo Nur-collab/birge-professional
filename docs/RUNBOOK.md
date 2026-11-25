@@ -130,6 +130,13 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    (`100.64.0.0/10`, common for mobile operators) are kept as valid visitor
    buckets. Do not key these limits on `CF-Connecting-IP` alone: behind the
    Vercel proxy it is the shared edge address.
+
+   The first unsigned proxied request in a process also sends a Sentry event
+   (`level=error`, fingerprint `auth-proxy-missing-origin-secret`, tag
+   `auth.proxy=unsigned`), so a missing `ORIGIN_SECRET` is not visible only in
+   Render logs. Configure a Sentry alert rule on that tag (or on error-level
+   issues) if the project does not already notify on new issues; without
+   `SENTRY_DSN` the event is a no-op.
 8. Webhook обычно регистрируется автоматически при старте backend. Ручная
    регистрация и полная проверка Telegram-входа описаны в §3.
 

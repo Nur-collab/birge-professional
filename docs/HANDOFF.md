@@ -282,7 +282,10 @@ Frontend deployment:
   `Path=/api/auth`, `HttpOnly`, `Secure`, `SameSite=Lax`. `ORIGIN_SECRET` в
   Vercel должен совпадать с `AUTH_PROXY_SECRET` на Render. В production пустой
   `AUTH_PROXY_SECRET` роняет старт с CRITICAL-логом, а не переключает лимиты
-  на общий Cloudflare IP незаметно.
+  на общий Cloudflare IP незаметно. Первый в процессе запрос с
+  `x-auth-client-ip`, но без валидной подписи дополнительно уходит в Sentry
+  как error с fingerprint `auth-proxy-missing-origin-secret` и тегом
+  `auth.proxy=unsigned`; алерт в Sentry настраивается на этот тег.
 
 Backend deployment:
 
