@@ -513,49 +513,99 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         .dashboard {
           display: flex;
           flex-direction: column;
-          gap: 0.85rem;
+          gap: 10px;
+        }
+        .dashboard-heading { padding: 0 2px; }
+        .dashboard-kicker {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          margin-bottom: 3px;
+          color: var(--text-subtle);
+          font-size: 0.64rem;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .dashboard-kicker::before {
+          content: '';
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--primary);
+        }
+        .dashboard-title {
+          color: var(--text-main);
+          font-size: clamp(1.3rem, 4.4vw, 1.55rem);
+          font-weight: 800;
+          line-height: 1.16;
+          letter-spacing: -0.045em;
+          text-wrap: balance;
         }
 
         /* Role Switcher */
         .role-switch-container {
-          background: var(--bg-card);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          padding: 5px;
-          box-shadow: var(--card-shadow);
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
         }
         .role-switch {
           display: flex;
-          background: var(--bg-subtle);
-          border-radius: 10px;
-          padding: 3px;
           gap: 4px;
+          padding: 4px;
+          border: 1px solid var(--border-subtle);
+          border-radius: 14px;
+          background: var(--bg-subtle);
         }
         .role-option {
           flex: 1;
+          min-height: 44px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          padding: 10px 14px;
+          padding: 9px 12px;
           border: none;
-          border-radius: 8px;
+          border-radius: 10px;
           background: transparent;
           color: var(--text-muted);
-          font-size: 0.88rem;
+          font-size: 0.84rem;
           font-weight: 700;
           cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
-        .role-option:hover {
-          color: var(--text-main);
-        }
+        .role-option:hover { color: var(--text-main); }
         .role-option.active {
           background: var(--bg-card);
           color: var(--primary);
-          box-shadow: 0 1px 4px var(--shadow-soft);
+          box-shadow: 0 1px 2px var(--shadow-soft), 0 8px 16px -12px var(--shadow-soft);
         }
 
+        /* Form */
+        .route-form-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 22px;
+          padding: 14px 16px;
+          box-shadow: var(--card-shadow);
+        }
+        .form-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 11px;
+        }
+        .form-header-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.96rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: var(--text-main);
+        }
+        .form-header-title svg { color: var(--primary); }
         .form-header-actions {
           display: flex;
           align-items: center;
@@ -583,29 +633,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           flex-shrink: 0;
         }
         .car-warning-chip:hover { border-color: var(--warning); }
-
-        /* Form */
-        .route-form-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          padding: 1.25rem;
-          box-shadow: var(--card-shadow);
-        }
-        .form-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 1rem;
-        }
-        .form-header-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: var(--text-main);
-        }
         .swap-route-btn {
           width: 44px;
           height: 44px;
@@ -617,7 +644,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: background-color 0.2s ease, color 0.2s ease;
         }
         .swap-route-btn:hover {
           background: var(--border-subtle);
@@ -632,78 +659,73 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         .connected-route-card {
           display: flex;
           align-items: stretch;
-          gap: 12px;
+          gap: 10px;
           background: var(--bg-subtle);
           border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          padding: 10px 12px;
-          margin-bottom: 1rem;
+          border-radius: 16px;
+          padding: 10px;
+          margin-bottom: 12px;
         }
         .route-track-indicator {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 0;
+          padding: 15px 0;
           width: 14px;
           flex-shrink: 0;
         }
-        .track-node {
-          width: 10px;
-          height: 10px;
+        .route-track-indicator .track-node {
+          width: 9px;
+          height: 9px;
           border-radius: 50%;
           border: 2px solid var(--bg-subtle);
         }
         .origin-node {
           background: var(--primary);
-          box-shadow: 0 0 0 2px var(--primary-glow);
+          box-shadow: 0 0 0 3px var(--accent-soft);
         }
         .dest-node {
           background: var(--danger);
-          box-shadow: 0 0 0 2px var(--danger-border);
+          box-shadow: 0 0 0 3px var(--danger-soft);
         }
         .track-line {
-          width: 2px;
+          width: 0;
           flex: 1;
-          background: var(--border-strong);
-          margin: 4px 0;
+          margin: 3px 0;
+          border-left: 1px dashed var(--border-strong);
+          background: transparent;
         }
         .route-inputs-col {
           flex: 1;
+          min-width: 0;
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 8px;
         }
         .route-input-cell {
           display: flex;
           align-items: center;
           position: relative;
         }
-        .route-input-cell > div {
-          flex: 1;
-        }
+        .route-input-cell > div { flex: 1; min-width: 0; }
         .inline-geo-btn {
-          width: 32px;
-          height: 32px;
+          width: 38px;
+          height: 38px;
+          margin-left: 8px;
           border: 1px solid var(--border-subtle);
-          border-radius: 8px;
+          border-radius: 12px;
           background: var(--bg-card);
           color: var(--primary);
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          margin-left: 6px;
           flex-shrink: 0;
-          transition: all 0.2s;
+          transition: background-color 0.2s ease;
         }
-        .inline-geo-btn:hover {
-          background: var(--border-subtle);
-        }
-        .inline-geo-btn:disabled {
-          opacity: 0.5;
-          cursor: wait;
-        }
+        .inline-geo-btn:hover { background: var(--border-subtle); }
+        .inline-geo-btn:disabled { opacity: 0.5; cursor: wait; }
         .input-err-msg {
           font-size: 0.72rem;
           color: var(--danger);
@@ -711,335 +733,11 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           padding-left: 2px;
         }
 
-        /* Hubs */
-        .hubs-section {
-          background: var(--bg-subtle);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          padding: 12px;
-          margin-bottom: 1rem;
-        }
-        .hubs-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-        .target-toggle {
-          display: flex;
-          background: var(--border-subtle);
-          border-radius: 6px;
-          padding: 2px;
-          gap: 2px;
-        }
-        .target-pill {
-          border: none;
-          background: transparent;
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: var(--text-muted);
-          padding: 3px 8px;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .target-pill.active {
-          background: var(--bg-card);
-          color: var(--text-main);
-          box-shadow: 0 1px 3px var(--shadow-soft);
-        }
-        .category-scroll {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-bottom: 10px;
-        }
-        .category-pill {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 6px 10px;
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-pill);
-          background: var(--bg-card);
-          color: var(--text-muted);
-          font-size: 0.76rem;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.18s;
-        }
-        .category-pill:hover {
-          color: var(--text-main);
-          border-color: var(--border-strong);
-        }
-        .category-pill.active {
-          background: var(--primary);
-          color: var(--on-primary);
-          border-color: var(--primary);
-          box-shadow: 0 2px 8px var(--primary-glow);
-        }
-        .hubs-chips-scroll {
-          display: flex;
-          gap: 6px;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          scrollbar-width: none;
-        }
-        .hubs-chips-scroll::-webkit-scrollbar { display: none; }
-        .hub-chip {
-          white-space: nowrap;
-          border: 1px solid var(--border-subtle);
-          background: var(--bg-card);
-          color: var(--text-main);
-          font-size: 0.78rem;
-          font-weight: 600;
-          padding: 6px 12px;
-          border-radius: var(--radius-pill);
-          cursor: pointer;
-          transition: all 0.18s;
-          flex-shrink: 0;
-        }
-        .hub-chip:hover {
-          border-color: var(--primary);
-          color: var(--primary);
-        }
-        .hub-chip.selected {
-          background: var(--primary);
-          color: var(--on-primary);
-          border-color: var(--primary);
-          box-shadow: 0 2px 8px var(--primary-glow);
-        }
-
-        /* DateTime */
-        .datetime-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-bottom: 1rem;
-        }
-        .datetime-cell {
-          background: var(--bg-subtle);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          padding: 10px 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .cell-label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.72rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-muted);
-        }
-        .date-picker-box {
-          position: relative;
-          display: flex;
-          align-items: center;
-          border-radius: 6px;
-        }
-        .date-picker-box:focus-within {
-          outline: 3px solid var(--focus-ring);
-          outline-offset: 2px;
-        }
-        .date-display {
-          font-size: 0.94rem;
-          font-weight: 700;
-          color: var(--text-main);
-          cursor: pointer;
-        }
-        .hidden-native-input {
-          position: absolute;
-          inset: 0;
-          opacity: 0;
-          width: 100%;
-          height: 100%;
-          cursor: pointer;
-        }
-        .time-native-input {
-          border: none;
-          background: transparent;
-          font-size: 0.94rem;
-          font-weight: 700;
-          color: var(--text-main);
-          outline: none;
-          padding: 0;
-          cursor: pointer;
-        }
-        .time-native-input:focus-visible {
-          outline: 3px solid var(--focus-ring);
-          outline-offset: 2px;
-        }
-
-        /* Driver parameters */
-        .driver-parameters-card {
-          background: var(--bg-subtle);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-md);
-          padding: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-bottom: 1.1rem;
-        }
-        .parameter-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .param-label-group {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .param-title {
-          font-size: 0.86rem;
-          font-weight: 600;
-          color: var(--text-main);
-        }
-        .stepper-box {
-          display: flex;
-          align-items: center;
-          background: var(--bg-card);
-          border: 1px solid var(--border-subtle);
-          border-radius: 8px;
-          padding: 2px;
-        }
-        .stepper-btn {
-          width: 44px;
-          height: 44px;
-          border: none;
-          border-radius: 10px;
-          background: transparent;
-          color: var(--text-main);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .stepper-btn:hover:not(:disabled) {
-          background: var(--bg-subtle);
-        }
-        .stepper-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-        .stepper-value {
-          font-size: 0.95rem;
-          font-weight: 800;
-          color: var(--text-main);
-          min-width: 32px;
-          text-align: center;
-          font-variant-numeric: tabular-nums;
-        }
-        .price-input-wrap {
-          display: flex;
-          align-items: center;
-          background: var(--bg-card);
-          border: 1px solid var(--border-subtle);
-          border-radius: 8px;
-          padding: 4px 8px;
-          gap: 6px;
-        }
-        .price-input-wrap:focus-within {
-          outline: 3px solid var(--focus-ring);
-          outline-offset: 2px;
-        }
-        .price-number-input {
-          width: 65px;
-          border: none;
-          background: transparent;
-          font-size: 0.95rem;
-          font-weight: 800;
-          color: var(--text-main);
-          text-align: right;
-          outline: none;
-          font-variant-numeric: tabular-nums;
-        }
-        .currency-label {
-          font-size: 0.72rem;
-          font-weight: 800;
-          color: var(--text-muted);
-          letter-spacing: 0.05em;
-        }
-
-        .submit-action-btn {
-          margin-top: 0.2rem;
-        }
-
-        @keyframes spin {
-          100% { transform: rotate(360deg); }
-        }
-        .spin {
-          animation: spin 0.8s linear infinite;
-        }
-      `}</style>
-
-      <style>{`
-        .dashboard { gap: 14px; }
-        .dashboard-heading { padding: 3px 2px 1px; }
-        .dashboard-kicker {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          margin-bottom: 6px;
-          color: var(--text-subtle);
-          font-size: 0.64rem;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
-        .dashboard-kicker::before {
-          content: '';
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--primary);
-        }
-        .dashboard-title {
-          color: var(--text-main);
-          font-size: clamp(1.5rem, 5vw, 1.8rem);
-          font-weight: 800;
-          line-height: 1.16;
-          letter-spacing: -0.045em;
-          text-wrap: balance;
-        }
-
-        .role-switch-container {
-          padding: 0;
-          border: 0;
-          background: transparent;
-          box-shadow: none;
-        }
-        .role-switch {
-          gap: 4px;
-          padding: 4px;
-          border: 1px solid var(--border-subtle);
-          border-radius: 14px;
-          background: var(--bg-subtle);
-        }
-        .role-option {
-          min-height: 44px;
-          border-radius: 10px;
-          color: var(--text-muted);
-          font-size: 0.84rem;
-        }
-        .role-option.active {
-          background: var(--bg-card);
-          color: var(--primary);
-          box-shadow: 0 1px 2px var(--shadow-soft), 0 8px 16px -12px var(--shadow-soft);
-        }
-
+        /* Disclosure buttons */
         .compact-disclosure {
           width: 100%;
-          min-height: 46px;
-          margin-bottom: 16px;
+          min-height: 44px;
+          margin-bottom: 12px;
           display: flex;
           align-items: center;
           gap: 10px;
@@ -1094,158 +792,269 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         }
         .driver-summary-value + .compact-disclosure-chevron { margin-left: 0; }
 
-        .route-form-card {
-          padding: 18px;
-          border-radius: 24px;
-          box-shadow: var(--card-shadow);
-        }
-        .form-header { margin-bottom: 14px; }
-        .form-header-title {
-          font-size: 1rem;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-        }
-        .form-header-title svg { color: var(--primary); }
-        .swap-route-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: var(--bg-subtle);
-        }
-
-        .connected-route-card {
-          gap: 10px;
-          margin-bottom: 16px;
-          padding: 10px;
-          border-radius: 16px;
-          background: var(--bg-subtle);
-        }
-        .route-inputs-col { gap: 8px; }
-        .route-track-indicator {
-          width: 14px;
-          padding: 15px 0;
-        }
-        .route-track-indicator .track-node {
-          width: 9px;
-          height: 9px;
-          border: 2px solid var(--bg-subtle);
-        }
-        .origin-node {
-          background: var(--primary);
-          box-shadow: 0 0 0 3px var(--accent-soft);
-        }
-        .dest-node {
-          background: var(--danger);
-          box-shadow: 0 0 0 3px var(--danger-soft);
-        }
-        .track-line {
-          width: 0;
-          margin: 3px 0;
-          border-left: 1px dashed var(--border-strong);
-          background: transparent;
-        }
-        .inline-geo-btn {
-          width: 38px;
-          height: 38px;
-          margin-left: 8px;
-          border-radius: 12px;
-          background: var(--bg-card);
-        }
-
+        /* Hubs */
         .hubs-section {
-          margin-bottom: 16px;
-          padding: 14px;
-          border-radius: 16px;
           background: var(--bg-subtle);
+          border: 1px solid var(--border-subtle);
+          border-radius: 16px;
+          padding: 13px;
+          margin-bottom: 12px;
         }
-        .hubs-top { margin-bottom: 12px; }
+        .hubs-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
         .target-toggle {
+          display: flex;
           padding: 3px;
           border: 1px solid var(--border-subtle);
           border-radius: 10px;
           background: var(--bg-card);
+          gap: 2px;
         }
         .target-pill {
           min-height: 28px;
+          border: none;
+          background: transparent;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: var(--text-muted);
           padding: 3px 9px;
           border-radius: 7px;
+          cursor: pointer;
+          transition: background-color 0.15s ease, color 0.15s ease;
         }
         .target-pill.active {
           background: var(--primary);
           color: var(--on-primary);
-          box-shadow: none;
+        }
+        .category-scroll {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 10px;
         }
         .category-pill {
           min-height: 32px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
           padding: 0 10px;
-          border-color: var(--border-subtle);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-pill);
           background: var(--bg-card);
           color: var(--text-muted);
+          font-size: 0.76rem;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
         }
+        .category-pill:hover {
+          color: var(--text-main);
+          border-color: var(--border-strong);
+        }
+        .hubs-chips-scroll {
+          display: flex;
+          gap: 6px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+        .hubs-chips-scroll::-webkit-scrollbar { display: none; }
         .hub-chip {
           min-height: 34px;
-          padding: 0 12px;
-          border-color: var(--border-subtle);
+          white-space: nowrap;
+          border: 1px solid var(--border-subtle);
           background: var(--bg-card);
           color: var(--text-main);
+          font-size: 0.78rem;
+          font-weight: 600;
+          padding: 0 12px;
+          border-radius: var(--radius-pill);
+          cursor: pointer;
+          transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+          flex-shrink: 0;
         }
+        .hub-chip:hover { border-color: var(--primary); color: var(--primary); }
         .category-pill.active,
         .hub-chip.selected {
           border-color: var(--primary);
           background: var(--primary);
           color: var(--on-primary);
-          box-shadow: none;
         }
-        .hub-chip:hover { border-color: var(--primary); color: var(--primary); }
 
-        .datetime-grid { gap: 10px; margin-bottom: 16px; }
+        /* DateTime */
+        .datetime-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
         .datetime-cell {
-          gap: 7px;
-          padding: 12px;
-          border-radius: 16px;
           background: var(--bg-subtle);
+          border: 1px solid var(--border-subtle);
+          border-radius: 16px;
+          padding: 10px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
         .cell-label {
-          color: var(--text-subtle);
+          display: flex;
+          align-items: center;
+          gap: 6px;
           font-size: 0.66rem;
+          font-weight: 700;
+          text-transform: uppercase;
           letter-spacing: 0.1em;
+          color: var(--text-subtle);
+        }
+        .date-picker-box {
+          position: relative;
+          display: flex;
+          align-items: center;
+          border-radius: 6px;
+        }
+        .date-picker-box:focus-within {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
         }
         .date-display,
         .time-native-input {
-          color: var(--text-main);
           font-size: 0.9rem;
           font-weight: 800;
+          color: var(--text-main);
+        }
+        .date-display { cursor: pointer; }
+        .hidden-native-input {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          width: 100%;
+          height: 100%;
+          cursor: pointer;
+        }
+        .time-native-input {
+          border: none;
+          background: transparent;
+          outline: none;
+          padding: 0;
+          cursor: pointer;
+        }
+        .time-native-input:focus-visible {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
         }
 
+        /* Driver parameters */
         .driver-parameters-card {
-          margin-bottom: 18px;
-          padding: 14px;
-          border-radius: 16px;
           background: var(--bg-subtle);
+          border: 1px solid var(--border-subtle);
+          border-radius: 16px;
+          padding: 12px 13px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 12px;
         }
-        .param-title { font-size: 0.82rem; font-weight: 700; }
-        .stepper-box,
-        .price-input-wrap {
-          border-radius: 10px;
+        .parameter-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .param-label-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .param-title {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: var(--text-main);
+        }
+        .stepper-box {
+          display: flex;
+          align-items: center;
           background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          padding: 2px;
         }
-        .stepper-btn { width: 44px; height: 44px; border-radius: 12px; }
+        .stepper-btn {
+          width: 44px;
+          height: 44px;
+          border: none;
+          border-radius: 10px;
+          background: transparent;
+          color: var(--text-main);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        .stepper-btn:hover:not(:disabled) { background: var(--bg-subtle); }
+        .stepper-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .stepper-value {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--text-main);
+          min-width: 32px;
+          text-align: center;
+          font-variant-numeric: tabular-nums;
+        }
+        .price-input-wrap {
+          display: flex;
+          align-items: center;
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+          padding: 4px 8px;
+          gap: 6px;
+        }
+        .price-input-wrap:focus-within {
+          outline: 3px solid var(--focus-ring);
+          outline-offset: 2px;
+        }
+        .price-number-input {
+          width: 65px;
+          border: none;
+          background: transparent;
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--text-main);
+          text-align: right;
+          outline: none;
+          font-variant-numeric: tabular-nums;
+        }
+        .currency-label {
+          font-size: 0.72rem;
+          font-weight: 800;
+          color: var(--text-muted);
+          letter-spacing: 0.05em;
+        }
 
         .submit-action-btn {
-          min-height: 54px;
-          border-radius: 16px;
+          min-height: 50px;
+          border-radius: 14px;
           font-size: 0.92rem;
+          margin-top: 0;
         }
 
         [data-theme="dark"] .target-pill.active,
         [data-theme="dark"] .category-pill.active,
-        [data-theme="dark"] .hub-chip.selected,
-        [data-theme="dark"] .role-option.active {
+        [data-theme="dark"] .hub-chip.selected {
           color: var(--on-primary);
         }
         [data-theme="dark"] .role-option.active {
           color: var(--primary);
         }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 0.8s linear infinite; }
       `}</style>
     </div>
   );

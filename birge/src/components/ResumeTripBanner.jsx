@@ -80,7 +80,7 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
 const styles = {
   wrapper: {
     position: 'fixed',
-    bottom: 82,           // над bottom-nav (70px) + отступ
+    bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
     left: '50%',
     transform: 'translateX(-50%)',
     width: 'calc(100% - 2rem)',

@@ -111,11 +111,16 @@ export default function TripHistory({ currentUser, onBack }) {
           margin: 0;
         }
         .back-btn {
+          min-width: 44px;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           background: none;
           border: none;
           color: var(--text-muted);
           padding: 8px;
-          margin-left: -8px;
+          margin-left: -10px;
           cursor: pointer;
         }
         .history-list {

@@ -250,11 +250,16 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           margin: 0;
         }
         .back-btn {
+          min-width: 44px;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           background: none;
           border: none;
           color: var(--text-muted);
           padding: 8px;
-          margin-left: -8px;
+          margin-left: -10px;
           cursor: pointer;
         }
         .settings-form {
@@ -299,14 +304,16 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
           width: 100%;
           padding: 12px;
           border: 1px solid var(--border-strong);
-          border-radius: 8px;
+          border-radius: 10px;
           font-size: 0.95rem;
-          background: var(--bg-card);
-          transition: border-color 0.2s;
+          background: var(--bg-input);
+          color: var(--text-main);
+          transition: border-color 0.2s ease, background-color 0.2s ease;
         }
         .form-group input:focus {
           outline: none;
           border-color: var(--primary);
+          background: var(--bg-card);
         }
         .input-with-icon {
           position: relative;
@@ -322,11 +329,13 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         }
         .language-select {
           width: 100%;
+          min-height: 46px;
           padding: 12px;
           border: 1px solid var(--border-strong);
-          border-radius: 8px;
+          border-radius: 10px;
           font-size: 0.95rem;
-          background: var(--bg-card);
+          background: var(--bg-input);
+          color: var(--text-main);
           cursor: pointer;
           outline: none;
         }

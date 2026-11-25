@@ -40,6 +40,20 @@ function App() {
   const mainRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showReview, setShowReview] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Hide the floating tab bar when a virtual keyboard shrinks the mobile viewport.
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!vv) return undefined;
+    const handleViewportResize = () => {
+      const heightDiff = window.innerHeight - vv.height;
+      setKeyboardOpen(heightDiff > 140);
+    };
+    handleViewportResize();
+    vv.addEventListener('resize', handleViewportResize);
+    return () => vv.removeEventListener('resize', handleViewportResize);
+  }, []);
 
   // Hooks call this immediately after setActiveTrip, when React has not
   // re-rendered with the new trip yet. Trip navigation therefore goes through
@@ -341,8 +355,10 @@ function App() {
     }
   };
 
+  const hideHeader = activeTab === 'profile' || activeTab === 'settings' || activeTab === 'history';
+
   return (
-    <div className="app-container">
+    <div className={`app-container${hideHeader ? ' no-header' : ''}${keyboardOpen ? ' keyboard-open' : ''}`}>
       <a className="skip-link" href="#main-content">Перейти к содержимому</a>
       <PushNotification
         show={notification.show}
@@ -433,11 +449,6 @@ function App() {
       </nav>
 
       <style>{`
-        .app-container {
-          padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-          min-height: 100vh;
-          min-height: 100dvh;
-        }
         .bottom-nav {
           position: fixed;
           bottom: calc(10px + env(safe-area-inset-bottom, 0px));
@@ -457,6 +468,9 @@ function App() {
           padding: 6px;
           z-index: 100;
           transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+        .app-container.keyboard-open .bottom-nav {
+          display: none;
         }
         .nav-item {
           flex: 1;

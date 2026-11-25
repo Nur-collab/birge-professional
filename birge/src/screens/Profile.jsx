@@ -8,6 +8,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
   const [user, setUser] = useState(userProp || null);
   const [error, setError] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null); // {status, message, bot_url?}
   const fileInputRef = React.useRef(null);
@@ -16,12 +17,15 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadError('');
     if (!file.type.startsWith('image/')) {
-      alert('Выберите изображение');
+      setUploadError('Выберите файл изображения (JPG, PNG или WebP).');
+      e.target.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Файл больше 5 МБ');
+      setUploadError('Размер фото не должен превышать 5 МБ.');
+      e.target.value = '';
       return;
     }
 
@@ -35,7 +39,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         new Notification('Birge', { body: 'Фото профиля обновлено!' });
       }
     } catch (err) {
-      alert(err.message || 'Ошибка при загрузке картинки');
+      setUploadError(err.message || 'Ошибка при загрузке изображения.');
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -108,7 +112,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             <>
               <img src={user.photo} alt={user.name} className="profile-avatar" />
               <div className="avatar-overlay">
-                <span style={{ color: '#fff', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
+                <span style={{ color: 'var(--inverse-text)', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
               </div>
             </>
           )}
@@ -129,6 +133,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
 
         <h2>{user.name}</h2>
         <p className="user-phone">{user.phone}</p>
+        {uploadError && (
+          <p role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '8px 10px', fontSize: '0.78rem', fontWeight: 600, marginBottom: '1rem' }}>
+            {uploadError}
+          </p>
+        )}
 
         <div className="stats-row">
           <div className="stat-item">
@@ -238,7 +247,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-            background: user.is_verified ? 'linear-gradient(135deg,var(--primary),var(--primary-hover))' : 'var(--bg-subtle)',
+            background: user.is_verified ? 'var(--primary)' : 'var(--bg-subtle)',
             border: user.is_verified ? 'none' : '1px solid var(--border-subtle)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
@@ -287,11 +296,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 rel="noopener noreferrer"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                  width: '100%', padding: '11px', marginBottom: 8,
-                  background: 'linear-gradient(135deg,var(--info),var(--info-strong))',
-                  color: 'var(--bg-card)', borderRadius: 12, textDecoration: 'none',
+                  width: '100%', minHeight: 44, padding: '10px 12px', marginBottom: 8,
+                  background: 'var(--info-strong)',
+                  color: 'var(--on-primary)', borderRadius: 12, textDecoration: 'none',
                   fontWeight: 700, fontSize: '0.9rem',
-                  boxShadow: '0 3px 12px var(--info-border)',
                 }}
               >
                 <ExternalLink size={16} />
@@ -308,13 +316,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 aria-busy={verifyLoading}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  width: '100%', padding: '12px',
-                  background: verifyLoading ? 'var(--border-subtle)' : 'linear-gradient(135deg,var(--primary),var(--primary-hover))',
+                  width: '100%', minHeight: 46, padding: '11px 14px',
+                  background: verifyLoading ? 'var(--border-subtle)' : 'var(--primary)',
                   color: verifyLoading ? 'var(--text-subtle)' : 'var(--on-primary)',
                   border: 'none', borderRadius: 12,
                   fontWeight: 700, fontSize: '0.92rem', cursor: verifyLoading ? 'wait' : 'pointer',
-                  boxShadow: verifyLoading ? 'none' : '0 3px 12px var(--primary-glow)',
-                  transition: 'all 0.2s',
+                  transition: 'background-color 0.2s ease',
                 }}
               >
                 {verifyLoading
@@ -390,8 +397,9 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         .profile {
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
-          animation: fadeIn 0.3s ease-out;
+          gap: 1.15rem;
+          padding-top: 0.25rem;
+          animation: fadeIn 0.25s ease-out;
         }
         .profile-header {
           text-align: center;
@@ -576,7 +584,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           display: flex;
           flex-direction: column;
           gap: 8px;
-          margin-bottom: 2rem;
+          margin-bottom: 0;
         }
         .menu-item {
           display: flex;

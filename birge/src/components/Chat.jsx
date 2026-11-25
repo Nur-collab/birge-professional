@@ -104,22 +104,23 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
       </form>
 
       <style>{`
-        .chat { display: flex; flex-direction: column; height: 100%; min-height: 250px; max-height: 400px; padding: 0; overflow: hidden; }
-        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
+        .chat { display: flex; flex-direction: column; height: clamp(230px, 34dvh, 330px); padding: 0; overflow: hidden; }
+        .chat-messages { flex: 1; padding: 14px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
         .chat-empty { text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto; font-size: 0.9rem; }
         .message { display: flex; flex-direction: column; max-width: 85%; }
         .message-sent { align-self: flex-end; align-items: flex-end; }
         .message-received { align-self: flex-start; align-items: flex-start; }
         .message-sender { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; margin-left: 4px; }
-        .message-bubble { padding: 10px 14px; border-radius: 16px; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 5px var(--shadow-soft); }
-        .message-sent .message-bubble { background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border-bottom-right-radius: 4px; }
+        .message-bubble { padding: 10px 14px; border-radius: 16px; font-size: 0.93rem; line-height: 1.4; }
+        .message-sent .message-bubble { background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 4px; }
         .message-received .message-bubble { background: var(--bg-subtle); color: var(--text-main); border-bottom-left-radius: 4px; border: 1px solid var(--border-subtle); }
         .message-time { font-size: 0.7rem; color: var(--text-subtle); margin-top: 4px; }
-        .chat-input-area { display: flex; padding: 12px; background: var(--bg-card); border-top: 1px solid var(--bg-subtle); gap: 8px; }
-        .chat-input { flex: 1; border: 1px solid var(--border-subtle); border-radius: 20px; padding: 10px 16px; outline: none; background: var(--bg-input); color: var(--text-main); font-size: 0.95rem; transition: all 0.2s; }
+        .chat-input-area { display: flex; align-items: center; padding: 10px 12px; background: var(--bg-card); border-top: 1px solid var(--border-subtle); gap: 8px; }
+        .chat-input { flex: 1; min-width: 0; border: 1px solid var(--border-subtle); border-radius: 20px; padding: 10px 15px; outline: none; background: var(--bg-input); color: var(--text-main); font-size: 0.95rem; transition: border-color 0.2s ease, background-color 0.2s ease; }
         .chat-input:focus { background: var(--bg-card); border-color: var(--primary); }
         .chat-input:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-        .chat-send-btn { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: var(--on-primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .chat-send-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; background: var(--primary); color: var(--on-primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.2s ease; }
+        .chat-send-btn:hover:not(:disabled) { background: var(--primary-hover); }
         .chat-send-btn:disabled { background: var(--border-subtle); color: var(--text-subtle); cursor: not-allowed; }
       `}</style>
     </div>

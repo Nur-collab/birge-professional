@@ -63,9 +63,11 @@ export default function InstallPWA() {
             <style>{`
         .install-banner {
           position: fixed;
-          bottom: 70px; /* Над нижним меню */
-          left: 15px;
-          right: 15px;
+          bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+          left: 50%;
+          transform: translateX(-50%);
+          width: calc(100% - 24px);
+          max-width: 456px;
           background: var(--surface-glass);
           backdrop-filter: blur(10px);
           border-radius: 16px;

@@ -98,3 +98,27 @@ test('first screen surfaces Telegram prerequisite and starts Telegram challenge'
     /^https:\/\/t\.me\/.+[?&]start=auth_/,
   );
 });
+
+test('dashboard fits mobile viewport without unwanted horizontal or vertical scroll', async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const auth = readAuth();
+  const issued = await request.post(`${apiUrl}/auth/login-code`, {
+    headers: { Authorization: `Bearer ${auth.token}` },
+  });
+  expect(issued.ok()).toBeTruthy();
+  const { code } = await issued.json();
+
+  await page.goto(`/?code=${encodeURIComponent(code)}`);
+  await expect(page.getByRole('button', {
+    name: 'Найти подходящего водителя',
+  })).toBeVisible({ timeout: 15_000 });
+
+  const metrics = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight);
+});

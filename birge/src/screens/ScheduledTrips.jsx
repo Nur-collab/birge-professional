@@ -324,7 +324,6 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           display: flex;
           flex-direction: column;
           gap: 1rem;
-          padding-bottom: 20px;
         }
 
         /* Header */
@@ -400,8 +399,8 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
           position: absolute; left: 0; top: 0; bottom: 0;
           width: 4px;
         }
-        .accent-driver { background: linear-gradient(180deg, var(--primary), var(--primary-hover)); }
-        .accent-passenger { background: linear-gradient(180deg, var(--info), var(--info)); }
+        .accent-driver { background: var(--primary); }
+        .accent-passenger { background: var(--info); }
 
         /* Top row */
         .sched-card-top {
@@ -507,15 +506,15 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         .sched-actions { display: flex; gap: 8px; align-items: center; }
         .sched-open-btn {
           flex: 1;
+          min-height: 44px;
           display: flex; align-items: center; justify-content: center; gap: 5px;
-          background: linear-gradient(135deg, var(--info), var(--info));
+          background: var(--info-strong);
           color: var(--on-primary); border: none; border-radius: 12px;
           font-size: 0.85rem; font-weight: 700;
           padding: 10px 14px; cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 3px 10px var(--info-border);
+          transition: opacity 0.15s ease;
         }
-        .sched-open-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px var(--info-border); }
+        .sched-open-btn:hover { opacity: 0.92; }
         .sched-cancel-btn {
           width: 40px; height: 40px;
           border: 1.5px solid var(--danger-soft); border-radius: 12px;

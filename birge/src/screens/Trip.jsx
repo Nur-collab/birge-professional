@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertTriangle, MapPin, Navigation, MessageCircle, Star, ShieldCheck,
-  Car, Zap, Users, Calendar, XCircle, CreditCard, Smartphone, Copy, Check
+  Car, Zap, Users, Calendar, XCircle, CreditCard, Smartphone, Copy, Check,
+  Map as MapIcon, ChevronDown
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import RealMap from '../components/RealMap';
@@ -25,6 +26,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
     elkartNumber: trip?.driverElkartNumber || '',
   });
   const [paymentError, setPaymentError] = useState('');
+  const [showMap, setShowMap] = useState(false);
   const copiedTimerRef = useRef(null);
   const copiedElkartTimerRef = useRef(null);
   const cancelTimerRef = useRef(null);
@@ -317,42 +319,45 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
       {/* Баннер запланированной поездки */}
       {isScheduled && (
-        <div style={{
-          background: 'linear-gradient(135deg, var(--info-soft), var(--info-border))',
-          border: '1.5px solid var(--info-border)',
-          borderRadius: 14,
-          padding: '14px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--info-strong), var(--info-strong))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <Calendar size={22} color='var(--on-primary)' />
+        <div className="trip-scheduled-banner">
+          <div className="trip-scheduled-icon">
+            <Calendar size={20} color="var(--on-primary)" />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--info-strong)' }}>
-              Поездка запланирована
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--info-strong)', marginTop: 2 }}>
-              {trip.date} в {trip.time} — ждём дня поездки
-            </div>
+            <div className="trip-scheduled-title">Поездка запланирована</div>
+            <div className="trip-scheduled-sub">{trip.date} в {trip.time} — ждём дня поездки</div>
           </div>
         </div>
       )}
 
-      {/* Карта */}
-      <div style={{ borderRadius: 16, overflow: 'hidden' }}>
-        <RealMap from={fromLocation} to={toLocation} height="200px" />
+      {/* Карта (раскрывается по нажатию, чтобы не перехватывать скролл и не занимать экран чата) */}
+      <div className="trip-map-box">
+        <button
+          type="button"
+          className="trip-map-toggle"
+          onClick={() => setShowMap((prev) => !prev)}
+          aria-expanded={showMap}
+        >
+          <span className="trip-map-toggle-left">
+            <MapIcon size={16} aria-hidden="true" />
+            <span>{showMap ? 'Скрыть карту маршрута' : 'Показать маршрут на карте'}</span>
+          </span>
+          <ChevronDown
+            size={17}
+            className={`trip-map-chevron ${showMap ? 'open' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+        {showMap && (
+          <div style={{ borderRadius: 14, overflow: 'hidden', marginTop: 10 }}>
+            <RealMap from={fromLocation} to={toLocation} height="200px" />
+          </div>
+        )}
       </div>
 
       {/* Чат — групповой для водителя, 1-на-1 для пассажира */}
       <div className="trip-chat">
-        <h3 style={{ fontSize: '0.9rem', color: 'var(--dark)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}>
+        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}>
           <MessageCircle size={15} />
           {isDriver && passengers.length > 1 ? `Групповой чат (${passengers.length})` : t('trip.chat')}
         </h3>
@@ -361,29 +366,17 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
       {/* Оплата / компенсация расходов (для пассажира) */}
       {!isDriver && (
-        <div style={{
-          background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-soft) 100%)',
-          border: '1.5px solid var(--accent-border)',
-          borderRadius: 16,
-          padding: '14px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}>
+        <div className="trip-payment-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-primary)', flexShrink: 0
-              }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="trip-payment-icon">
                 <CreditCard size={18} />
               </div>
               <div>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>
                   {t('payment.title')}
                 </span>
-                <div style={{ fontSize: '0.75rem', color: 'var(--primary-hover)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {(trip.price_per_seat || trip.price || 0) > 0
                     ? `${trip.price_per_seat || trip.price} сом ${t('payment.per_seat')}`
                     : 'Бесплатно / добровольно'}
@@ -391,63 +384,26 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               </div>
             </div>
             {(trip.price_per_seat || trip.price || 0) > 0 && (
-              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)' }}>
+              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
                 {trip.price_per_seat || trip.price} <span style={{ fontSize: '0.82rem' }}>сом</span>
               </span>
             )}
           </div>
 
           {paymentError && (
-            <p style={{ fontSize: '0.78rem', color: 'var(--warning-strong)', margin: '0 0 8px', fontWeight: 500 }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--warning-strong)', margin: '0 0 4px', fontWeight: 600 }}>
               {paymentError}
             </p>
           )}
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={handlePayMbank}
-              style={{
-                flex: 1,
-                minWidth: 150,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '11px 14px',
-                background: 'linear-gradient(135deg, var(--info), var(--info-strong))',
-                color: 'var(--on-primary)',
-                border: 'none',
-                borderRadius: 12,
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 3px 10px var(--info-border)',
-              }}
-            >
+            <button type="button" onClick={handlePayMbank} className="trip-mbank-btn">
               <Smartphone size={16} />
               <span>{copied ? t('payment.copied') : t('payment.mbank_btn')}</span>
             </button>
 
             {driverPayment.elkartNumber ? (
-              <button
-                type="button"
-                onClick={handleCopyElkart}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '11px 14px',
-                  background: 'var(--bg-card)',
-                  color: 'var(--primary)',
-                  border: '1.5px solid var(--accent-border)',
-                  borderRadius: 12,
-                  fontSize: '0.86rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
+              <button type="button" onClick={handleCopyElkart} className="trip-elkart-btn">
                 {copiedElkart ? <Check size={16} color="var(--primary)" /> : <Copy size={16} />}
                 <span>{copiedElkart ? 'Скопировано!' : 'Элкарт'}</span>
               </button>
@@ -517,15 +473,113 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       </div>
 
       <style>{`
-        .trip { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 20px; }
+        .trip { display: flex; flex-direction: column; gap: 0.85rem; }
         .panic-btn {
-          background: var(--danger-soft); color: var(--danger); border: none;
-          width: 40px; height: 40px; border-radius: 50%;
+          background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-border);
+          width: 44px; height: 44px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-          box-shadow: 0 3px 10px var(--danger-border);
+          cursor: pointer; transition: background-color 0.2s ease; flex-shrink: 0;
         }
         .panic-btn:hover { background: var(--danger-border); }
+
+        .trip-scheduled-banner {
+          background: var(--info-soft);
+          border: 1px solid var(--info-border);
+          border-radius: 16px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .trip-scheduled-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          background: var(--info-strong);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .trip-scheduled-title { font-weight: 800; font-size: 0.9rem; color: var(--info-strong); }
+        .trip-scheduled-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+        .trip-map-box {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 16px;
+          padding: 10px 12px;
+        }
+        .trip-map-toggle {
+          width: 100%;
+          min-height: 38px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          border: none;
+          padding: 2px;
+          background: transparent;
+          color: var(--text-main);
+          font: inherit;
+          font-size: 0.84rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .trip-map-toggle-left {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .trip-map-toggle-left svg { color: var(--primary); }
+        .trip-map-chevron { color: var(--text-subtle); transition: transform 0.2s ease; }
+        .trip-map-chevron.open { transform: rotate(180deg); }
+
+        .trip-payment-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: 18px;
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          box-shadow: var(--card-shadow);
+        }
+        .trip-payment-icon {
+          width: 34px; height: 34px; border-radius: 10px;
+          background: var(--accent-soft);
+          color: var(--primary);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .trip-mbank-btn {
+          flex: 1;
+          min-width: 150px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 14px;
+          background: var(--info-strong);
+          color: var(--on-primary);
+          border: none;
+          border-radius: 12px;
+          font-size: 0.88rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: opacity 0.15s ease;
+        }
+        .trip-mbank-btn:hover { opacity: 0.92; }
+        .trip-elkart-btn {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 14px;
+          background: var(--bg-subtle);
+          color: var(--primary);
+          border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          font-size: 0.86rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
 
         /* Passengers section (driver) */
         .passengers-section { margin-top: 12px; }
@@ -537,7 +591,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         .seats-dots { display: flex; gap: 4px; margin-left: auto; }
         .seat-dot {
           width: 12px; height: 12px; border-radius: 3px;
-          transition: background 0.2s;
+          transition: background-color 0.2s ease;
         }
         .seat-dot.taken { background: var(--primary); }
         .seat-dot.free { background: var(--border-strong); }
@@ -550,17 +604,16 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
         /* Going button */
         .going-btn {
-          width: 100%; padding: 10px 16px;
-          background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+          width: 100%; min-height: 44px; padding: 10px 16px;
+          background: var(--primary);
           color: var(--on-primary); border: none; border-radius: 12px;
           font-size: 0.88rem; font-weight: 700;
-          cursor: pointer; transition: all 0.2s;
+          cursor: pointer; transition: background-color 0.2s ease;
           display: flex; align-items: center; justify-content: center; gap: 7px;
-          box-shadow: 0 3px 12px var(--primary-glow);
         }
-        .going-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px var(--primary-glow); }
-        .going-btn:disabled:not(.going-btn-done) { background: var(--border-subtle); color: var(--text-subtle); box-shadow: none; cursor: default; }
-        .going-btn-done { background: var(--primary-glow) !important; color: var(--primary) !important; box-shadow: none !important; cursor: default !important; }
+        .going-btn:hover:not(:disabled) { background: var(--primary-hover); }
+        .going-btn:disabled:not(.going-btn-done) { background: var(--border-subtle); color: var(--text-subtle); cursor: default; }
+        .going-btn-done { background: var(--accent-soft) !important; color: var(--primary) !important; cursor: default !important; }
 
         /* Partner card (passenger) */
         .partner-card {
@@ -568,10 +621,10 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
           background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 10px 12px; margin-top: 10px;
         }
 
-        .trip-chat { flex: 1; display: flex; flex-direction: column; }
+        .trip-chat { display: flex; flex-direction: column; }
         .finish-btn {
-          background: linear-gradient(135deg, var(--danger), var(--danger)) !important;
-          box-shadow: 0 4px 12px var(--danger-border);
+          background: var(--danger) !important;
+          box-shadow: none !important;
         }
       `}</style>
     </div>

@@ -25,7 +25,7 @@
 
 - Backend tests: 91 passed (ruff `E9,F,B` ignoring `B008`; includes Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
 - Frontend tests: 37 passed in 9 files (`Login` Stage 1+2 Telegram challenge & rescue flow, `useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
-- Browser E2E: 5 passed on PostgreSQL 16.2 (`login-code` + Telegram challenge UI + `sse-ticket`).
+- Browser E2E: 6 passed on PostgreSQL 16.2 (`login-code` + Telegram challenge UI + `390x844` Dashboard no-scroll check + `sse-ticket`).
 - Production build: passed; 18 precache entries; Vite + PWA `injectManifest` + `@sentry/bundler-plugins`.
 - `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
 - OpenAPI: regenerated `birge/openapi.json` and `birge/src/types/api.d.ts`.
@@ -96,8 +96,8 @@
 
 ## 6. Rolling Changelog (max 5)
 
-- 2026-11-15: PostgreSQL 16.2 migration check and Playwright SSE-ticket E2E on PostgreSQL; 3 E2E passed; ephemeral PG cleanup verified.
 - 2026-11-16: PII/OTP hardening, refresh-token rotation/cleanup and Python 3.12 CI/runtime; 53 backend tests on 3.12.10.
 - 2026-11-25: Hardening & cleanup: fixed `vercel.json` `routes`/`headers` conflict, `.gitignore` `.backups/`, driver SSE + WS incremental chat + reconnect, `AudioContext`/timer leaks, `sw.js` `notificationclick`, `i18n.js` 6-digit copy, extracted `main.py` -> `routers/{admin,bot,reviews}.py` + `trip_maintenance.py`, Redis panic cooldown & TTL fix, Python 3.12 alignment + expanded ruff (`E9,F,B`), `i18next ^27.2.9`; 89 backend / 35 frontend tests pass.
 - 2026-11-25: Sentry wired end-to-end (`birge/birge-api` + `birge/birge-web`): verified real test events, added `VITE_SENTRY_DSN` on Vercel, `@sentry/bundler-plugins` Vite source maps (active when `SENTRY_AUTH_TOKEN` is set), and fixed `tests/conftest.py` to set empty `SENTRY_DSN`.
 - 2026-11-25: Stage 1+2 Telegram-first auth redesign: added `TelegramAuthChallenge` (`a7f1c3e8b9d2`), `/auth/telegram-challenge{,/status,/complete}`, bot deep-link `?start=auth_<id>` auto-verify & contact binding, `Login.jsx` Telegram-first CTA + inline prerequisite callout + 8s rescue hint & 60s resend cooldown + `sessionStorage` resume; 91 backend, 37 frontend, 5 Playwright E2E pass.
+- 2026-11-25: Mobile UI & scroll polish: added `viewport-fit=cover`, `overflow-x: clip`, `overscroll-behavior-y: contain`, `visualViewport` keyboard-aware bottom-nav hiding, deduplicated shell bottom padding, unified `Dashboard` styles, collapsible `Trip` map + contained `Chat` scroll, removed `Profile` `alert()`/inline gradients; 37 frontend unit + 6 Playwright E2E (incl. `390x844` no-scroll check) pass.

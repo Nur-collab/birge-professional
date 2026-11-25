@@ -156,6 +156,8 @@
 html {
   scroll-behavior: smooth;
   color-scheme: light;
+  overflow-x: clip;
+  overscroll-behavior-y: contain;
 }
 
 [data-theme="dark"] {
@@ -170,7 +172,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   transition: background-color 0.25s ease, color 0.25s ease;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overscroll-behavior-y: contain;
 }
 
 ::selection {
@@ -239,8 +242,17 @@ body {
   color: var(--text-main);
   position: relative;
   z-index: 1;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  overflow-x: clip;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   transition: background-color 0.25s ease;
+}
+
+.app-container.no-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-container.keyboard-open {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 640px) {
@@ -251,7 +263,7 @@ body {
 
 /* ============ HEADER ============ */
 .header {
-  padding: 0.85rem 1.1rem;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem;
   background: var(--header-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -384,8 +396,10 @@ body {
 
 /* ============ MAIN CONTENT ============ */
 .main-content {
-  padding: 1.1rem 1.1rem 0;
+  padding: 0.9rem 1rem 0;
   background: transparent;
+  display: flex;
+  flex-direction: column;
   /* Растёт по контенту и заполняет экран, не добавляя высоту под нижнее меню. */
   flex: 1 1 auto;
   min-height: 0;
@@ -542,7 +556,8 @@ textarea::placeholder {
 
 /* ============ SCREEN TRANSITIONS ============ */
 .screen-content {
-  padding-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  flex: 1 1 auto;
   animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
