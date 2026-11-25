@@ -285,7 +285,9 @@ Frontend deployment:
   на общий Cloudflare IP незаметно. Первый в процессе запрос с
   `x-auth-client-ip`, но без валидной подписи дополнительно уходит в Sentry
   как error с fingerprint `auth-proxy-missing-origin-secret` и тегом
-  `auth.proxy=unsigned`; алерт в Sentry настраивается на этот тег.
+  `auth.proxy=unsigned`; алерт в Sentry настраивается на этот тег. Пустой
+  `SENTRY_DSN` в production даёт CRITICAL при старте, чтобы выключенный алерт
+  был виден в логах Render.
 
 Backend deployment:
 

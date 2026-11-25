@@ -1,11 +1,35 @@
+from unittest.mock import patch
+
 import sentry_sdk
 
+import sentry_config
 from sentry_config import capture_auth_proxy_fallback, init_sentry
 
 
 def test_sentry_is_disabled_without_dsn(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     assert init_sentry() is False
+
+
+def test_production_without_dsn_logs_critical(monkeypatch):
+    monkeypatch.delenv("SENTRY_DSN", raising=False)
+    monkeypatch.setattr(sentry_config, "IS_PRODUCTION", True)
+
+    with patch.object(sentry_config.logger, "critical") as critical:
+        assert init_sentry() is False
+
+    critical.assert_called_once()
+    assert "SENTRY_DSN" in critical.call_args.args[0]
+
+
+def test_development_without_dsn_stays_quiet(monkeypatch):
+    monkeypatch.delenv("SENTRY_DSN", raising=False)
+    monkeypatch.setattr(sentry_config, "IS_PRODUCTION", False)
+
+    with patch.object(sentry_config.logger, "critical") as critical:
+        assert init_sentry() is False
+
+    critical.assert_not_called()
 
 
 def test_sentry_initializes_with_safe_defaults(monkeypatch):

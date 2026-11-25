@@ -32,6 +32,11 @@ def init_sentry() -> bool:
     """Initialize Sentry when configured; return whether it was enabled."""
     dsn = os.environ.get("SENTRY_DSN", "").strip()
     if not dsn:
+        if IS_PRODUCTION:
+            logger.critical(
+                "[Sentry] SENTRY_DSN is not set: error events and the "
+                "unsigned-auth-proxy alert are disabled in production"
+            )
         return False
 
     environment = (

@@ -135,8 +135,10 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    (`level=error`, fingerprint `auth-proxy-missing-origin-secret`, tag
    `auth.proxy=unsigned`), so a missing `ORIGIN_SECRET` is not visible only in
    Render logs. Configure a Sentry alert rule on that tag (or on error-level
-   issues) if the project does not already notify on new issues; without
-   `SENTRY_DSN` the event is a no-op.
+   issues) if the project does not already notify on new issues. Without
+   `SENTRY_DSN` the event is a no-op, so production `init_sentry()` logs
+   CRITICAL at startup: a disabled alert is visible in Render logs instead of
+   failing silently.
 8. Webhook обычно регистрируется автоматически при старте backend. Ручная
    регистрация и полная проверка Telegram-входа описаны в §3.
 
