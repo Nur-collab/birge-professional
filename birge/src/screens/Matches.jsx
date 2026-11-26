@@ -24,16 +24,17 @@ const requestApi = {
 const today = localDateStr();
 const tomorrow = localDateStr(1);
 
-const formatChipLabel = (d) => {
-  if (!d) return 'Без даты';
-  if (d === today) return 'Сегодня';
-  if (d === tomorrow) return 'Завтра';
+const formatChipLabel = (d, t, language) => {
+  if (!d) return t('common.no_date');
+  if (d === today) return t('common.today');
+  if (d === tomorrow) return t('common.tomorrow');
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d).trim());
   const dt = match
     ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
     : new Date(d);
   if (Number.isNaN(dt.getTime())) return String(d);
-  return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const locale = language === 'ky' ? 'ky-KG' : 'ru-RU';
+  return dt.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 };
 
 export default function Matches({
@@ -48,7 +49,7 @@ export default function Matches({
   activeTrip,
   onGoToActiveTrip,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [requestStatus, setRequestStatus] = useState({}); // { [tripId]: 'pending'|'accepted'|'declined' }
   const [requestError, setRequestError] = useState('');
   const connectedRef = useRef(false); // защита от повторного вызова onConnect
@@ -219,20 +220,20 @@ export default function Matches({
         <StatePanel
           badge={<>
             <CheckCircle2 size={14} aria-hidden="true" />
-            {activeTrip.isScheduled ? 'Запланированная поездка' : 'Поездка в процессе'}
+            {activeTrip.isScheduled ? t('matches.active_scheduled_badge') : t('matches.active_ongoing_badge')}
           </>}
           title={<>
             {activeTrip.origin} <span className="state-panel-arrow">→</span> {activeTrip.destination}
           </>}
           text={activeTrip.role === 'passenger'
-            ? 'Вы уже едете с водителем ' + (activeTrip.user?.name || activeTrip.driverName || 'водителем') + '. Чат и статус поездки открыты во вкладке «В пути».'
-            : 'Поездка сформирована. Занято мест: ' + (activeTrip.seats_taken || 1) + ' из ' + (activeTrip.seats || 3) + '. Управление поездкой доступно во вкладке «В пути».'}
+            ? t('matches.active_passenger_desc', { name: activeTrip.user?.name || activeTrip.driverName || t('matches.driver_fallback') })
+            : t('matches.active_driver_desc', { taken: activeTrip.seats_taken || 1, total: activeTrip.seats || 3 })}
           action={<button
             type="button"
             onClick={onGoToActiveTrip}
             className="primary-btn state-panel-action"
           >
-            Перейти к поездке
+            {t('matches.go_to_trip')}
           </button>}
         />
       </div>
@@ -244,14 +245,14 @@ export default function Matches({
       <div className="matches screen-content">
         <StatePanel
           icon={<Navigation size={22} />}
-          title="Нет активного поиска"
-          text="Укажите откуда и куда вы едете на главном экране, чтобы Birge подобрал подходящих попутчиков."
+          title={t('matches.no_active_title')}
+          text={t('matches.no_active_desc')}
           action={<button
             type="button"
             onClick={onCancel}
             className="secondary-btn state-panel-action"
           >
-            Перейти к поиску
+            {t('matches.go_to_search')}
           </button>}
         />
       </div>
@@ -263,12 +264,12 @@ export default function Matches({
       <div className="matches screen-content">
         <header className="matches-heading">
           <div>
-            <p className="matches-kicker">Подбираем попутчиков</p>
+            <p className="matches-kicker">{t('matches.searching_kicker')}</p>
             <h2 className="matches-title">{t('matches.searching')}</h2>
           </div>
           <button type="button" onClick={onCancel} className="matches-cancel">
             <X size={14} aria-hidden="true" />
-            Отмена
+            {t('cancel')}
           </button>
         </header>
         <div className="matches-list">
@@ -286,10 +287,10 @@ export default function Matches({
         <StatePanel
           icon={<Clock size={22} />}
           title={t('matches.empty')}
-          text="Ищем подходящих попутчиков по маршруту..."
+          text={t('matches.empty_desc')}
           action={<button type="button" onClick={onCancel} className="secondary-btn state-panel-action">
             <X size={15} aria-hidden="true" />
-            Отменить поиск
+            {t('matches.cancel_search')}
           </button>}
         />
       </div>
@@ -306,24 +307,24 @@ export default function Matches({
 
       <header className="matches-heading">
         <div>
-          <p className="matches-kicker">{isDriver ? 'Попутчики по маршруту' : 'По вашему маршруту'}</p>
-          <h2 className="matches-title">{isDriver ? 'Запросы пассажиров' : 'Доступные водители'}</h2>
+          <p className="matches-kicker">{isDriver ? t('matches.kicker_driver') : t('matches.kicker_passenger')}</p>
+          <h2 className="matches-title">{isDriver ? t('matches.title_driver') : t('matches.title_passenger')}</h2>
         </div>
         <button type="button" onClick={onCancel} className="matches-cancel">
           <X size={14} aria-hidden="true" />
-          Отменить
+          {t('matches.cancel_short')}
         </button>
       </header>
 
       {uniqueDates.length > 1 && (
-        <div className="date-chips-row" role="group" aria-label="Фильтр по дате">
+        <div className="date-chips-row" role="group" aria-label={t('matches.date_filter_aria')}>
           <button
             type="button"
             className={'date-chip' + (activeDateFilter === null ? ' active' : '')}
             onClick={() => setActiveDateFilter(null)}
             aria-pressed={activeDateFilter === null}
           >
-            Все
+            {t('common.all')}
           </button>
           {uniqueDates.map((d) => (
             <button
@@ -333,7 +334,7 @@ export default function Matches({
               onClick={() => setActiveDateFilter(d)}
               aria-pressed={activeDateFilter === d}
             >
-              {formatChipLabel(d)}
+              {formatChipLabel(d, t, i18n.language)}
             </button>
           ))}
         </div>
@@ -351,7 +352,7 @@ export default function Matches({
                     <div className="user-name">
                       <span>{trip.user.name}</span>
                       {trip.user.is_verified && (
-                        <CheckCircle size={14} className="match-verified-icon" aria-label="Профиль подтверждён" />
+                        <CheckCircle size={14} className="match-verified-icon" aria-label={t('matches.verified_aria')} />
                       )}
                     </div>
                     <div className="user-meta">
@@ -373,13 +374,13 @@ export default function Matches({
                   trip.price_per_seat > 0 ? (
                     <div className="match-price">
                       <span className="match-price-value">{trip.price_per_seat}</span>
-                      <span className="match-price-unit">сом / место</span>
+                      <span className="match-price-unit">{t('matches.price_unit')}</span>
                     </div>
                   ) : (
-                    <span className="match-price-free">По договорённости</span>
+                    <span className="match-price-free">{t('common.by_agreement')}</span>
                   )
                 ) : (
-                  <span className="match-role-badge">Пассажир</span>
+                  <span className="match-role-badge">{t('matches.passenger')}</span>
                 )}
               </div>
 
@@ -387,7 +388,7 @@ export default function Matches({
                 <div className="match-route-row">
                   <span className="match-route-node match-route-node-from" aria-hidden="true" />
                   <div>
-                    <span className="match-route-label">Откуда</span>
+                    <span className="match-route-label">{t('search.from')}</span>
                     <span className="match-route-place">{trip.from}</span>
                   </div>
                 </div>
@@ -395,7 +396,7 @@ export default function Matches({
                 <div className="match-route-row">
                   <span className="match-route-node match-route-node-to" aria-hidden="true" />
                   <div>
-                    <span className="match-route-label">Куда</span>
+                    <span className="match-route-label">{t('search.to')}</span>
                     <span className="match-route-place">{trip.to}</span>
                   </div>
                 </div>
@@ -409,13 +410,16 @@ export default function Matches({
                 {trip.role === 'driver' && (
                   <span className="match-meta-chip">
                     <Users size={13} aria-hidden="true" />
-                    {Math.max(0, (trip.seats ?? 3) - (trip.seats_taken ?? 0))} из {trip.seats ?? 3} мест
+                    {t('matches.seats_left', {
+                      free: Math.max(0, (trip.seats ?? 3) - (trip.seats_taken ?? 0)),
+                      total: trip.seats ?? 3,
+                    })}
                   </span>
                 )}
                 {trip.date && (
                   <span className="match-meta-chip">
                     <Calendar size={13} aria-hidden="true" />
-                    {formatChipLabel(trip.date)}
+                    {formatChipLabel(trip.date, t, i18n.language)}
                   </span>
                 )}
               </div>
@@ -423,7 +427,7 @@ export default function Matches({
               {isDriver ? (
                 <div className="match-note">
                   <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Совпадение найдено. Ожидайте запрос от попутчика.</span>
+                  <span>{t('matches.driver_wait_note')}</span>
                 </div>
               ) : (
                 <button
@@ -436,31 +440,31 @@ export default function Matches({
                   {status === 'sending' && (
                     <>
                       <Loader size={16} className="spin" aria-hidden="true" />
-                      <span>Отправляем запрос...</span>
+                      <span>{t('matches.btn_sending')}</span>
                     </>
                   )}
                   {status === 'pending' && (
                     <>
                       <Clock size={15} aria-hidden="true" />
-                      <span>Ожидаем ответ водителя</span>
+                      <span>{t('matches.btn_pending')}</span>
                     </>
                   )}
                   {status === 'accepted' && (
                     <>
                       <CheckCircle2 size={15} aria-hidden="true" />
-                      <span>Водитель принял — открываем чат</span>
+                      <span>{t('matches.btn_accepted')}</span>
                     </>
                   )}
                   {status === 'declined' && (
                     <>
                       <X size={15} aria-hidden="true" />
-                      <span>Запрос отклонён</span>
+                      <span>{t('matches.btn_declined')}</span>
                     </>
                   )}
                   {!status && (
                     <>
                       <Send size={15} aria-hidden="true" />
-                      <span>Запросить поездку</span>
+                      <span>{t('matches.btn_request')}</span>
                     </>
                   )}
                 </button>

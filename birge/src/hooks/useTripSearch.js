@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import i18n from '../i18n';
 import { api } from '../utils/api';
 import { mapMatchTrip } from '../utils/mapMatchTrip';
 
@@ -27,7 +28,7 @@ export default function useTripSearch({
   }, []);
 
   const handleSearch = async (tripData) => {
-    if (!currentUser) return showNotification('Ошибка', 'Не удалось загрузить пользователя');
+    if (!currentUser) return showNotification(i18n.t('common.error'), i18n.t('hooks.user_load_error'));
 
     clearTimeout(skeletonTimerRef.current);
     // Очищаем старую поездку из localStorage чтобы избежать конфликтов
@@ -79,15 +80,15 @@ export default function useTripSearch({
       setIsSearching(false);
 
       if (mappedMatches.length > 0) {
-        showNotification('Найдены попутчики', `Совпадений: ${mappedMatches.length}`);
+        showNotification(i18n.t('hooks.found_title'), i18n.t('hooks.found_count', { count: mappedMatches.length }));
       } else {
-        showNotification('Пока нет совпадений', 'Мы уведомим вас, когда кто-то появится.');
+        showNotification(i18n.t('hooks.not_found_title'), i18n.t('hooks.not_found_desc'));
       }
     } catch (error) {
       if (!mountedRef.current) return;
       setIsSearching(false);
       setActiveTab('home');
-      showNotification('Ошибка', error.message || 'Не удалось выполнить поиск');
+      showNotification(i18n.t('common.error'), error.message || i18n.t('hooks.search_failed'));
     }
   };
 
@@ -98,7 +99,7 @@ export default function useTripSearch({
       try {
         await api.cancelTrip(myTripId);
       } catch (e) {
-        showNotification('Ошибка', e.message);
+        showNotification(i18n.t('common.error'), e.message);
         return;
       }
     }

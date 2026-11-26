@@ -27,9 +27,7 @@ export default function TripHistory({ currentUser, onBack }) {
   };
 
   const formatDate = (dateString) => {
-    // В текущей MVP дате у нас просто строка типа 'Сегодня', 
-    // но в будущем можно добавить Date()
-    return dateString || 'Сентябрь 2024';
+    return dateString || t('common.no_date');
   };
 
   return (
@@ -59,7 +57,7 @@ export default function TripHistory({ currentUser, onBack }) {
               <div className="history-card-header">
                 <div className="history-date">
                   <Calendar size={14} />
-                  <span>{formatDate(trip.date)} в {trip.time}</span>
+                  <span>{t('history.at_time', { date: formatDate(trip.date), time: trip.time })}</span>
                 </div>
                 {trip.status === 'completed' ? (
                   <span className="history-status completed">
@@ -88,8 +86,8 @@ export default function TripHistory({ currentUser, onBack }) {
                 </span>
                 <span style={{ fontWeight: 700, color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
                   {(trip.price_per_seat ?? trip.price ?? 0) > 0
-                    ? `${trip.price_per_seat ?? trip.price} сом`
-                    : 'Бесплатно'}
+                    ? `${trip.price_per_seat ?? trip.price} ${t('common.som')}`
+                    : t('common.free')}
                 </span>
               </div>
             </div>

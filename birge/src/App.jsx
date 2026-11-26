@@ -186,7 +186,7 @@ function App() {
       })
       .catch(() => {
         if (!cancelled) {
-          showNotification('Поездка недоступна', 'Нет доступа или поездка удалена.');
+          showNotification(t('app.trip_unavailable'), t('app.trip_unavailable_desc'));
           navigate('/', { replace: true });
         }
       });
@@ -202,7 +202,7 @@ function App() {
     return (
       <div role="status" aria-live="polite" style={{ minHeight: '100dvh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
         <div style={{ width: 48, height: 48, borderRadius: 13, background: 'var(--primary)', color: 'var(--bg-page)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, fontWeight: 800, letterSpacing: -0.5 }}>B</div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Инициализация сессии...</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>{t('app.session_init')}</p>
       </div>
     );
   }
@@ -213,16 +213,16 @@ function App() {
         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'var(--danger-soft)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <WifiOff size={24} />
         </div>
-        <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 800 }}>Нет связи с сервером</h2>
+        <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 800 }}>{t('app.server_offline_title')}</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: 320, lineHeight: 1.5 }}>
-          Не удалось загрузить профиль. Проверьте подключение к интернету. Сессия сохранена.
+          {t('app.server_offline_desc')}
         </p>
         <button
           className="primary-btn"
           style={{ width: 'auto', padding: '11px 28px', marginTop: 8 }}
           onClick={retryAuth}
         >
-          Повторить попытку
+          {t('app.retry_attempt')}
         </button>
       </div>
     );
@@ -267,7 +267,7 @@ function App() {
         if (routeTripId && activeTrip?.id !== routeTripId) {
           return (
             <div role="status" aria-live="polite" style={{ minHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
-              Загрузка поездки...
+              {t('app.loading_trip')}
             </div>
           );
         }
@@ -283,9 +283,9 @@ function App() {
                 // Отправляем реальный тревожный сигнал в Telegram поддержки
                 const result = await api.sendPanic(activeTrip?.id);
                 if (result?.sent) {
-                  showNotification('Сигнал тревоги отправлен', 'Команда поддержки уведомлена.');
+                  showNotification(t('app.panic_sent_title'), t('app.panic_sent_desc'));
                 } else {
-                  showNotification('Не удалось отправить тревогу', result?.reason || 'Проверьте связь или позвоните 102.');
+                  showNotification(t('app.panic_failed_title'), result?.reason || t('app.panic_failed_desc'));
                 }
               }}
               onFinish={handleFinishTrip}
@@ -359,7 +359,7 @@ function App() {
 
   return (
     <div className={`app-container${hideHeader ? ' no-header' : ''}${keyboardOpen ? ' keyboard-open' : ''}`}>
-      <a className="skip-link" href="#main-content">Перейти к содержимому</a>
+      <a className="skip-link" href="#main-content">{t('app.skip_to_content')}</a>
       <PushNotification
         show={notification.show}
         title={notification.title}
@@ -378,26 +378,27 @@ function App() {
 
       <header className="header" style={{ display: (activeTab === 'profile' || activeTab === 'settings' || activeTab === 'history') ? 'none' : 'block' }}>
         <div className="header-inner">
-          <button type="button" className="header-brand" onClick={() => handleTabChange('home')} aria-label="На главную">
+          <button type="button" className="header-brand" onClick={() => handleTabChange('home')}>
             <span className="header-brand-mark" aria-hidden="true">B</span>
             <span className="header-brand-text">
               <span className="header-brand-title">BIRGE</span>
-              <span className="header-brand-subtitle">Совместные поездки</span>
+              <span className="header-brand-subtitle">{t('app.brand_subtitle')}</span>
             </span>
+            <span className="sr-only">{t('app.brand_home_sr')}</span>
           </button>
           <div className="header-actions">
             {currentUser && (
               <div className="header-user-badge">
                 <span className="status-indicator-dot" />
-                <span>{currentUser.name?.split(' ')[0] || 'Профиль'}</span>
+                <span>{currentUser.name?.split(' ')[0] || t('nav.profile')}</span>
               </div>
             )}
             <button
               type="button"
               className="theme-toggle-btn"
               onClick={toggleTheme}
-              title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
-              aria-label="Сменить тему оформления"
+              title={theme === 'dark' ? t('app.theme_to_light') : t('app.theme_to_dark')}
+              aria-label={t('app.theme_toggle_aria')}
               aria-pressed={theme === 'dark'}
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
@@ -406,8 +407,8 @@ function App() {
         </div>
       </header>
 
-      <main className="main-content" id="main-content" ref={mainRef} tabIndex={-1} aria-label="Основное содержимое">
-        <h1 className="sr-only">БИРГЕ — сервис совместных поездок</h1>
+      <main className="main-content" id="main-content" ref={mainRef} tabIndex={-1} aria-label={t('app.main_content')}>
+        <h1 className="sr-only">{t('app.sr_title')}</h1>
         <ErrorBoundary key={activeTab}>
           {renderScreen()}
         </ErrorBoundary>
@@ -424,19 +425,19 @@ function App() {
         />
       )}
 
-      <nav className="bottom-nav" aria-label="Основная навигация">
+      <nav className="bottom-nav" aria-label={t('app.main_nav')}>
         <button type="button" className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => handleTabChange('home')} aria-current={activeTab === 'home' ? 'page' : undefined} aria-label={t('nav.find')}>
           <Home size={24} aria-hidden="true" />
           <span>{t('nav.find')}</span>
         </button>
-        <button type="button" className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => handleTabChange('matches')} aria-current={activeTab === 'matches' ? 'page' : undefined} aria-label={`${t('matches.title')}${pendingRequestCount > 0 ? `, ${pendingRequestCount} новых запросов` : ''}`}>
+        <button type="button" className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => handleTabChange('matches')} aria-current={activeTab === 'matches' ? 'page' : undefined} aria-label={`${t('matches.title')}${pendingRequestCount > 0 ? t('app.new_requests_aria', { count: pendingRequestCount }) : ''}`}>
           <Users size={24} aria-hidden="true" />
           {/* Для пассажира — кол-во найденных водителей; для водителя — входящие запросы */}
           {pendingRequestCount > 0 && <span className="badge incoming-badge" aria-hidden="true">{pendingRequestCount}</span>}
           {pendingRequestCount === 0 && matches.length > 0 && <span className="badge" aria-hidden="true">{matches.length}</span>}
           <span>{t('matches.title')}</span>
         </button>
-        <button type="button" className={`nav-item ${activeTab === 'trip' ? 'active' : ''}`} onClick={() => handleTabChange('trip')} aria-current={activeTab === 'trip' ? 'page' : undefined} aria-label={`${activeTrip ? t('nav.on_way') : t('nav.trips')}${unreadCount > 0 ? `, ${unreadCount} непрочитанных` : ''}`}>
+        <button type="button" className={`nav-item ${activeTab === 'trip' ? 'active' : ''}`} onClick={() => handleTabChange('trip')} aria-current={activeTab === 'trip' ? 'page' : undefined} aria-label={`${activeTrip ? t('nav.on_way') : t('nav.trips')}${unreadCount > 0 ? t('app.unread_aria', { count: unreadCount }) : ''}`}>
           {activeTrip ? <Map size={24} aria-hidden="true" /> : <Calendar size={24} aria-hidden="true" />}
           {unreadCount > 0 && <span className="badge" aria-hidden="true">{unreadCount}</span>}
           {activeTrip && unreadCount === 0 && <span className="badge dot" aria-hidden="true" />}

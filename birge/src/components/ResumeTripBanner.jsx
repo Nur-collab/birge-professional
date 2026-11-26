@@ -1,5 +1,6 @@
 import React from 'react';
-import { Navigation, Trash2, RotateCcw, Clock, MapPin, Car, User } from 'lucide-react';
+import { Navigation, Trash2, RotateCcw, Clock, Car, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * ResumeTripBanner — всплывает снизу если у пользователя есть
@@ -11,15 +12,16 @@ import { Navigation, Trash2, RotateCcw, Clock, MapPin, Car, User } from 'lucide-
  *  onDiscard {function} — удалить и начать заново
  */
 export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
+  const { t } = useTranslation();
   if (!trip?.found) return null;
 
   const isDriver = trip.role === 'driver';
-  const roleLabel = isDriver ? 'Водитель' : 'Пассажир';
+  const roleLabel = isDriver ? t('dash.role_driver') : t('dash.role_passenger');
   const roleColor = isDriver ? 'var(--warning)' : 'var(--primary)';
   const roleSurface = isDriver ? 'var(--warning-soft)' : 'var(--accent-soft)';
 
   return (
-    <div style={styles.wrapper} role="region" aria-label="Незавершённый поиск">
+    <div style={styles.wrapper} role="region" aria-label={t('resume.aria')}>
       <div style={styles.card}>
         {/* Иконка */}
         <div style={{ ...styles.iconWrap, background: roleSurface, color: roleColor }}>
@@ -28,7 +30,7 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
 
         {/* Текст */}
         <div style={styles.body}>
-          <div style={styles.title}>Незавершённый поиск</div>
+          <div style={styles.title}>{t('resume.title')}</div>
           <div style={{ ...styles.role, display: 'flex', alignItems: 'center', gap: 4 }}>
             {isDriver ? <Car size={13} /> : <User size={13} />}
             <span>{roleLabel}</span>
@@ -50,17 +52,17 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
             type="button"
             style={styles.resumeBtn}
             onClick={onResume}
-            title="Возобновить поиск"
+            title={t('resume.continue_title')}
           >
             <Navigation size={15} aria-hidden="true" />
-            Продолжить
+            {t('resume.continue')}
           </button>
           <button
             type="button"
             style={styles.discardBtn}
             onClick={onDiscard}
-            title="Удалить и начать заново"
-            aria-label="Удалить незавершённый поиск"
+            title={t('resume.discard_title')}
+            aria-label={t('resume.discard_aria')}
           >
             <Trash2 size={14} aria-hidden="true" />
           </button>

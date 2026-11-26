@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WifiOff, CheckCircle2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * OfflineIndicator — показывает toast-баннер когда пропадает интернет.
@@ -7,6 +8,7 @@ import { WifiOff, CheckCircle2 } from 'lucide-react';
  * Появляется снизу над навигацией с плавной анимацией.
  */
 export default function OfflineIndicator() {
+  const { t } = useTranslation();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [visible, setVisible] = useState(false);
 
@@ -66,12 +68,12 @@ export default function OfflineIndicator() {
         {isOnline ? (
           <>
             <CheckCircle2 size={16} aria-hidden="true" />
-            <span>Соединение восстановлено</span>
+            <span>{t('common.online_restored')}</span>
           </>
         ) : (
           <>
             <WifiOff size={16} aria-hidden="true" />
-            <span>Нет интернета</span>
+            <span>{t('common.no_internet')}</span>
           </>
         )}
       </div>

@@ -44,7 +44,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setError('Не удалось сохранить изменения');
+      setError(t('settings.save_error'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
             {formData.photo && (
               <img
                 src={formData.photo}
-                alt="Предпросмотр"
+                alt={t('settings.photo_preview')}
                 style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', marginTop: 10, border: '2px solid var(--bg-card)', boxShadow: '0 2px 4px var(--shadow-medium)' }}
                 onError={(e) => e.target.style.display = 'none'}
               />
@@ -152,7 +152,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
                 name="car_color"
                 value={formData.car_color}
                 onChange={handleChange}
-                placeholder="Белый"
+                placeholder={t('settings.car_color_placeholder')}
               />
             </div>
             <div style={{ flex: 1 }}>
@@ -191,7 +191,7 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
               />
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 0 2px' }}>
-              Пассажиры смогут в 1 клик перевести компенсацию за поездку в приложении MBank
+              {t('settings.mbank_hint')}
             </p>
           </div>
 
@@ -216,13 +216,13 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         <div className="settings-section glass-panel" style={{ borderLeft: '4px solid var(--warning)' }}>
           <div className="section-title" style={{ color: 'var(--warning)' }}>
             <ShieldAlert size={18} />
-            <span>Верификация</span>
+            <span>{t('settings.verification_section')}</span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Ваш телефон: <b>{currentUser?.phone}</b>
+            {t('settings.your_phone')} <b>{currentUser?.phone}</b>
           </p>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Статус: {currentUser?.is_verified ? <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Подтверждён</span> : <span style={{ color: 'var(--warning)', fontWeight: 600 }}>Базовый</span>}
+            {t('settings.status_label')} {currentUser?.is_verified ? <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('settings.status_verified')}</span> : <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{t('settings.status_basic')}</span>}
           </p>
         </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import i18n from '../i18n';
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 
@@ -35,10 +36,11 @@ export default function useTripActions({
     setActiveTrip({ ...trip, participants: 2, date: trip.date || 'Сегодня', isScheduled });
     setActiveTab('trip');
     setUnreadCount(0);
+    const companion = trip.user?.name || i18n.t('hooks.companion_fallback');
     const msg = isScheduled
-      ? `Поездка с ${trip.user?.name || 'попутчиком'} запланирована`
-      : `Вы едете с ${trip.user?.name || 'попутчиком'}`;
-    showNotification(isScheduled ? 'Запланировано' : 'Попутчик найден', msg);
+      ? i18n.t('hooks.trip_scheduled_with', { name: companion })
+      : i18n.t('hooks.riding_with', { name: companion });
+    showNotification(isScheduled ? i18n.t('hooks.scheduled_title') : i18n.t('hooks.matched_title'), msg);
   };
 
   // При acceptе пассажир тоже получает данные машины водителя через requestInfo
@@ -62,10 +64,11 @@ export default function useTripActions({
     });
     setActiveTab('trip');
     setUnreadCount(0);
+    const companion = trip.user?.name || i18n.t('hooks.companion_fallback');
     const msg = isScheduled
-      ? 'Поездка с водителем запланирована'
-      : `Вы едете с ${trip.user?.name || 'попутчиком'}`;
-    showNotification(isScheduled ? 'Запланировано' : 'Попутчик найден', msg);
+      ? i18n.t('hooks.trip_scheduled_driver')
+      : i18n.t('hooks.riding_with', { name: companion });
+    showNotification(isScheduled ? i18n.t('hooks.scheduled_title') : i18n.t('hooks.matched_title'), msg);
   };
 
   const handleAcceptRequest = async (requestId, tripId, requesterId, requesterTripId) => {
@@ -73,7 +76,7 @@ export default function useTripActions({
     try {
       await api.respondToRequest(requestId, 'accept');
     } catch (e) {
-      showNotification('Ошибка', e.message);
+      showNotification(i18n.t('common.error'), e.message);
       return;
     }
 
@@ -82,7 +85,10 @@ export default function useTripActions({
 
     // Если водитель уже в поездке — просто приняли запрос, polling обновит список
     if (activeTrip) {
-      showNotification('Пассажир принят', `${acceptedReq?.requester_name} едет с вами`);
+      showNotification(
+        i18n.t('hooks.passenger_accepted'),
+        i18n.t('hooks.passenger_riding', { name: acceptedReq?.requester_name || i18n.t('hooks.companion_fallback') }),
+      );
       return;
     }
 
@@ -110,7 +116,7 @@ export default function useTripActions({
     try {
       await api.respondToRequest(requestId, 'decline');
     } catch (e) {
-      showNotification('Ошибка', e.message);
+      showNotification(i18n.t('common.error'), e.message);
       return;
     }
     dismissIncomingRequest();
@@ -132,7 +138,7 @@ export default function useTripActions({
       try {
         await api.submitReview(activeTrip.user.id, rating, text, activeTrip.id);
       } catch (e) {
-        showNotification('Ошибка', e.message);
+        showNotification(i18n.t('common.error'), e.message);
         return false;
       }
       try {
@@ -167,7 +173,7 @@ export default function useTripActions({
     setSearchCriteria(null);
     setMyTripId(null);
     setActiveTab('home');
-    showNotification('Поездка завершена', 'До следующей встречи!');
+    showNotification(i18n.t('hooks.trip_completed'), i18n.t('hooks.until_next_time'));
   };
 
   const handleTripCancelled = () => {
@@ -177,7 +183,7 @@ export default function useTripActions({
     setSearchCriteria(null);
     setMyTripId(null);
     setActiveTab('home');
-    showNotification('Поездка отменена', 'Вы можете найти нового попутчика.');
+    showNotification(i18n.t('hooks.trip_cancelled'), i18n.t('hooks.find_new_companion'));
   };
 
   /** Возобновить поиск: восстанавливаем myTripId и переходим на вкладку Матчей */
@@ -202,7 +208,7 @@ export default function useTripActions({
       await api.cancelTrip(orphanedTrip.trip_id);
       setOrphanedTrip(null);
     } catch (e) {
-      showNotification('Ошибка', e.message);
+      showNotification(i18n.t('common.error'), e.message);
     }
   };
 

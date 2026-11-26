@@ -19,12 +19,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
 
     setUploadError('');
     if (!file.type.startsWith('image/')) {
-      setUploadError('Выберите файл изображения (JPG, PNG или WebP).');
+      setUploadError(t('profile.err_image_type'));
       e.target.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Размер фото не должен превышать 5 МБ.');
+      setUploadError(t('profile.err_image_size'));
       e.target.value = '';
       return;
     }
@@ -36,10 +36,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
       setUser(updatedUser);
 
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification('Birge', { body: 'Фото профиля обновлено!' });
+        new Notification('Birge', { body: t('profile.photo_updated') });
       }
     } catch (err) {
-      setUploadError(err.message || 'Ошибка при загрузке изображения.');
+      setUploadError(err.message || t('profile.err_image_upload'));
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -51,13 +51,13 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
     setVerifyResult(null);
     try {
       const result = await api.verifyAccount();
-      setVerifyResult(result || { status: 'error', message: 'Ошибка соединения. Попробуйте позже.' });
+      setVerifyResult(result || { status: 'error', message: t('profile.err_connection') });
       // Обновляем локальный стейт пользователя если верифицировали
       if (result?.status === 'verified') {
         setUser(prev => prev ? { ...prev, is_verified: true } : prev);
       }
     } catch (e) {
-      setVerifyResult({ status: 'error', message: e.message || 'Ошибка соединения. Попробуйте позже.' });
+      setVerifyResult({ status: 'error', message: e.message || t('profile.err_connection') });
     } finally {
       setVerifyLoading(false);
     }
@@ -80,12 +80,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
     return (
       <div className="profile screen-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh', gap: '1rem' }}>
         <ShieldAlert size={40} color="var(--danger)" />
-        <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>Бэкенд недоступен.<br />Подождите немного и повторите попытку.</p>
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{t('profile.backend_unavailable')}<br />{t('profile.try_later')}</p>
         <button className="primary-btn" style={{ width: 'auto', padding: '10px 24px' }} onClick={() => {
           setError(false);
           api.getCurrentUser().then(data => { if (data) setUser(data); else setError(true); }).catch(() => setError(true));
         }}>
-          Повторить
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -103,7 +103,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
   return (
     <div className="profile screen-content">
       <div className="profile-header glass-panel">
-        <button type="button" className="avatar-container" onClick={() => fileInputRef.current?.click()} aria-label="Изменить фото профиля">
+        <button type="button" className="avatar-container" onClick={() => fileInputRef.current?.click()} aria-label={t('profile.change_photo_aria')}>
           {uploading ? (
             <div className="avatar-loader">
               <Loader size={24} color='var(--on-primary)' className="spin-loader" aria-hidden="true" />
@@ -112,12 +112,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             <>
               <img src={user.photo} alt={user.name} className="profile-avatar" />
               <div className="avatar-overlay">
-                <span style={{ color: 'var(--inverse-text)', fontSize: '10px', fontWeight: 'bold' }}>ИЗМЕНИТЬ</span>
+                <span style={{ color: 'var(--inverse-text)', fontSize: '10px', fontWeight: 'bold' }}>{t('profile.change_photo_overlay')}</span>
               </div>
             </>
           )}
           {user.is_verified && (
-            <div className="verified-badge" role="img" title="Верифицированный пользователь" aria-label="Верифицированный пользователь">
+            <div className="verified-badge" role="img" title={t('profile.verified_badge')} aria-label={t('profile.verified_badge')}>
               <ShieldCheck size={16} color='var(--on-primary)' />
             </div>
           )}
@@ -126,7 +126,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
             ref={fileInputRef}
             onChange={handlePhotoUpload}
             accept="image/*"
-            aria-label="Выбрать фото профиля"
+            aria-label={t('profile.choose_photo_aria')}
             style={{ display: 'none' }}
           />
         </button>
@@ -167,7 +167,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           </div>
           <div className="limits-count">{user.trips_today} / 3</div>
         </div>
-        <div className="progress-bar" role="progressbar" aria-label="Поездок водителем сегодня" aria-valuemin="0" aria-valuemax="3" aria-valuenow={Math.min(user.trips_today || 0, 3)}>
+        <div className="progress-bar" role="progressbar" aria-label={t('profile.trips_today_aria')} aria-valuemin="0" aria-valuemax="3" aria-valuenow={Math.min(user.trips_today || 0, 3)}>
           <div
             className="progress-fill"
             style={{ width: `${(user.trips_today / 3) * 100}%`, background: user.trips_today >= 3 ? 'var(--danger)' : 'var(--primary)' }}
@@ -181,10 +181,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: user.car_model ? '1rem' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
             <Car size={18} color={user.car_model ? 'var(--warning)' : 'var(--text-subtle)'} />
-            Моя машина
+            {t('profile.my_car')}
           </div>
           {!user.car_model && (
-            <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 600 }}>+ Добавить →</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 600 }}>{t('profile.add_car_cta')}</span>
           )}
         </div>
 
@@ -236,7 +236,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           }}>
             <Car size={24} color="var(--text-muted)" style={{ margin: '0 auto 6px auto', display: 'block' }} />
             <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
-              Добавьте данные автомобиля — они будут видны попутчикам
+              {t('profile.add_car_hint')}
             </p>
           </div>
         )}
@@ -255,12 +255,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-              {user.is_verified ? 'Аккаунт верифицирован' : 'Верификация аккаунта'}
+              {user.is_verified ? t('profile.verified_title') : t('profile.verify_title')}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
               {user.is_verified
-                ? 'Другие пользователи видят подтвержденный статус на вашем профиле'
-                : 'Повышает доверие — значок проверки виден всем попутчикам'}
+                ? t('profile.verified_desc')
+                : t('profile.verify_desc')}
             </div>
           </div>
         </div>
@@ -303,7 +303,7 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 }}
               >
                 <ExternalLink size={16} />
-                Открыть Telegram-бота
+                {t('profile.open_tg_bot')}
               </a>
             )}
 
@@ -325,10 +325,10 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 }}
               >
                 {verifyLoading
-                  ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Проверяем...</>
+                  ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> {t('profile.verifying')}</>
                   : verifyResult?.status === 'need_telegram'
-                  ? <><RotateCw size={15} /> Проверить снова</>
-                  : <><ShieldCheck size={16} /> Верифицировать через Telegram</>}
+                  ? <><RotateCw size={15} /> {t('profile.check_again')}</>
+                  : <><ShieldCheck size={16} /> {t('profile.verify_via_tg')}</>}
               </button>
             )}
           </>

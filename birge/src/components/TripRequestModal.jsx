@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Star, Check, X, MapPin, Clock, User } from 'lucide-react';
+import { Star, Check, X, Clock, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const AUTO_DECLINE_SECONDS = 30;
 
 export default function TripRequestModal({ request, onAccept, onDecline }) {
+    const { t } = useTranslation();
     const [timeLeft, setTimeLeft] = useState(AUTO_DECLINE_SECONDS);
     const dialogRef = useRef(null);
 
@@ -123,10 +125,10 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         <User size={26} color='var(--on-primary)' />
                     </div>
                     <h3 id="trip-request-title" style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
-                        Новый запрос на поездку
+                        {t('modal.request_title')}
                     </h3>
                     <p id="trip-request-desc" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-                        Пассажир хочет присоединиться
+                        {t('modal.request_desc')}
                     </p>
                     {/* Таймер */}
                     <div style={{
@@ -138,7 +140,9 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         fontSize: '0.82rem', fontWeight: 700,
                     }}>
                         <Clock size={13} />
-                        {urgency ? `Ответьте за ${timeLeft} сек` : `Автоотклонение через ${timeLeft} сек`}
+                        {urgency
+                            ? t('modal.request_urgent', { seconds: timeLeft })
+                            : t('modal.request_auto_decline', { seconds: timeLeft })}
                     </div>
                 </div>
 
@@ -165,7 +169,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--warning)', fontSize: '0.85rem', marginTop: '3px' }}>
                             <Star size={13} fill="var(--warning)" />
                             <span style={{ fontWeight: 600 }}>{(request.requester_rating || 5.0).toFixed(1)}</span>
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Рейтинг</span>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{t('profile.rating')}</span>
                         </div>
                     </div>
                 </div>
@@ -206,7 +210,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--danger-soft)'; e.currentTarget.style.borderColor = 'var(--danger-border)'; e.currentTarget.style.color = 'var(--danger)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                     >
-                        <X size={18} /> Отклонить
+                        <X size={18} /> {t('modal.decline')}
                     </button>
                     <button
                         type="button"
@@ -224,7 +228,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; }}
                     >
-                        <Check size={18} /> Принять
+                        <Check size={18} /> {t('modal.accept')}
                     </button>
                 </div>
             </div>

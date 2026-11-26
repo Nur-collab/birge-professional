@@ -1,6 +1,7 @@
 import React from 'react';
 import { captureException } from '../sentry';
 import { AlertTriangle, RotateCcw, RefreshCw, ChevronDown, Copy, Check } from 'lucide-react';
+import i18n from '../i18n';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -66,10 +67,10 @@ class ErrorBoundary extends React.Component {
             </div>
 
             <div className="eb-header">
-              <span className="eb-badge">Системный сбой</span>
-              <h2 className="eb-title">Что-то пошло не так</h2>
+              <span className="eb-badge">{i18n.t('error_boundary.badge')}</span>
+              <h2 className="eb-title">{i18n.t('error_boundary.title')}</h2>
               <p className="eb-subtitle">
-                В компоненте интерфейса произошла непредвиденная ошибка. Ваши персональные данные в безопасности.
+                {i18n.t('error_boundary.subtitle')}
               </p>
             </div>
 
@@ -80,7 +81,7 @@ class ErrorBoundary extends React.Component {
                 onClick={this.handleReset}
               >
                 <RotateCcw size={16} />
-                <span>Попробовать снова</span>
+                <span>{i18n.t('error_boundary.retry')}</span>
               </button>
 
               <button
@@ -89,14 +90,14 @@ class ErrorBoundary extends React.Component {
                 onClick={this.handleHardReset}
               >
                 <RefreshCw size={16} />
-                <span>Очистить кэш и перезагрузить</span>
+                <span>{i18n.t('error_boundary.hard_reset')}</span>
               </button>
             </div>
 
             {this.state.error && (
               <details className="eb-details">
                 <summary className="eb-summary">
-                  <span>Технические детали</span>
+                  <span>{i18n.t('error_boundary.details')}</span>
                   <ChevronDown size={14} className="eb-chevron" />
                 </summary>
                 <div className="eb-stack-box">
@@ -110,12 +111,12 @@ class ErrorBoundary extends React.Component {
                       {this.state.copied ? (
                         <>
                           <Check size={12} />
-                          <span>Скопировано</span>
+                          <span>{i18n.t('error_boundary.copied')}</span>
                         </>
                       ) : (
                         <>
                           <Copy size={12} />
-                          <span>Копировать</span>
+                          <span>{i18n.t('copy')}</span>
                         </>
                       )}
                     </button>

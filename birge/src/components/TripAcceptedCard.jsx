@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Car, ShieldCheck, MapPin, Navigation, Clock, X, ChevronRight, Check } from 'lucide-react';
+import { Star, Car, ShieldCheck, Clock, X, ChevronRight, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * TripAcceptedCard — красивая карточка "Поездка принята" для пассажира.
@@ -10,6 +11,7 @@ import { Star, Car, ShieldCheck, MapPin, Navigation, Clock, X, ChevronRight, Che
  *   onDismiss     — callback при закрытии карточки (переход к чату)
  */
 export default function TripAcceptedCard({ trip, onDismiss }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
   const [animateOut, setAnimateOut] = useState(false);
 
@@ -37,7 +39,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
   if (!visible) return null;
 
   const driver = trip?.user || {};
-  const driverName = trip?.driverName || driver.name || 'Водитель';
+  const driverName = trip?.driverName || driver.name || t('matches.driver');
   const driverPhoto = trip?.driverPhoto || driver.photo || `https://i.pravatar.cc/200?u=${driver.id || 1}`;
   const driverRating = (driver.trust_rating || 5.0).toFixed(1);
   const driverVerified = driver.is_verified || false;
@@ -72,7 +74,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Поездка подтверждена"
+      aria-label={t('accepted.aria')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -230,7 +232,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
         <button
           type="button"
           onClick={handleDismiss}
-          aria-label="Закрыть карточку поездки"
+          aria-label={t('accepted.close_aria')}
           style={{
             position: 'absolute', top: 16, right: 16,
             width: 32, height: 32, borderRadius: '50%',
@@ -260,14 +262,14 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             marginBottom: 10, letterSpacing: 0.3,
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', animation: 'pulse-badge 1.5s ease-in-out infinite' }} />
-            ПОЕЗДКА ПОДТВЕРЖДЕНА
+            {t('accepted.badge').toUpperCase()}
           </div>
           <style>{`@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px 0' }}>
-            Водитель найден
+            {t('accepted.found_title')}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
-            Ваш водитель уже в пути
+            {t('accepted.found_subtitle')}
           </p>
         </div>
 
@@ -332,7 +334,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                   <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.88rem', marginLeft: 3 }}>
                     {driverRating}
                   </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>рейтинг</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{t('accepted.rating_word')}</span>
                 </div>
               </div>
             </div>
@@ -347,7 +349,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
                   fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
                 }}>
-                  Автомобиль
+                  {t('accepted.car_section')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {/* Иконка машины */}
@@ -400,7 +402,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
               }}>
                 <Car size={16} color="var(--warning)" />
                 <span style={{ fontSize: '0.82rem', color: 'var(--warning-strong)' }}>
-                  Данные машины не указаны
+                  {t('accepted.car_missing')}
                 </span>
               </div>
             )}
@@ -418,7 +420,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
               fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)',
               textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12,
             }}>
-              Маршрут
+              {t('dash.route_header_driver')}
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               {/* Иконки маршрута */}
@@ -429,11 +431,11 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Откуда</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>{t('search.from')}</div>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>{fromLocation || '—'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>Куда</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>{t('search.to')}</div>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>{toLocation || '—'}</div>
                 </div>
               </div>
@@ -452,7 +454,7 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
 
           {/* Кнопки */}
           <button type="button" className="tac-btn-chat" onClick={handleDismiss}>
-            Открыть чат с водителем
+            {t('accepted.open_driver_chat')}
             <ChevronRight size={18} />
           </button>
         </div>

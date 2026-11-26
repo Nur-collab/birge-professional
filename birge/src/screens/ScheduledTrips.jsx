@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Calendar, MapPin, Navigation, Clock, Users, Car,
-  Star, ShieldCheck, ChevronRight, RefreshCw, Trash2, ArrowRight, Plus
+  Calendar, Clock, Users, Car,
+  Star, ShieldCheck, ChevronRight, RefreshCw, Trash2, Plus
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 import ReviewModal from '../components/ReviewModal';
@@ -10,6 +11,7 @@ import SkeletonCard from '../components/SkeletonCard';
 import StatePanel from '../components/StatePanel';
 
 export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
+  const { t, i18n } = useTranslation();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,26 +25,27 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
 
   const formatDate = (d) => {
     if (!d) return '—';
-    if (d === today) return 'Сегодня';
-    if (d === tomorrow) return 'Завтра';
+    if (d === today) return t('common.today');
+    if (d === tomorrow) return t('common.tomorrow');
     const dt = new Date(d + 'T00:00:00');
-    return dt.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' });
+    const locale = i18n.language === 'ky' ? 'ky-KG' : 'ru-RU';
+    return dt.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long' });
   };
 
   const daysUntil = (d) => {
     if (!d) return null;
     const diff = Math.ceil((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
-    if (diff === 0) return 'сегодня';
-    if (diff === 1) return 'завтра';
-    return `через ${diff} дн.`;
+    if (diff === 0) return t('common.today').toLowerCase();
+    if (diff === 1) return t('common.tomorrow').toLowerCase();
+    return t('sched.days_in', { days: diff });
   };
 
   const tripsCountLabel = (count) => {
     const mod10 = count % 10;
     const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) return `${count} предстоящая поездка`;
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} предстоящие поездки`;
-    return `${count} предстоящих поездок`;
+    if (mod10 === 1 && mod100 !== 11) return t('sched.count_one', { count });
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return t('sched.count_few', { count });
+    return t('sched.count_many', { count });
   };
 
   const load = useCallback(async (showRefresh = false) => {
@@ -72,8 +75,8 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
     // поездка пассажира, а принятая заявка останется на сервере.
     const confirmMsg =
       trip.role === 'driver'
-        ? 'Отменить запланированную поездку? Все пассажиры будут уведомлены.'
-        : 'Отказаться от поездки с этим водителем?';
+        ? t('sched.confirm_driver_cancel')
+        : t('sched.confirm_passenger_cancel');
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -103,21 +106,21 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
       {/* Заголовок */}
       <div className="sched-header">
         <div>
-          <h2 className="sched-title">Запланированные</h2>
+          <h2 className="sched-title">{t('sched.title')}</h2>
           <p className="sched-subtitle">
             {loading
-              ? 'Загружаем поездки…'
+              ? t('sched.loading')
               : trips.length > 0
                 ? tripsCountLabel(trips.length)
-                : 'Нет запланированных поездок'}
+                : t('sched.empty')}
           </p>
         </div>
         <button
           type="button"
           className={`sched-refresh-btn ${refreshing ? 'spinning' : ''}`}
           onClick={() => load(true)}
-          title="Обновить"
-          aria-label="Обновить запланированные поездки"
+          title={t('sched.refresh')}
+          aria-label={t('sched.refresh_aria')}
           aria-busy={refreshing}
         >
           <RefreshCw size={18} aria-hidden="true" />
@@ -133,8 +136,8 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
         <StatePanel
           titleAs="h3"
           icon={<Calendar size={22} />}
-          title="Пока пусто"
-          text="Запланируйте поездку на завтра или следующую неделю — она появится здесь автоматически"
+          title={t('sched.empty_title')}
+          text={t('sched.empty_desc')}
           action={<button
             type="button"
             className="primary-btn state-panel-action"
@@ -142,7 +145,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Plus size={16} aria-hidden="true" />
-            <span>Запланировать поездку</span>
+            <span>{t('sched.plan_btn')}</span>
           </button>}
         />
       ) : (
@@ -157,9 +160,9 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
               <div className="sched-card-top">
                 <div className="sched-role-badge">
                   {trip.role === 'driver' ? (
-                    <><Car size={12} /> Водитель</>
+                    <><Car size={12} /> {t('matches.driver')}</>
                   ) : (
-                    <><Users size={12} /> Пассажир</>
+                    <><Users size={12} /> {t('matches.passenger')}</>
                   )}
                 </div>
                 <div className="sched-date-chip">
@@ -199,7 +202,7 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
               {/* Пассажиры (для водителя) */}
               {trip.role === 'driver' && trip.passengers && trip.passengers.length > 0 && (
                 <div className="sched-passengers">
-                  <div className="sched-pass-label">Пассажиры:</div>
+                  <div className="sched-pass-label">{t('sched.passengers_label')}</div>
                   <div className="sched-pass-list">
                     {trip.passengers.map(p => (
                       <div key={p.id} className="sched-pass-row">
@@ -221,8 +224,8 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                           type="button"
                           className="sched-review-btn"
                           onClick={() => setReviewTarget(p)}
-                          title="Оценить пассажира"
-                          aria-label={`Оценить пассажира ${p.name}`}
+                          title={t('sched.rate_passenger_title')}
+                          aria-label={t('sched.rate_passenger_aria', { name: p.name })}
                         >
                           <Star size={11} fill="var(--warning)" color="var(--warning)" aria-hidden="true" />
                         </button>
@@ -269,10 +272,10 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                   type="button"
                   className="sched-review-btn"
                   onClick={() => setReviewTarget({ ...trip.driver, trip_id: trip.trip_id })}
-                  title="Оставить отзыв о водителе"
+                  title={t('sched.rate_driver_title')}
                 >
                   <Star size={12} fill="var(--warning)" color="var(--warning)" aria-hidden="true" />
-                  Оценить водителя
+                  {t('sched.rate_driver')}
                 </button>
               )}
 
@@ -283,15 +286,15 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                   className="sched-open-btn"
                   onClick={() => onOpenTrip(trip)}
                 >
-                  Открыть поездку <ChevronRight size={15} aria-hidden="true" />
+                  {t('sched.open_trip')} <ChevronRight size={15} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
                   className={`sched-cancel-btn ${cancellingId === trip.trip_id ? 'loading' : ''}`}
                   onClick={() => handleCancel(trip)}
                   disabled={cancellingId === trip.trip_id}
-                  title={trip.role === 'driver' ? 'Отменить поездку' : 'Отказаться от поездки'}
-                  aria-label={trip.role === 'driver' ? 'Отменить поездку' : 'Отказаться от поездки'}
+                  title={trip.role === 'driver' ? t('sched.cancel') : t('sched.decline_trip')}
+                  aria-label={trip.role === 'driver' ? t('sched.cancel') : t('sched.decline_trip')}
                   aria-busy={cancellingId === trip.trip_id}
                 >
                   <Trash2 size={15} aria-hidden="true" />

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Список популярных мест Бишкека для автодополнения
 const BISHKEK_PLACES = [
@@ -43,6 +44,7 @@ export default function AddressInput({
     invalid = false,
     describedBy,
 }) {
+    const { t } = useTranslation();
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [highlighted, setHighlighted] = useState(-1);
@@ -130,7 +132,7 @@ export default function AddressInput({
                 aria-expanded={showDropdown}
                 aria-controls={showDropdown ? listId : undefined}
                 aria-activedescendant={showDropdown && highlighted >= 0 ? optionId(highlighted) : undefined}
-                aria-label={placeholder || 'Адрес'}
+                aria-label={placeholder || t('address.default_aria')}
                 aria-invalid={invalid ? 'true' : 'false'}
                 aria-describedby={describedBy}
                 placeholder={placeholder}
@@ -156,7 +158,7 @@ export default function AddressInput({
                     ref={dropdownRef}
                     id={listId}
                     role="listbox"
-                    aria-label="Подсказки адресов"
+                    aria-label={t('address.suggestions_aria')}
                     style={{
                         position: 'absolute',
                         top: '100%',

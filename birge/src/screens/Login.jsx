@@ -60,19 +60,19 @@ const clearStoredFlow = () => {
   }
 };
 
-const mapAuthError = (message) => {
-  if (!message) return 'Неверный или просроченный код';
+const mapAuthError = (message, t) => {
+  if (!message) return t('auth.error_invalid_code');
   if (/invalid,\s*expired,\s*or\s*locked\s*code/i.test(message)) {
-    return 'Неверный или просроченный код подтверждения';
+    return t('auth.error_expired_code');
   }
   if (/invalid,\s*unverified,\s*or\s*expired\s*telegram\s*challenge/i.test(message)) {
-    return 'Ссылка подтверждения устарела. Запустите вход через Telegram заново.';
+    return t('auth.error_expired_tg');
   }
   if (/phone number required/i.test(message)) {
-    return 'Укажите номер телефона';
+    return t('auth.error_phone_required');
   }
   if (/too many requests/i.test(message)) {
-    return 'Слишком много попыток. Подождите 1 минуту.';
+    return t('auth.error_too_many');
   }
   return message;
 };
@@ -115,7 +115,7 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
       onStartTelegram(challenge);
     } catch (err) {
       console.error('[PhoneStep][Telegram]', err);
-      setError(mapAuthError(err.message) || 'Не удалось создать ссылку для Telegram.');
+      setError(mapAuthError(err.message, t) || t('auth.error_tg_create'));
     } finally {
       setTgLoading(false);
     }
@@ -125,7 +125,7 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
     e.preventDefault();
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 9) {
-      setError(t('auth.error_invalid_phone') || 'Введите 9 цифр после +996');
+      setError(t('auth.error_invalid_phone'));
       return;
     }
     setLoading(true);
@@ -137,7 +137,7 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
       onNext(fullPhone, tgOpened);
     } catch (err) {
       console.error('[PhoneStep]', err);
-      setError(mapAuthError(err.message) || 'Ошибка отправки кода. Попробуйте еще раз.');
+      setError(mapAuthError(err.message, t) || t('auth.error_send_code'));
     } finally {
       setLoading(false);
     }
@@ -146,9 +146,9 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
   return (
     <div className="login-step">
       <div className="login-step-header">
-        <h1 className="login-title">Вход в BIRGE</h1>
+        <h1 className="login-title">{t('auth.login_title')}</h1>
         <p className="login-desc">
-          Обычные SMS не отправляются — вход и 6-значные коды работают через Telegram-бот @BirgeAuthBot.
+          {t('auth.login_desc')}
         </p>
       </div>
 
@@ -164,22 +164,22 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
         </span>
         <span className="tg-primary-copy">
           <span className="tg-primary-title">
-            {t('auth.tg_quick_btn', 'Войти через @BirgeAuthBot')}
+            {t('auth.tg_quick_btn')}
           </span>
           <span className="tg-primary-sub">
-            {t('auth.tg_quick_sub', 'Без ожидания 6-значного кода — подтвердите номер в Telegram')}
+            {t('auth.tg_quick_sub')}
           </span>
         </span>
         <ArrowRight size={17} className="tg-primary-arrow" aria-hidden="true" />
       </button>
 
       <div className="auth-divider" role="separator">
-        <span>или по номеру и коду</span>
+        <span>{t('auth.or_phone_code')}</span>
       </div>
 
       <form onSubmit={handleSubmit} className="login-form">
         <div className="field-group">
-          <label className="input-label" htmlFor="login-phone">Номер телефона</label>
+          <label className="input-label" htmlFor="login-phone">{t('auth.phone_number')}</label>
           <div className={`phone-input-wrap ${error ? 'has-error' : ''}`}>
             <div className="phone-prefix-pill">
               <KyrgyzstanFlag />
@@ -220,17 +220,14 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
             )}
             <span className="tg-prereq-title">
               {tgOpened
-                ? 'Бот открыт — завершите отправку номера'
-                : t('auth.prereq_title', 'Важно перед получением кода')}
+                ? t('auth.prereq_opened_title')
+                : t('auth.prereq_title')}
             </span>
           </div>
           <p className="tg-prereq-text">
             {tgOpened
-              ? 'Если вы нажали Start и «Поделиться номером» в @BirgeAuthBot, нажмите «Получить код» ниже.'
-              : t(
-                'auth.prereq_desc',
-                'Обычные SMS не отправляются. Если вы здесь впервые, сначала отправьте свой номер боту @BirgeAuthBot — иначе код не придёт.'
-              )}
+              ? t('auth.prereq_opened_desc')
+              : t('auth.prereq_desc')}
           </p>
           <a
             href={BOT_URL}
@@ -240,7 +237,7 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
             onClick={() => setTgOpened(true)}
           >
             <Send size={13} aria-hidden="true" />
-            <span>{tgOpened ? 'Открыть @BirgeAuthBot ещё раз' : '1. Открыть @BirgeAuthBot и отправить номер'}</span>
+            <span>{tgOpened ? t('auth.open_bot_again') : t('auth.open_bot_first')}</span>
             <ExternalLink size={12} aria-hidden="true" />
           </a>
         </div>
@@ -254,11 +251,11 @@ function PhoneStep({ initialPhone, initialTgOpened, onNext, onStartTelegram }) {
           {loading ? (
             <>
               <Loader2 size={18} className="spin" aria-hidden="true" />
-              <span className="sr-only">Отправка кода</span>
+              <span className="sr-only">{t('auth.sending_code')}</span>
             </>
           ) : (
             <>
-              <span>Получить код</span>
+              <span>{t('auth.get_code')}</span>
               <ArrowRight size={17} aria-hidden="true" />
             </>
           )}
@@ -276,6 +273,7 @@ function TelegramChallengeStep({
   onBack,
   onVerified,
 }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(() => (initialVerifiedInfo ? 'verified' : 'pending'));
   const [verifiedInfo, setVerifiedInfo] = useState(initialVerifiedInfo || null);
   const [name, setName] = useState('');
@@ -297,17 +295,17 @@ function TelegramChallengeStep({
       );
       const user = data?.user || await api.getCurrentUser();
       if (!user) {
-        throw new Error('Не удалось загрузить профиль. Попробуйте ещё раз.');
+        throw new Error(t('auth.error_load_profile'));
       }
       clearStoredFlow();
       onVerified(user);
     } catch (err) {
       console.error('[TelegramStep][complete]', err);
-      setError(mapAuthError(err.message));
+      setError(mapAuthError(err.message, t));
       completingRef.current = false;
       setCompleting(false);
     }
-  }, [challenge, onVerified]);
+  }, [challenge, onVerified, t]);
 
   const checkStatus = useCallback(async (manual = false) => {
     if (!challenge || completingRef.current) return;
@@ -337,12 +335,12 @@ function TelegramChallengeStep({
       if (err?.status === 404 || err?.status === 410) {
         setStatus('expired');
       } else if (manual) {
-        setError(mapAuthError(err.message));
+        setError(mapAuthError(err.message, t));
       }
     } finally {
       if (manual) setChecking(false);
     }
-  }, [challenge, completeLogin]);
+  }, [challenge, completeLogin, t]);
 
   useEffect(() => {
     if (!challenge || status === 'verified' || status === 'expired') return undefined;
@@ -376,31 +374,31 @@ function TelegramChallengeStep({
     return (
       <div className="login-step">
         <div className="login-step-header">
-          <h1 className="login-title">Завершение входа</h1>
+          <h1 className="login-title">{t('auth.tg_complete_title')}</h1>
           <p className="login-desc">
-            Номер <strong>{verifiedInfo.phone}</strong> подтверждён в Telegram.
+            {t('auth.tg_complete_verified_before')} <strong>{verifiedInfo.phone}</strong> {t('auth.tg_complete_verified_after')}
           </p>
         </div>
 
         <div className="delivery-notice is-success">
           <ShieldCheck size={16} aria-hidden="true" />
-          <span>Аккаунт верифицирован через @BirgeAuthBot — код вводить не нужно.</span>
+          <span>{t('auth.tg_verified_badge')}</span>
         </div>
 
         <form onSubmit={handleCompleteNewUser} className="login-form">
           <div className="field-group">
-            <label className="input-label" htmlFor="login-tg-name">Имя</label>
+            <label className="input-label" htmlFor="login-tg-name">{t('auth.name_label')}</label>
             <input
               id="login-tg-name"
               type="text"
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Как вас зовут"
+              placeholder={t('auth.name_placeholder')}
               className="pro-input"
               autoFocus
             />
-            <p className="field-hint">Имя увидят попутчики при поездках</p>
+            <p className="field-hint">{t('auth.name_hint_visible')}</p>
           </div>
 
           {error && (
@@ -419,11 +417,11 @@ function TelegramChallengeStep({
             {completing ? (
               <>
                 <Loader2 size={18} className="spin" aria-hidden="true" />
-                <span>Вход в BIRGE...</span>
+                <span>{t('auth.entering_app')}</span>
               </>
             ) : (
               <>
-                <span>Завершить вход</span>
+                <span>{t('auth.complete_login')}</span>
                 <ArrowRight size={17} aria-hidden="true" />
               </>
             )}
@@ -431,7 +429,7 @@ function TelegramChallengeStep({
 
           <button type="button" className="auth-back-action" onClick={onBack}>
             <ArrowLeft size={15} aria-hidden="true" />
-            <span>Другой способ входа</span>
+            <span>{t('auth.other_login_method')}</span>
           </button>
         </form>
       </div>
@@ -441,16 +439,16 @@ function TelegramChallengeStep({
   return (
     <div className="login-step">
       <div className="login-step-header">
-        <h1 className="login-title">Подтвердите в Telegram</h1>
+        <h1 className="login-title">{t('auth.tg_confirm_title')}</h1>
         <p className="login-desc">
-          Откройте @{challenge?.bot_username || 'BirgeAuthBot'} и подтвердите номер телефона — вход выполнится автоматически.
+          {t('auth.tg_confirm_desc', { bot: challenge?.bot_username || 'BirgeAuthBot' })}
         </p>
       </div>
 
       {status === 'expired' ? (
         <div className="auth-error-banner" role="alert" style={{ marginBottom: 16 }}>
           <AlertCircle size={15} aria-hidden="true" />
-          <span>Время подтверждения истекло (5 минут). Создайте новую ссылку для входа.</span>
+          <span>{t('auth.tg_expired')}</span>
         </div>
       ) : (
         <div className="delivery-notice" role="status" aria-live="polite">
@@ -461,18 +459,18 @@ function TelegramChallengeStep({
           )}
           <span>
             {completing
-              ? 'Номер подтверждён — входим в приложение...'
+              ? t('auth.tg_status_completing')
               : status === 'bot_started'
-                ? 'Бот открыт! Нажмите в Telegram кнопку «Поделиться номером».'
-                : 'Ожидаем подтверждения в Telegram...'}
+                ? t('auth.tg_status_bot_started')
+                : t('auth.tg_status_pending')}
           </span>
         </div>
       )}
 
       <ol className="tg-steps-list">
-        <li>Нажмите кнопку ниже, чтобы перейти в @{challenge?.bot_username || 'BirgeAuthBot'}</li>
-        <li>В боте нажмите <strong>Start</strong> и <strong>«Поделиться номером»</strong></li>
-        <li>Вернитесь в эту вкладку — страница сама продолжит вход</li>
+        <li>{t('auth.tg_step_1', { bot: challenge?.bot_username || 'BirgeAuthBot' })}</li>
+        <li>{t('auth.tg_step_2')}</li>
+        <li>{t('auth.tg_step_3')}</li>
       </ol>
 
       {error && (
@@ -486,7 +484,7 @@ function TelegramChallengeStep({
         {status === 'expired' ? (
           <button type="button" className="primary-btn submit-btn" onClick={onRestart}>
             <RefreshCw size={16} aria-hidden="true" />
-            <span>Создать новую ссылку</span>
+            <span>{t('auth.tg_create_new_link')}</span>
           </button>
         ) : (
           <>
@@ -497,7 +495,7 @@ function TelegramChallengeStep({
               className="primary-btn submit-btn tg-open-link-btn"
             >
               <Send size={16} aria-hidden="true" />
-              <span>Открыть @{challenge?.bot_username || 'BirgeAuthBot'}</span>
+              <span>{t('auth.open_bot_named', { bot: challenge?.bot_username || 'BirgeAuthBot' })}</span>
               <ExternalLink size={15} aria-hidden="true" />
             </a>
 
@@ -508,14 +506,14 @@ function TelegramChallengeStep({
               disabled={checking || completing}
             >
               <RefreshCw size={15} className={checking ? 'spin' : ''} aria-hidden="true" />
-              <span>{checking ? 'Проверяем...' : 'Я уже подтвердил — проверить'}</span>
+              <span>{checking ? t('auth.checking') : t('auth.tg_check_now')}</span>
             </button>
           </>
         )}
 
         <button type="button" className="auth-back-action" onClick={onBack}>
           <ArrowLeft size={15} aria-hidden="true" />
-          <span>Войти по номеру и коду</span>
+          <span>{t('auth.login_by_phone_code')}</span>
         </button>
       </div>
     </div>
@@ -555,10 +553,10 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
       await api.sendCode(phone);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setElapsed(0);
-      setResendInfo('Запрос отправлен повторно. Если бот привязан, новый код уже в Telegram.');
+      setResendInfo(t('auth.resent_notice'));
     } catch (err) {
       console.error('[CodeStep][resend]', err);
-      setError(mapAuthError(err.message));
+      setError(mapAuthError(err.message, t));
     } finally {
       setResending(false);
     }
@@ -572,7 +570,7 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
       onSwitchToTelegram(challenge);
     } catch (err) {
       console.error('[CodeStep][switchTg]', err);
-      setError(mapAuthError(err.message));
+      setError(mapAuthError(err.message, t));
     } finally {
       setTgStarting(false);
     }
@@ -588,13 +586,13 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
       const data = await api.verifyCode(phone, code, name.trim());
       const user = data?.user || await api.getCurrentUser();
       if (!user) {
-        throw new Error('Не удалось загрузить профиль. Попробуйте войти еще раз.');
+        throw new Error(t('auth.error_load_profile'));
       }
       clearStoredFlow();
       onVerified(user);
     } catch (err) {
       console.error('[CodeStep]', err);
-      setError(mapAuthError(err.message));
+      setError(mapAuthError(err.message, t));
     } finally {
       setLoading(false);
     }
@@ -603,23 +601,18 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
   return (
     <div className="login-step">
       <div className="login-step-header">
-        <h1 className="login-title">Подтверждение</h1>
-        <p className="login-desc">Введите код для номера <strong>{phone}</strong></p>
+        <h1 className="login-title">{t('auth.confirm_title')}</h1>
+        <p className="login-desc">{t('auth.enter_code_for')} <strong>{phone}</strong></p>
       </div>
 
       <div className="delivery-notice">
         <Send size={16} aria-hidden="true" />
-        <span>
-          {t(
-            'auth.check_sms',
-            'Мы отправим 6-значный код в Telegram-бот @BirgeAuthBot, если ваш номер уже привязан к боту.'
-          )}
-        </span>
+        <span>{t('auth.check_sms')}</span>
       </div>
 
       <form onSubmit={handleSubmit} className="login-form">
         <div className="field-group">
-          <label className="input-label" htmlFor="login-code">6-значный код</label>
+          <label className="input-label" htmlFor="login-code">{t('auth.code_label')}</label>
           <input
             id="login-code"
             type="text"
@@ -638,17 +631,17 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
         </div>
 
         <div className="field-group">
-          <label className="input-label" htmlFor="login-name">Имя</label>
+          <label className="input-label" htmlFor="login-name">{t('auth.name_label')}</label>
           <input
             id="login-name"
             type="text"
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Как вас зовут"
+            placeholder={t('auth.name_placeholder')}
             className="pro-input"
           />
-          <p className="field-hint">Нужно только при первом входе</p>
+          <p className="field-hint">{t('auth.name_hint_first_login')}</p>
         </div>
 
         {error && (
@@ -674,11 +667,11 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
           {loading ? (
             <>
               <Loader2 size={18} className="spin" aria-hidden="true" />
-              <span className="sr-only">Проверка кода</span>
+              <span className="sr-only">{t('auth.checking_code')}</span>
             </>
           ) : (
             <>
-              <span>Подтвердить и войти</span>
+              <span>{t('auth.confirm_and_login')}</span>
               <ArrowRight size={17} aria-hidden="true" />
             </>
           )}
@@ -693,10 +686,10 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
           <RefreshCw size={14} className={resending ? 'spin' : ''} aria-hidden="true" />
           <span>
             {resending
-              ? 'Отправляем...'
+              ? t('auth.resending')
               : cooldown > 0
                 ? t('auth.resend_in', { seconds: cooldown })
-                : t('auth.resend_now', 'Отправить код повторно')}
+                : t('auth.resend_now')}
           </span>
         </button>
 
@@ -705,17 +698,12 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
             <AlertCircle size={15} aria-hidden="true" />
             <span>
               {showRescueHighlight
-                ? t('auth.rescue_title', 'Код не приходит?')
-                : 'Если код не пришёл в Telegram'}
+                ? t('auth.rescue_title')
+                : t('auth.rescue_default_title')}
             </span>
           </div>
           <p className="bot-rescue-text">
-            {t(
-              'auth.rescue_desc',
-              'Скорее всего, вы ещё не отправили свой номер в @BirgeAuthBot или указали другой номер.'
-            )}{' '}
-            Откройте бота, нажмите <strong>Start → Поделиться номером</strong>, а затем нажмите{' '}
-            <strong>«Отправить код повторно»</strong>.
+            {t('auth.rescue_desc')} {t('auth.rescue_action_hint')}
           </p>
           <div className="bot-rescue-actions">
             <a
@@ -726,7 +714,7 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
               onClick={() => setTgOpened(true)}
             >
               <Send size={13} aria-hidden="true" />
-              <span>{tgOpened ? 'Открыть @BirgeAuthBot ещё раз' : t('auth.open_bot', 'Открыть @BirgeAuthBot')}</span>
+              <span>{tgOpened ? t('auth.open_bot_again') : t('auth.open_bot')}</span>
               <ExternalLink size={12} aria-hidden="true" />
             </a>
             <button
@@ -735,14 +723,14 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
               onClick={handleSwitchTelegram}
               disabled={tgStarting}
             >
-              {tgStarting ? 'Создаём ссылку...' : 'Войти через Telegram без кода'}
+              {tgStarting ? t('auth.creating_link') : t('auth.switch_to_tg')}
             </button>
           </div>
         </div>
 
         <button type="button" className="auth-back-action" onClick={onBack}>
           <ArrowLeft size={15} aria-hidden="true" />
-          <span>Изменить номер</span>
+          <span>{t('auth.change_phone')}</span>
         </button>
       </form>
     </div>
@@ -751,6 +739,7 @@ function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToTelegram, onVeri
 
 // ─── Главный экран авторизации ───────────────────────────────
 export default function Login({ onLoggedIn }) {
+  const { t } = useTranslation();
   const initialFlow = useRef(readStoredFlow());
   const [step, setStep] = useState(() => initialFlow.current?.step || 'phone');
   const [phone, setPhone] = useState(() => initialFlow.current?.phone || '');
@@ -787,28 +776,27 @@ export default function Login({ onLoggedIn }) {
 
   const progressLabel =
     step === 'phone'
-      ? 'Способ входа'
+      ? t('auth.progress_method')
       : step === 'telegram'
         ? 'Telegram'
-        : 'Подтверждение';
+        : t('auth.progress_confirm');
 
   return (
     <main className="login-screen">
-      <aside className="login-brand-panel" aria-label="О сервисе BIRGE">
+      <aside className="login-brand-panel" aria-label={t('auth.brand_about_aria')}>
         <div className="login-brand-lockup">
           <span className="auth-logo-badge" aria-hidden="true">B</span>
           <span>
             <span className="login-brand-lockup-title">BIRGE</span>
-            <span className="login-brand-lockup-sub">Совместные поездки</span>
+            <span className="login-brand-lockup-sub">{t('app.brand_subtitle')}</span>
           </span>
         </div>
 
         <div className="login-brand-copy">
-          <p className="login-eyebrow">Бишкек · Чуйская область</p>
-          <p className="login-brand-heading">Дорога,<br />в которой есть<br />попутчик.</p>
+          <p className="login-eyebrow">{t('auth.brand_eyebrow')}</p>
+          <p className="login-brand-heading">{t('auth.brand_heading_1')}<br />{t('auth.brand_heading_2')}<br />{t('auth.brand_heading_3')}</p>
           <p className="login-brand-description">
-            Находите проверенных водителей и пассажиров по пути. Договаривайтесь о цене заранее
-            и делите дорогу с теми, кому по пути.
+            {t('auth.brand_description')}
           </p>
         </div>
 
@@ -816,27 +804,27 @@ export default function Login({ onLoggedIn }) {
           <li>
             <span className="login-benefit-icon"><ShieldCheck size={17} aria-hidden="true" /></span>
             <span>
-              <span className="login-benefit-title">Проверенные профили</span>
-              <span className="login-benefit-text">Рейтинг, подтверждение и история поездок</span>
+              <span className="login-benefit-title">{t('auth.benefit_1_title')}</span>
+              <span className="login-benefit-text">{t('auth.benefit_1_text')}</span>
             </span>
           </li>
           <li>
             <span className="login-benefit-icon"><Send size={16} aria-hidden="true" /></span>
             <span>
-              <span className="login-benefit-title">Код в Telegram</span>
-              <span className="login-benefit-text">Быстрый и безопасный вход без пароля</span>
+              <span className="login-benefit-title">{t('auth.benefit_2_title')}</span>
+              <span className="login-benefit-text">{t('auth.benefit_2_text')}</span>
             </span>
           </li>
           <li>
             <span className="login-benefit-icon"><Users size={17} aria-hidden="true" /></span>
             <span>
-              <span className="login-benefit-title">Поездки рядом</span>
-              <span className="login-benefit-text">Город, микрорайоны и пригород</span>
+              <span className="login-benefit-title">{t('auth.benefit_3_title')}</span>
+              <span className="login-benefit-text">{t('auth.benefit_3_text')}</span>
             </span>
           </li>
         </ul>
 
-        <p className="login-brand-footnote">Поездки по городу и области — в одном приложении.</p>
+        <p className="login-brand-footnote">{t('auth.brand_footnote')}</p>
       </aside>
 
       <section className="login-form-panel">
@@ -845,12 +833,12 @@ export default function Login({ onLoggedIn }) {
             <span className="auth-logo-badge" aria-hidden="true">B</span>
             <span>
               <span className="auth-mobile-brand-title">BIRGE</span>
-              <span className="auth-mobile-brand-sub">Совместные поездки</span>
+              <span className="auth-mobile-brand-sub">{t('app.brand_subtitle')}</span>
             </span>
           </div>
 
           <div className="auth-progress-meta">
-            <span>Шаг {step === 'phone' ? '1' : '2'} из 2</span>
+            <span>{t('auth.step_counter', { current: step === 'phone' ? '1' : '2' })}</span>
             <span>{progressLabel}</span>
           </div>
 
@@ -893,7 +881,7 @@ export default function Login({ onLoggedIn }) {
         </div>
 
         <p className="auth-footer-legal">
-          Нажимая «Получить код» или «Войти через @BirgeAuthBot», вы соглашаетесь с <a href="/terms.html" target="_blank" rel="noopener noreferrer">Правилами</a> и <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</a>
+          {t('auth.legal_prefix')} <a href="/terms.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_terms')}</a> {t('auth.legal_and')} <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_privacy')}</a>
         </p>
       </section>
 

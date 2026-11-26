@@ -85,13 +85,13 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         }));
         setPaymentError('');
       }
-    }).catch((e) => setPaymentError(e.message || 'Не удалось загрузить реквизиты'));
+    }).catch((e) => setPaymentError(e.message || t('payment.load_error')));
   }, [isDriver, trip?.id]);
 
   const handlePayMbank = () => {
     const targetPhone = driverPayment.mbankPhone;
     if (!targetPhone) {
-      setPaymentError('Реквизиты ещё не загружены. Попробуйте через секунду.');
+      setPaymentError(t('payment.not_loaded_yet'));
       return;
     }
     setPaymentError('');
@@ -106,7 +106,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
   const handleCopyElkart = () => {
     const targetCard = driverPayment.elkartNumber;
     if (!targetCard) {
-      setPaymentError('Номер карты Элкарт не указан.');
+      setPaymentError(t('payment.elkart_missing'));
       return;
     }
     setPaymentError('');
@@ -125,8 +125,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
   // Для пассажира — партнёр-водитель
   const partner = trip.user || {};
   const partnerName = isDriver
-    ? (passengers.length > 0 ? `${passengers.length} пассажира` : 'Ждём пассажиров...')
-    : (partner.name || 'Водитель');
+    ? (passengers.length > 0 ? t('trip.passengers_many', { count: passengers.length }) : t('trip.waiting_passengers_short'))
+    : (partner.name || t('matches.driver'));
   const partnerPhoto = partner.photo || `https://i.pravatar.cc/150?u=${trip.user_id}`;
   const partnerRating = partner.trust_rating || 5.0;
   const partnerVerified = partner.is_verified || false;
@@ -138,7 +138,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
   const sendGoingMessage = async () => {
     try {
-      await api.sendChatMessage(chatRoomId, 'Выезжаю! Буду ориентировочно через 5 минут. Пожалуйста, выходите.');
+      await api.sendChatMessage(chatRoomId, t('trip.going_chat_msg'));
       setGoingNotified(true);
     } catch (_) {
       // Не показываем ложный успех, если сообщение не доставлено.
@@ -187,7 +187,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: '1.1rem', marginBottom: '3px', fontWeight: 800 }}>{t('trip.title')}</h2>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{trip.date || 'Сегодня'} · {trip.time}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{trip.date || t('common.today')} · {trip.time}</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               background: isScheduled ? 'var(--info-soft)' : 'var(--accent-soft)',
@@ -196,14 +196,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               fontSize: '0.72rem', fontWeight: 600, marginTop: 5
             }}>
               {isScheduled ? (
-                <><Calendar size={11} /> Запланировано</>
+                <><Calendar size={11} /> {t('trip.status_scheduled')}</>
               ) : (
-                <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block' }} /> В процессе</>
+                <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block' }} /> {t('trip.status_active')}</>
               )}
             </div>
           </div>
           {!isScheduled && (
-            <button type="button" className="panic-btn" onClick={onPanic} title="Тревожная кнопка" aria-label="Отправить сигнал тревоги">
+            <button type="button" className="panic-btn" onClick={onPanic} title={t('trip.panic_title')} aria-label={t('trip.panic_aria')}>
               <AlertTriangle size={20} aria-hidden="true" />
             </button>
           )}
@@ -215,7 +215,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             <div className="seats-counter">
               <Users size={14} color="var(--primary)" />
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                {passengers.length} / {seats} пассажиров
+                {t('trip.passengers_count', { count: passengers.length, seats })}
               </span>
               <div className="seats-dots">
                 {Array.from({ length: seats }).map((_, i) => (
@@ -226,7 +226,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
 
             {passengers.length === 0 ? (
               <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', margin: '8px 0' }}>
-                Ожидаем пассажиров...
+                {t('trip.waiting_passengers')}
               </p>
             ) : (
               <div className="passengers-list">
@@ -258,7 +258,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 color: 'var(--text-muted)',
                 fontWeight: 600,
               }}>
-                Кнопка «Выезжаю» станет активна в день отправления
+                {t('trip.going_scheduled_hint')}
               </div>
             ) : (
               <button
@@ -267,7 +267,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 disabled={goingNotified || passengers.length === 0}
                 onClick={sendGoingMessage}
               >
-                {goingNotified ? 'Уведомление отправлено' : <><Zap size={15} /> Уведомить всех — Выезжаю</>}
+                {goingNotified ? t('trip.going_notified') : <><Zap size={15} /> {t('trip.going_btn')}</>}
               </button>
             )}
           </div>
@@ -324,8 +324,8 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             <Calendar size={20} color="var(--on-primary)" />
           </div>
           <div>
-            <div className="trip-scheduled-title">Поездка запланирована</div>
-            <div className="trip-scheduled-sub">{trip.date} в {trip.time} — ждём дня поездки</div>
+            <div className="trip-scheduled-title">{t('trip.scheduled_banner_title')}</div>
+            <div className="trip-scheduled-sub">{t('trip.scheduled_banner_sub', { date: trip.date, time: trip.time })}</div>
           </div>
         </div>
       )}
@@ -340,7 +340,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         >
           <span className="trip-map-toggle-left">
             <MapIcon size={16} aria-hidden="true" />
-            <span>{showMap ? 'Скрыть карту маршрута' : 'Показать маршрут на карте'}</span>
+            <span>{showMap ? t('trip.map_hide') : t('trip.map_show')}</span>
           </span>
           <ChevronDown
             size={17}
@@ -359,7 +359,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       <div className="trip-chat">
         <h3 style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}>
           <MessageCircle size={15} />
-          {isDriver && passengers.length > 1 ? `Групповой чат (${passengers.length})` : t('trip.chat')}
+          {isDriver && passengers.length > 1 ? t('trip.group_chat', { count: passengers.length }) : t('trip.chat')}
         </h3>
         <Chat tripId={chatRoomId} currentUser={currentUser} partnerName={partnerName} onNewMessage={onNewMessage} />
       </div>
@@ -378,14 +378,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 </span>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {(trip.price_per_seat || trip.price || 0) > 0
-                    ? `${trip.price_per_seat || trip.price} сом ${t('payment.per_seat')}`
-                    : 'Бесплатно / добровольно'}
+                    ? `${trip.price_per_seat || trip.price} ${t('common.som')} ${t('payment.per_seat')}`
+                    : t('payment.free_voluntary')}
                 </div>
               </div>
             </div>
             {(trip.price_per_seat || trip.price || 0) > 0 && (
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
-                {trip.price_per_seat || trip.price} <span style={{ fontSize: '0.82rem' }}>сом</span>
+                {trip.price_per_seat || trip.price} <span style={{ fontSize: '0.82rem' }}>{t('common.som')}</span>
               </span>
             )}
           </div>
@@ -405,14 +405,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             {driverPayment.elkartNumber ? (
               <button type="button" onClick={handleCopyElkart} className="trip-elkart-btn">
                 {copiedElkart ? <Check size={16} color="var(--primary)" /> : <Copy size={16} />}
-                <span>{copiedElkart ? 'Скопировано!' : 'Элкарт'}</span>
+                <span>{copiedElkart ? t('payment.copied_short') : t('payment.elkart_btn')}</span>
               </button>
             ) : null}
           </div>
 
           {copied && (
             <p style={{ fontSize: '0.78rem', color: 'var(--primary)', textAlign: 'center', margin: 0, fontWeight: 600 }}>
-              Номер {driverPayment.mbankPhone} скопирован в буфер. Открываем MBank...
+              {t('payment.copied_banner', { phone: driverPayment.mbankPhone })}
             </p>
           )}
         </div>
@@ -450,10 +450,10 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
             >
               <XCircle size={18} />
               {cancelling
-                ? 'Отменяем...'
+                ? t('trip.cancelling')
                 : cancelConfirm
-                ? 'Нажмите еще раз для подтверждения'
-                : 'Отменить поездку'}
+                ? t('trip.cancel_confirm')
+                : t('trip.cancel_trip')}
             </button>
             {cancelError && (
               <p style={{ color: 'var(--danger)', fontSize: '0.78rem', margin: 0, textAlign: 'center' }}>
@@ -466,7 +466,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         {/* Завершить — только в день поездки */}
         {!isScheduled && (
           <button type="button" className="primary-btn finish-btn" onClick={onFinish}>
-            {isDriver ? 'Завершить поездку' : 'Поездка завершена'}
+            {isDriver ? t('trip.finish_driver') : t('trip.finish_passenger')}
           </button>
         )}
 
