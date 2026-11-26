@@ -153,6 +153,7 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
     2. Fallback: текстовый поиск с нормализацией
     3. Время: разница не более 30 минут
     """
+    enforce_user_limit_sync(current_user.id, "trip.matches", 60, 60)
     target_role = "passenger" if role == "driver" else "driver"
 
     # Показываем как 'active', так и 'scheduled' поездки
@@ -174,7 +175,7 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
             _or(models.Trip.date == date, models.Trip.date.is_(None))
         )
 
-    potential_trips = trip_query.all()
+    potential_trips = trip_query.order_by(models.Trip.id.desc()).limit(200).all()
 
     matches = []
     for trip in potential_trips:

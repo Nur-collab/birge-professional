@@ -1979,6 +1979,70 @@
         ]
       }
     },
+    "/trip-requests/statuses": {
+      "get": {
+        "description": "Batch status lookup for the current passenger's trip requests.",
+        "operationId": "check_request_statuses_trip_requests_statuses_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "trip_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trip Ids"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Request Statuses",
+        "tags": [
+          "trip-requests"
+        ]
+      }
+    },
     "/trip-requests/{request_id}": {
       "patch": {
         "description": "Водитель принимает (accepted) или отклоняет (declined) запрос.\nПри accepted — мгновенно уведомляет пассажира через SSE.\nТолько водитель (driver_id == current_user.id) может менять статус своего запроса.",

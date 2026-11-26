@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
@@ -17,6 +17,11 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const savedTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(savedTimerRef.current);
+  }, []);
 
   const handleLanguageChange = (e) => {
     i18n.changeLanguage(e.target.value);
@@ -36,7 +41,8 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
       const updatedUser = await api.updateProfile(formData);
       setSaved(true);
       if (onUpdate) onUpdate(updatedUser);
-      setTimeout(() => setSaved(false), 3000);
+      clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setError('Не удалось сохранить изменения');
     } finally {

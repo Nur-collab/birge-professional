@@ -1544,3 +1544,49 @@ def test_telegram_challenge_existing_binding_verifies_on_start_and_expires(clien
         },
     )
     assert exp_complete.status_code == 401
+
+
+def test_batch_trip_request_statuses_returns_latest_and_validates_input(client, db):
+    driver = _user(db, "+996555000105", "Водитель")
+    passenger = _user(db, "+996555000106", "Пассажир")
+    trip_one = _driver_trip(db, driver)
+    trip_two = _driver_trip(db, driver)
+
+    db.add(
+        models.TripRequest(
+            trip_id=trip_one.id,
+            requester_id=passenger.id,
+            driver_id=driver.id,
+            status="declined",
+        )
+    )
+    db.flush()
+    db.add(
+        models.TripRequest(
+            trip_id=trip_one.id,
+            requester_id=passenger.id,
+            driver_id=driver.id,
+            status="accepted",
+        )
+    )
+    db.add(
+        models.TripRequest(
+            trip_id=trip_two.id,
+            requester_id=passenger.id,
+            driver_id=driver.id,
+            status="pending",
+        )
+    )
+    db.commit()
+
+    resp = client.get(
+        f"/trip-requests/statuses?trip_ids={trip_one.id},{trip_two.id}",
+        headers=_headers(passenger),
+    )
+    assert resp.status_code == 200
+    by_trip = {item["trip_id"]: item for item in resp.json()["items"]}
+    assert by_trip[trip_one.id]["status"] == "accepted"
+    assert by_trip[trip_two.id]["status"] == "pending"
+
+    bad = client.get("/trip-requests/statuses?trip_ids=abc", headers=_headers(passenger))
+    assert bad.status_code == 400

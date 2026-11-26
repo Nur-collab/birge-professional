@@ -1653,7 +1653,8 @@ export default function Login({ onLoggedIn }) {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+            overflow-x: clip;
+            padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
           }
 
           .login-brand-panel {
@@ -1667,13 +1668,48 @@ export default function Login({ onLoggedIn }) {
 
           .auth-card {
             max-width: 420px;
-            padding: 1.4rem 1.25rem;
-            border-radius: 24px;
+            padding: 1.15rem 1.1rem;
+            border-radius: 22px;
             box-shadow: var(--card-shadow);
           }
 
           .auth-mobile-brand {
             display: flex;
+            margin-bottom: 14px;
+          }
+
+          .auth-progress-bar {
+            margin-bottom: 15px;
+          }
+
+          .login-step-header {
+            margin-bottom: 13px;
+          }
+
+          .login-title {
+            font-size: 1.45rem;
+            margin-bottom: 4px;
+          }
+
+          .tg-primary-btn {
+            padding: 11px 13px;
+          }
+
+          .auth-divider {
+            margin: 12px 0 11px;
+          }
+
+          .login-form {
+            gap: 12px;
+          }
+
+          .tg-prereq-card {
+            padding: 10px 12px;
+            gap: 6px;
+          }
+
+          .auth-footer-legal {
+            margin-top: 12px;
           }
         }
 

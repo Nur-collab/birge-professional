@@ -220,7 +220,8 @@ def test_users_verify_telegram_flow(client, db):
     first = client.post("/users/me/verify", headers=headers)
     assert first.status_code == 200
     assert first.json()["status"] == "need_telegram"
-    assert "t.me/" in first.json()["bot_url"]
+    assert first.json()["bot_url"] == f"https://t.me/{auth.TELEGRAM_BOT_USERNAME}"
+    assert "996555000013" not in first.json()["bot_url"]
 
     digits = "".join(ch for ch in user.phone if ch.isdigit())
     db.add(

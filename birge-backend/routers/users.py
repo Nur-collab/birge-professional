@@ -325,18 +325,15 @@ async def verify_user(
         await auth_service.send_telegram_message(chat_id, msg)
         return {"status": "verified", "message": "Аккаунт успешно верифицирован"}
     else:
-        # Telegram не привязан — возвращаем инструкцию
-        bot_username = os.environ.get("TELEGRAM_BOT_USERNAME", "BirgeBot")
-        # Форматируем номер для deep-link (убираем '+' и пробелы)
-        phone_clean = "".join(filter(str.isdigit, current_user.phone))
-        bot_url = f"https://t.me/{bot_username}?start={phone_clean}"
+        # Telegram не привязан — возвращаем ссылку на реального бота без PII в URL
+        bot_url = auth_service.build_telegram_bot_url()
         return {
             "status": "need_telegram",
             "bot_url": bot_url,
             "message": (
-                "Откройте Telegram-бота, "
-                "отправьте /start и запустите верификацию снова"
-            )
+                f"Откройте @{auth_service.TELEGRAM_BOT_USERNAME}, "
+                "нажмите Start → «Поделиться номером» и запустите проверку снова"
+            ),
         }
 
 

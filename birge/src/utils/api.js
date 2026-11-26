@@ -539,6 +539,17 @@ export const api = {
     return authFetch(`/trip-requests/status/${tripId}`);
   },
 
+  checkRequestsStatuses: async (tripIds = []) => {
+    const cleanIds = [...new Set(
+      (tripIds || [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )].slice(0, 50);
+    if (cleanIds.length === 0) return [];
+    const data = await authFetch(`/trip-requests/statuses?trip_ids=${cleanIds.join(',')}`);
+    return Array.isArray(data?.items) ? data.items : [];
+  },
+
   subscribeIncomingRequests: (callback) => {
     let active = true;
     const poll = async () => {

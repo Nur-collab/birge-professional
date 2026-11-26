@@ -171,21 +171,22 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                         disabled={rating === 0}
                         style={{
                             flex: 2,
+                            minHeight: 46,
                             padding: '12px',
                             border: 'none',
-                            borderRadius: '10px',
+                            borderRadius: '12px',
                             background: rating === 0
                                 ? 'var(--border-subtle)'
-                                : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                                : 'var(--primary)',
                             color: rating === 0 ? 'var(--text-subtle)' : 'var(--on-primary)',
                             fontSize: '0.95rem',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             cursor: rating === 0 ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '6px',
-                            transition: 'background 0.2s',
+                            transition: 'background-color 0.2s ease',
                         }}
                     >
                         <Send size={16} />

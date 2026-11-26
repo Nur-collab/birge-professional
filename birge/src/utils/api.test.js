@@ -286,4 +286,21 @@ describe('WebSocket chat subscription', () => {
 
     unsubscribe();
   });
+
+  it('batches trip request status checks with deduplicated positive IDs', async () => {
+    tokenStorage.set('access-token');
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ trip_id: 5, status: 'pending' }] }),
+    }));
+
+    const items = await api.checkRequestsStatuses([5, '5', -1, 0, 9]);
+    expect(items).toEqual([{ trip_id: 5, status: 'pending' }]);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch.mock.calls[0][0]).toContain('/trip-requests/statuses?trip_ids=5,9');
+
+    await expect(api.checkRequestsStatuses([])).resolves.toEqual([]);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });

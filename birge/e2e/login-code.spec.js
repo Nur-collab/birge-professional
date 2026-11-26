@@ -82,12 +82,22 @@ test('a ?code= link signs in once and a legacy ?token= is stripped from history'
 });
 
 test('first screen surfaces Telegram prerequisite and starts Telegram challenge', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expectLoginScreen(page);
 
   await expect(page.getByText('Важно перед получением кода')).toBeVisible();
   const tgButton = page.getByRole('button', { name: /Войти через @BirgeAuthBot/ });
   await expect(tgButton).toBeVisible();
+
+  const loginMetrics = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+  expect(loginMetrics.scrollWidth).toBeLessThanOrEqual(loginMetrics.clientWidth);
+  expect(loginMetrics.scrollHeight).toBeLessThanOrEqual(loginMetrics.clientHeight);
 
   await tgButton.click();
   await expect(

@@ -86,8 +86,10 @@ export default function TripHistory({ currentUser, onBack }) {
                 <span className="history-role" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   {trip.role === 'driver' ? <><Car size={13} /> {t('matches.driver')}</> : <><User size={13} /> {t('matches.passenger')}</>}
                 </span>
-                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                  {trip.price || 150} ⊆
+                <span style={{ fontWeight: 700, color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {(trip.price_per_seat ?? trip.price ?? 0) > 0
+                    ? `${trip.price_per_seat ?? trip.price} сом`
+                    : 'Бесплатно'}
                 </span>
               </div>
             </div>

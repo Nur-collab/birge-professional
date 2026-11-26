@@ -13,7 +13,7 @@ import models
 import schemas
 from database import SessionLocal, get_db
 from dependencies import get_current_user
-from rate_limit import enforce_user_limit
+from rate_limit import enforce_user_limit, enforce_user_limit_sync
 from realtime import (
     driver_sse_manager,
     publish_driver_event,
@@ -439,6 +439,55 @@ async def respond_to_request(
         await publish_requester_event(req.requester_id, json.dumps(response_payload))
 
     return response_payload
+
+
+@router.get("/statuses")
+def check_request_statuses(
+    trip_ids: Optional[str] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Batch status lookup for the current passenger's trip requests."""
+    enforce_user_limit_sync(current_user.id, "trip_request.statuses", 120, 60)
+
+    query = (
+        db.query(models.TripRequest)
+        .options(joinedload(models.TripRequest.driver))
+        .filter(models.TripRequest.requester_id == current_user.id)
+    )
+    if trip_ids is not None:
+        raw_parts = [part.strip() for part in trip_ids.split(",") if part.strip()]
+        if not raw_parts:
+            return {"items": []}
+        try:
+            parsed_ids = [int(part) for part in raw_parts]
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid trip_ids") from exc
+        if any(tid <= 0 for tid in parsed_ids) or len(parsed_ids) > 50:
+            raise HTTPException(status_code=400, detail="trip_ids must contain 1..50 positive IDs")
+        query = query.filter(models.TripRequest.trip_id.in_(parsed_ids))
+
+    rows = query.order_by(models.TripRequest.id.desc()).limit(100).all()
+    seen_trips: set[int] = set()
+    items = []
+    for req in rows:
+        if req.trip_id in seen_trips:
+            continue
+        seen_trips.add(req.trip_id)
+        driver = req.driver
+        items.append({
+            "id": req.id,
+            "status": req.status,
+            "trip_id": req.trip_id,
+            "requester_trip_id": req.requester_trip_id,
+            "driver_id": req.driver_id,
+            "driver_name": driver.name if driver else None,
+            "driver_photo": driver.photo if driver else None,
+            "driver_car_model": driver.car_model if driver else None,
+            "driver_car_plate": driver.car_plate if driver else None,
+            "driver_car_color": driver.car_color if driver else None,
+        })
+    return {"items": items}
 
 
 @router.get("/status/{trip_id}")

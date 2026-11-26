@@ -12,6 +12,9 @@ const requestApi = {
   sendRequest: async (tripId, requesterTripId, driverId) => {
     return api.sendTripRequest(tripId, requesterTripId, driverId);
   },
+  checkStatuses: async (tripIds) => {
+    return api.checkRequestsStatuses(tripIds);
+  },
   checkStatus: async (tripId) => {
     return api.checkRequestStatus(tripId);
   }
@@ -24,7 +27,11 @@ const formatChipLabel = (d) => {
   if (!d) return 'Без даты';
   if (d === today) return 'Сегодня';
   if (d === tomorrow) return 'Завтра';
-  const dt = new Date(d);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d).trim());
+  const dt = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(d);
+  if (Number.isNaN(dt.getTime())) return String(d);
   return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 };
 
@@ -182,15 +189,17 @@ export default function Matches({
 
     connectSse();
 
-    // --- Fallback polling: каждые 15 сек (резервный вариант если SSE не работает) ---
+    // --- Fallback polling: каждые 15 сек одним батч-запросом (резервный вариант если SSE не работает) ---
     const pollReqStatus = setInterval(async () => {
       if (connectedRef.current) return; // уже подключились через SSE
-      for (const trip of (matchesRef.current || [])) {
-        try {
-          const st = await requestApi.checkStatus(trip.id);
+      const tripIds = (matchesRef.current || []).map((trip) => trip.id).filter(Boolean);
+      if (tripIds.length === 0) return;
+      try {
+        const items = await requestApi.checkStatuses(tripIds);
+        for (const st of items) {
           handleStatusUpdate(st);
-        } catch (e) { }
-      }
+        }
+      } catch (_) { }
     }, 15000);
 
     return () => {

@@ -105,11 +105,9 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                 }}>
                     <div style={{
                         height: '100%', borderRadius: '24px 0 0 0',
-                        background: urgency
-                            ? 'linear-gradient(90deg, var(--danger), var(--warning))'
-                            : 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
+                        background: urgency ? 'var(--danger)' : 'var(--primary)',
                         width: `${progress}%`,
-                        transition: 'width 1s linear, background 0.5s ease',
+                        transition: 'width 1s linear, background-color 0.5s ease',
                     }} />
                 </div>
 
@@ -117,9 +115,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                 <div style={{ textAlign: 'center', marginBottom: '1.2rem', paddingTop: '0.5rem' }}>
                     <div style={{
                         width: 56, height: 56, borderRadius: '50%',
-                        background: urgency
-                            ? 'var(--danger)'
-                            : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                        background: urgency ? 'var(--danger)' : 'var(--primary)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         margin: '0 auto 0.75rem',
                         animation: urgency ? 'urgentPulse 1s ease-in-out infinite' : 'ringPulse 2s ease-in-out infinite',
@@ -217,17 +213,16 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         data-autofocus
                         onClick={() => onAccept(request.id, request.trip_id, request.requester_id, request.requester_trip_id)}
                         style={{
-                            flex: 2, padding: '13px', border: 'none',
+                            flex: 2, minHeight: 46, padding: '12px', border: 'none',
                             borderRadius: '14px',
-                            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+                            background: 'var(--primary)',
                             color: 'var(--on-primary)', fontWeight: 800, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            fontSize: '0.95rem', transition: 'all 0.2s',
-                            boxShadow: '0 6px 20px var(--primary-glow)',
+                            fontSize: '0.95rem', transition: 'background-color 0.2s ease',
                             letterSpacing: '0.3px',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 25px var(--primary-glow)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; }}
                     >
                         <Check size={18} /> Принять
                     </button>

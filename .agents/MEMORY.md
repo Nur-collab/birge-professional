@@ -17,15 +17,15 @@
   - `npm test`
   - `npm run build`
   - `npm run e2e` (Playwright; starts ephemeral PostgreSQL 16.2, runs Alembic, seeds a user and starts the Vite app)
-- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` has 36 paths.
-- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD includes P1 hardening, Sentry setup, and Stage 1+2 Telegram-first login flow.
+- API smoke: `GET /health` -> 200; `GET /ready` -> 200; production `/openapi.json` synced via `export_openapi.py`.
+- Git: branch `main`, remote `origin` (`Nur-collab/birge-professional`); HEAD includes P1 hardening, Sentry, Telegram-first auth, mobile scroll polish, and post-audit fixes.
 - CI: Python 3.12 + ruff/pytest/pip-audit + fresh-SQLite `alembic upgrade head`/`alembic check` + PostgreSQL 16 migration check + OpenAPI snapshot drift check; Browser E2E job (Playwright Chromium against ephemeral PostgreSQL 16.2 backend); frontend Node 22 + `npm ci`/npm audit --omit=dev/test/build + generated-types drift check; Redis service `redis:7-alpine`, tests receive `TEST_REDIS_URL`; scheduled Security workflow runs pip-audit + gitleaks.
 
-## 2. Current Metrics (2026-11-25)
+## 2. Current Metrics (2026-11-26)
 
-- Backend tests: 91 passed (ruff `E9,F,B` ignoring `B008`; includes Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 37 passed in 9 files (`Login` Stage 1+2 Telegram challenge & rescue flow, `useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
-- Browser E2E: 6 passed on PostgreSQL 16.2 (`login-code` + Telegram challenge UI + `390x844` Dashboard no-scroll check + `sse-ticket`).
+- Backend tests: 92 passed (ruff `E9,F,B` ignoring `B008`; includes batch `/trip-requests/statuses`, `/users/me/verify` `@BirgeAuthBot` URL, `/trips/matches` rate limit, Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
+- Frontend tests: 38 passed in 9 files (`Login` Stage 1+2 Telegram challenge & rescue flow, `api.checkRequestsStatuses` batch polling, `useIncomingRequests` SSE + AudioContext reuse/cleanup, WS incremental chat, routing, API, date, a11y, XSS escaping, SW policy).
+- Browser E2E: 6 passed on PostgreSQL 16.2 (`login-code` + `390x844` Login & Dashboard no-scroll checks + Telegram challenge UI + `sse-ticket`).
 - Production build: passed; 18 precache entries; Vite + PWA `injectManifest` + `@sentry/bundler-plugins`.
 - `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
 - OpenAPI: regenerated `birge/openapi.json` and `birge/src/types/api.d.ts`.
@@ -96,8 +96,8 @@
 
 ## 6. Rolling Changelog (max 5)
 
-- 2026-11-16: PII/OTP hardening, refresh-token rotation/cleanup and Python 3.12 CI/runtime; 53 backend tests on 3.12.10.
 - 2026-11-25: Hardening & cleanup: fixed `vercel.json` `routes`/`headers` conflict, `.gitignore` `.backups/`, driver SSE + WS incremental chat + reconnect, `AudioContext`/timer leaks, `sw.js` `notificationclick`, `i18n.js` 6-digit copy, extracted `main.py` -> `routers/{admin,bot,reviews}.py` + `trip_maintenance.py`, Redis panic cooldown & TTL fix, Python 3.12 alignment + expanded ruff (`E9,F,B`), `i18next ^27.2.9`; 89 backend / 35 frontend tests pass.
 - 2026-11-25: Sentry wired end-to-end (`birge/birge-api` + `birge/birge-web`): verified real test events, added `VITE_SENTRY_DSN` on Vercel, `@sentry/bundler-plugins` Vite source maps (active when `SENTRY_AUTH_TOKEN` is set), and fixed `tests/conftest.py` to set empty `SENTRY_DSN`.
 - 2026-11-25: Stage 1+2 Telegram-first auth redesign: added `TelegramAuthChallenge` (`a7f1c3e8b9d2`), `/auth/telegram-challenge{,/status,/complete}`, bot deep-link `?start=auth_<id>` auto-verify & contact binding, `Login.jsx` Telegram-first CTA + inline prerequisite callout + 8s rescue hint & 60s resend cooldown + `sessionStorage` resume; 91 backend, 37 frontend, 5 Playwright E2E pass.
 - 2026-11-25: Mobile UI & scroll polish: added `viewport-fit=cover`, `overflow-x: clip`, `overscroll-behavior-y: contain`, `visualViewport` keyboard-aware bottom-nav hiding, deduplicated shell bottom padding, unified `Dashboard` styles, collapsible `Trip` map + contained `Chat` scroll, removed `Profile` `alert()`/inline gradients; 37 frontend unit + 6 Playwright E2E (incl. `390x844` no-scroll check) pass.
+- 2026-11-26: Post-audit quality fixes: fixed `/users/me/verify` bot URL (`BirgeAuthBot` without phone PII), `TripHistory` `price_per_seat` + `сом`, `/trips/matches` rate limit & 200-row cap, batch `GET /trip-requests/statuses` replacing N+1 fallback polling, `Settings` timer cleanup, `TripRequestModal`/`ReviewModal` flat styles, and `390x844` Login E2E fit check; 92 backend, 38 frontend, 6 E2E pass.
