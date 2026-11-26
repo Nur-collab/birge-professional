@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { mapMatchTrip } from '../utils/mapMatchTrip';
+
+const MIN_SKELETON_MS = 450;
 
 export default function useTripSearch({
   currentUser,
@@ -12,10 +15,21 @@ export default function useTripSearch({
   const [isSearching, setIsSearching] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState(null);
   const [myTripId, setMyTripId] = useState(null);
+  const mountedRef = useRef(true);
+  const skeletonTimerRef = useRef(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(skeletonTimerRef.current);
+    };
+  }, []);
 
   const handleSearch = async (tripData) => {
     if (!currentUser) return showNotification('Ошибка', 'Не удалось загрузить пользователя');
 
+    clearTimeout(skeletonTimerRef.current);
     // Очищаем старую поездку из localStorage чтобы избежать конфликтов
     setActiveTrip(null);
     setMyTripId(null);
@@ -37,16 +51,15 @@ export default function useTripSearch({
       };
 
       const createdTrip = await api.createTrip(apiTripData);
-      // ID поездки берём напрямую из ответа бэкенда — надёжно и без лишнего запроса
+      if (!mountedRef.current) return;
       setMyTripId(createdTrip.id);
 
       if (tripData.role === 'driver') {
-        setCurrentUser((prev) => ({ ...prev, trips_today: prev.trips_today + 1 }));
+        setCurrentUser((prev) => ({ ...prev, trips_today: (prev?.trips_today || 0) + 1 }));
       }
 
-      // Небольшая задержка для красивой анимации скелетонов
-      setTimeout(async () => {
-        const foundMatches = await api.findMatches(
+      const [foundMatches] = await Promise.all([
+        api.findMatches(
           currentUser.id,
           tripData.role,
           tripData.from,
@@ -54,48 +67,32 @@ export default function useTripSearch({
           tripData.time,
           tripData.seats,
           tripData.date || null
-        );
+        ),
+        new Promise((resolve) => {
+          skeletonTimerRef.current = setTimeout(resolve, MIN_SKELETON_MS);
+        }),
+      ]);
+      if (!mountedRef.current) return;
 
-        const mappedMatches = foundMatches.map((m) => ({
-          id: m.id,
-          role: m.role,
-          from: m.origin,
-          to: m.destination,
-          origin: m.origin,
-          destination: m.destination,
-          time: m.time,
-          date: m.date || null,
-          price_per_seat: m.price_per_seat || 0,
-          userId: m.user_id,
-          user_id: m.user_id,
-          user: {
-            id: m.user?.id,
-            name: m.user?.name || 'Пользователь',
-            photo: m.user?.photo || `https://i.pravatar.cc/150?u=${m.user_id}`,
-            trust_rating: m.user?.trust_rating || 5.0,
-            is_verified: m.user?.is_verified || false,
-            car_model: m.user?.car_model || null,
-          },
-        }));
+      const mappedMatches = (foundMatches || []).map(mapMatchTrip);
+      setMatches(mappedMatches);
+      setIsSearching(false);
 
-        setMatches(mappedMatches);
-        setIsSearching(false);
-
-        if (mappedMatches.length > 0) {
-          showNotification('Найдены попутчики', `Совпадений: ${mappedMatches.length}`);
-        } else {
-          showNotification('Пока нет совпадений', 'Мы уведомим вас, когда кто-то появится.');
-        }
-      }, 1200);
-
+      if (mappedMatches.length > 0) {
+        showNotification('Найдены попутчики', `Совпадений: ${mappedMatches.length}`);
+      } else {
+        showNotification('Пока нет совпадений', 'Мы уведомим вас, когда кто-то появится.');
+      }
     } catch (error) {
+      if (!mountedRef.current) return;
       setIsSearching(false);
       setActiveTab('home');
-      showNotification('Ошибка', error.message);
+      showNotification('Ошибка', error.message || 'Не удалось выполнить поиск');
     }
   };
 
   const handleCancelSearch = async () => {
+    clearTimeout(skeletonTimerRef.current);
     // Удаляем поездку из БД, чтобы не путала другим пользователям
     if (myTripId) {
       try {

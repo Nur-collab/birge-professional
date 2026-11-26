@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 
@@ -19,6 +20,11 @@ export default function useTripActions({
   decrementPendingRequestCount,
   showNotification,
 }) {
+  const reviewCloseTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(reviewCloseTimerRef.current);
+  }, []);
   const handleConnect = async (trip) => {
     const todayStr = localDateStr();
     const tripDate = trip.date && trip.date !== 'Сегодня' ? trip.date : todayStr;
@@ -127,7 +133,7 @@ export default function useTripActions({
         await api.submitReview(activeTrip.user.id, rating, text, activeTrip.id);
       } catch (e) {
         showNotification('Ошибка', e.message);
-        return;
+        return false;
       }
       try {
         // Обновляем профиль, чтобы новый рейтинг отобразился сразу
@@ -136,7 +142,8 @@ export default function useTripActions({
       } catch (_) {}
     }
     // Закрываем через 1.5 сек после успешной отправки
-    setTimeout(() => {
+    clearTimeout(reviewCloseTimerRef.current);
+    reviewCloseTimerRef.current = setTimeout(() => {
       setShowReview(false);
       setActiveTrip(null);
       setMatches([]);
@@ -144,9 +151,11 @@ export default function useTripActions({
       setMyTripId(null);
       setActiveTab('home');
     }, 1500);
+    return true;
   };
 
   const handleReviewSkip = async () => {
+    clearTimeout(reviewCloseTimerRef.current);
     if (activeTrip) {
       try {
         await api.updateTripStatus(activeTrip.id, 'completed');
@@ -162,6 +171,7 @@ export default function useTripActions({
   };
 
   const handleTripCancelled = () => {
+    clearTimeout(reviewCloseTimerRef.current);
     setActiveTrip(null);
     setMatches([]);
     setSearchCriteria(null);

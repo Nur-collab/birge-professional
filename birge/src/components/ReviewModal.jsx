@@ -7,6 +7,7 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
     const [rating, setRating] = useState(0);
     const [hover, setHover] = useState(0);
     const [text, setText] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const dialogRef = useRef(null);
 
@@ -42,9 +43,16 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
     }, [onSkip]);
 
     const handleSubmit = async () => {
-        if (rating === 0) return;
-        setSubmitted(true);
-        await onSubmit(rating, text.trim());
+        if (rating === 0 || submitting) return;
+        setSubmitting(true);
+        try {
+            const ok = await onSubmit(rating, text.trim());
+            if (ok !== false) {
+                setSubmitted(true);
+            }
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (submitted) {

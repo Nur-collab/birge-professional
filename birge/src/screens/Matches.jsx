@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Star, CheckCircle, Clock, Car, Send, Loader, Calendar, MapPin, Navigation, X, CheckCircle2 } from 'lucide-react';
+import { Star, CheckCircle, Clock, Car, Send, Loader, Calendar, Navigation, X, CheckCircle2, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SkeletonCard from '../components/SkeletonCard';
 import StatePanel from '../components/StatePanel';
 import { api, API_URL } from '../utils/api';
 import { localDateStr } from '../utils/date';
+import { mapMatchTrip } from '../utils/mapMatchTrip';
 
 
 // Вспомогательные функции API для запросов
@@ -89,21 +90,7 @@ export default function Matches({
           currentUser.id, searchCriteria.role, searchCriteria.from,
           searchCriteria.to, searchCriteria.time, 1, searchCriteria.date || null
         );
-        const mapped = (found || []).map(m => ({
-          id: m.id, role: m.role,
-          from: m.origin, to: m.destination,
-          origin: m.origin, destination: m.destination,
-          time: m.time, date: m.date || null,
-          price_per_seat: m.price_per_seat || 0,
-          userId: m.user_id, user_id: m.user_id,
-          user: {
-            id: m.user?.id, name: m.user?.name || 'Пользователь',
-            photo: m.user?.photo || `https://i.pravatar.cc/150?u=${m.user_id}`,
-            trust_rating: m.user?.trust_rating || 5.0,
-            is_verified: m.user?.is_verified || false,
-            car_model: m.user?.car_model || null
-          }
-        }));
+        const mapped = (found || []).map(mapMatchTrip);
         // Всегда обновляем: если водитель/пассажир завершил поездку и бэкенд вернул 0,
         // список очищается, убирая завершенных попутчиков из интерфейса
         setMatches(mapped);
@@ -419,6 +406,12 @@ export default function Matches({
                   <Clock size={13} aria-hidden="true" />
                   {trip.time}
                 </span>
+                {trip.role === 'driver' && (
+                  <span className="match-meta-chip">
+                    <Users size={13} aria-hidden="true" />
+                    {Math.max(0, (trip.seats ?? 3) - (trip.seats_taken ?? 0))} из {trip.seats ?? 3} мест
+                  </span>
+                )}
                 {trip.date && (
                   <span className="match-meta-chip">
                     <Calendar size={13} aria-hidden="true" />
