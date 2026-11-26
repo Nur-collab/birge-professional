@@ -1,11 +1,11 @@
 fastapi==0.133.0
 uvicorn[standard]==0.54.0
-SQLAlchemy==2.0.47
+SQLAlchemy==2.1.9
 pydantic==2.14.3
 PyJWT==2.15.1
 cryptography==50.0.2
 passlib==1.7.4
-python-multipart==0.0.32
+python-multipart==0.0.34
 aiofiles==25.1.0
 psycopg2-binary==2.9.13
 httpx==0.28.1
