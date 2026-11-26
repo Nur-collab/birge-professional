@@ -6,7 +6,7 @@
 ## 1. Stack & Core Commands
 
 - Backend: Python 3.12+ (CI 3.12; verified locally on 3.12.10), FastAPI, SQLAlchemy 2, Alembic, Redis 8.1.0, PyJWT 2.15.1, cryptography 50.0.2, Sentry SDK 2.75.0; SQLite local/tests; PostgreSQL production.
-- Frontend: React 18, React Router 7.18.5, Vite 7.3.8, Vitest 4.1.12, PWA, @sentry/react 11.12.0 (lazy), openapi-typescript 7.13.0 (dev), Playwright 1.65.1 (dev); Node >=20.19 (CI Node 22).
+- Frontend: React 18, React Router 7.18.5, Vite 7.3.8, Vitest 5.1.1, jsdom 31.0.1, PWA, @sentry/react 11.12.0 (lazy), openapi-typescript 7.13.0 (dev), Playwright 1.65.1 (dev); Node >=20.19 (CI Node 22).
 - Layout: `birge-backend/`, `birge/`, `docs/`, `.github/workflows/ci.yml`, `docs/RUNBOOK.md`.
 - Backend checks:
   - `cd birge-backend`
@@ -42,7 +42,7 @@
 - P2 done: React Router deep links, participant-only `GET /trips/{trip_id}`, Vercel SPA fallback, deterministic OpenAPI export + generated frontend types, accessibility baseline (labels, skip-link, focus, combobox, dialogs, icon labels, contrast tokens).
 - P1 tests: 53 backend tests; `tests/test_api.py` covers PII encryption, OTP hashing, refresh rotation/cleanup, logout/SSE and payment access. `tests/test_redis_multiprocess.py` covers shared rate limit, SSE and WS across separate OS processes. Local test uses `tests/redis_stub.py`; CI uses real Redis. `tests/test_logging.py` covers JSON formatting and request-id log correlation.
 - Hot files: `auth.py`, `pii_crypto.py`, `dependencies.py`, `rate_limit.py`, `realtime.py`, `logging_config.py`, `sentry_config.py`, `models.py`, `routers/{auth,trips,trip_requests,users}.py`, `birge/src/App.jsx`, `birge/src/index.css`, `birge/src/components/{AddressInput,RealMap,ReviewModal,TripRequestModal}.jsx`, `birge/src/screens/{Login,Dashboard,Profile,Settings,Matches}.jsx`, `birge/src/hooks/useAuth.js`, `birge/src/utils/{api,escapeHtml,routes}.js`, `birge/openapi.json`, `birge/src/types/api.d.ts`, `scripts/export_openapi.py`, `scripts/{seed_e2e,run_e2e_backend,stop_e2e_postgres,check_postgres_migrations}.py`, `birge/e2e/*`, `birge/playwright.config.js`, `tests/test_api.py`, `tests/test_logging.py`, `tests/test_redis_multiprocess.py`, `tests/test_sentry.py`, `alembic/versions/{3b8e4c1d9f2a_p1_constraints_and_audit,4d1e2f3a5b6c_add_token_version_to_users,5c8f1a2b9d4e_encrypt_pii_and_invalidate_plaintext_otp,6e2b7c4d1a3f_add_refresh_sessions}.py`, `docs/RUNBOOK.md`, `docs/MIGRATIONS.md`, `.github/workflows/ci.yml`, `.github/workflows/security.yml`.
-- Not done: Sentry DSN/project validation; manual Render restore drill and post-migration encrypted backup; Dependabot PR review; P2 axe/visual contrast sweep, i18n/analytics/moderation/export. PII/OTP encryption, refresh rotation, Python 3.12 and GitHub CI/Security are done.
+- Not done: Render `PYTHON_VERSION=3.10.4` upgrade to `3.12` (currently blocks Dependabot PR #12 `python-multipart==0.0.33` & PR #7 `SQLAlchemy==2.1.8` which require Python `>=3.11`); Vite 8 + `@vitejs/plugin-react` 6 bundle/Sentry sourcemap test (PR #4/#6); manual Render restore drill & post-migration backup; P2 axe/visual contrast sweep & i18n/analytics/moderation.
 - Discarded: async Redis Pub/Sub against fakeredis TCP (does not deliver); custom RESP stub is used instead.
 - Immediate next prompt: "P1 is deployed on `2748929`; take a post-migration encrypted backup, do the manual restore drill, then continue P2 (axe/visual contrast, i18n, analytics) and Dependabot review."
 
@@ -93,11 +93,12 @@
 - Generated OpenAPI types are editor-time declarations only; do not import the runtime `.d.ts` file into the bundle.
 - Light-background modals must keep fixed dark text (`#1f2937`/`#4b5563`); using `var(--text-main)` there turns text white in dark theme.
 - Render Blueprints are not used; do not reintroduce `render.yaml` without an explicit request.
+- Live Render `birge-api` runs `PYTHON_VERSION=3.10.4` while CI runs Python 3.12; never merge `Requires-Python >=3.11` backend pins (`python-multipart>=0.0.33`, `SQLAlchemy>=2.1.x`) until Render `PYTHON_VERSION` is upgraded to `3.12`.
 
 ## 6. Rolling Changelog (max 5)
 
-- 2026-11-25: Sentry wired end-to-end (`birge/birge-api` + `birge/birge-web`): verified real test events, added `VITE_SENTRY_DSN` on Vercel, `@sentry/bundler-plugins` Vite source maps (active when `SENTRY_AUTH_TOKEN` is set), and fixed `tests/conftest.py` to set empty `SENTRY_DSN`.
 - 2026-11-25: Stage 1+2 Telegram-first auth redesign: added `TelegramAuthChallenge` (`a7f1c3e8b9d2`), `/auth/telegram-challenge{,/status,/complete}`, bot deep-link `?start=auth_<id>` auto-verify & contact binding, `Login.jsx` Telegram-first CTA + inline prerequisite callout + 8s rescue hint & 60s resend cooldown + `sessionStorage` resume; 91 backend, 37 frontend, 5 Playwright E2E pass.
 - 2026-11-25: Mobile UI & scroll polish: added `viewport-fit=cover`, `overflow-x: clip`, `overscroll-behavior-y: contain`, `visualViewport` keyboard-aware bottom-nav hiding, deduplicated shell bottom padding, unified `Dashboard` styles, collapsible `Trip` map + contained `Chat` scroll, removed `Profile` `alert()`/inline gradients; 37 frontend unit + 6 Playwright E2E (incl. `390x844` no-scroll check) pass.
 - 2026-11-26: Post-audit quality fixes: fixed `/users/me/verify` bot URL (`BirgeAuthBot` without phone PII), `TripHistory` `price_per_seat` + `сом`, `/trips/matches` rate limit & 200-row cap, batch `GET /trip-requests/statuses` replacing N+1 fallback polling, `Settings` timer cleanup, `TripRequestModal`/`ReviewModal` flat styles, and `390x844` Login E2E fit check; 92 backend, 38 frontend, 6 E2E pass.
 - 2026-11-26: Step 1 search/matches reliability: removed unguarded `setTimeout` error trap in `useTripSearch.js`, extracted shared `mapMatchTrip.js`, surfaced free seats (`seats - seats_taken`) in `Matches.jsx`, guarded `ReviewModal` submit state & timer cleanup in `useTripActions.js`; 40 frontend unit + 6 E2E pass.
+- 2026-11-26: Step 2 Dependabot review: merged `#1`/`#2` (`setup-python@v7`, `setup-node@v7`), applied `#3` (`checkout@v7`), `#9` (`uvicorn==0.54.0`), `#10` (`pydantic==2.14.3`), `#13` (`psycopg2-binary==2.9.13`), `#5` (`jsdom@31.0.1`), `#11` (`vitest@5.1.1`); deferred `#4`/`#6` (Vite 8 Rolldown) & `#7`/`#12` (blocked on Render `PYTHON_VERSION=3.10.4`). 92 backend, 40 unit, 6 E2E pass.
