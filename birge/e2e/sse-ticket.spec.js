@@ -32,6 +32,9 @@ test('passenger search exchanges the access token for an SSE ticket', async ({ p
   });
   await expect(searchButton).toBeVisible({ timeout: 15_000 });
 
+  await page.getByPlaceholder('Откуда едем...').fill('Жилмассив Ала-Арча');
+  await page.getByPlaceholder('Куда направляемся...').fill('ЦУМ (Центр)');
+
   const ticketResponsePromise = page.waitForResponse(
     (response) => response.url().includes('/trip-requests/sse-ticket')
       && response.request().method() === 'POST',

@@ -25,8 +25,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const { t, i18n } = useTranslation();
   const firstName = currentUser?.name?.trim().split(/\s+/)[0] || '';
   const [role, setRole] = useState('passenger');
-  const [from, setFrom] = useState('Жилмассив Ала-Арча');
-  const [to, setTo] = useState('ЦУМ (Центр)');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [tagTarget, setTagTarget] = useState('to');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [time, setTime] = useState('08:15');
