@@ -492,6 +492,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Geocode Address
+         * @description Forward-geocode a Bishkek/Chuy address via curated hubs, cache, Photon, and Nominatim.
+         */
+        get: operations["geocode_address_trips_geocode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trips/matches": {
         parameters: {
             query?: never;
@@ -502,11 +522,52 @@ export interface paths {
         /**
          * Find Matches
          * @description Улучшенный алгоритм поиска попутчиков:
-         *     1. Haversine-расстояние по геокоординатам (радиус 2км)
-         *     2. Fallback: текстовый поиск с нормализацией
-         *     3. Время: разница не более 30 минут
+         *     1. Точное совпадение точек посадки/высадки (радиус 2 км)
+         *     2. Коридорный матчинг маршрута (по пути водителя в пределах 2 км в том же направлении)
+         *     3. Fallback: текстовый поиск с нормализацией
+         *     4. Время: разница не более 30 минут
          */
         get: operations["find_matches_trips_matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trips/reverse-geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reverse Geocode Coords
+         * @description Reverse-geocode coordinates into a Bishkek street/landmark label.
+         */
+        get: operations["reverse_geocode_coords_trips_reverse_geocode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trips/route-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Route Preview
+         * @description Return driving polyline geometry, distance_km, and ETA via OSRM + fallback.
+         */
+        get: operations["route_preview_trips_route_preview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -923,6 +984,17 @@ export interface components {
             /** Trip Id */
             trip_id?: number | null;
         };
+        /** GeocodeResult */
+        GeocodeResult: {
+            /** Label */
+            label: string;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Source */
+            source: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -978,6 +1050,25 @@ export interface components {
             trip_id?: number | null;
             /** User Id */
             user_id: number;
+        };
+        /** RoutePreviewResponse */
+        RoutePreviewResponse: {
+            /** Dest Lat */
+            dest_lat: number;
+            /** Dest Lng */
+            dest_lng: number;
+            /** Distance Km */
+            distance_km: number;
+            /** Eta Minutes */
+            eta_minutes: number;
+            /** Geometry */
+            geometry: number[][];
+            /** Origin Lat */
+            origin_lat: number;
+            /** Origin Lng */
+            origin_lng: number;
+            /** Source */
+            source: string;
         };
         /** SendCodeRequest */
         SendCodeRequest: {
@@ -1040,12 +1131,28 @@ export interface components {
         Trip: {
             /** Date */
             date?: string | null;
+            /** Dest Lat */
+            dest_lat?: number | null;
+            /** Dest Lng */
+            dest_lng?: number | null;
             /** Destination */
             destination: string;
+            /** Detour Km */
+            detour_km?: number | null;
+            /** Distance Km */
+            distance_km?: number | null;
+            /** Eta Minutes */
+            eta_minutes?: number | null;
             /** Id */
             id: number;
+            /** Match Type */
+            match_type?: string | null;
             /** Origin */
             origin: string;
+            /** Origin Lat */
+            origin_lat?: number | null;
+            /** Origin Lng */
+            origin_lng?: number | null;
             /**
              * Price Per Seat
              * @default 0
@@ -2067,6 +2174,40 @@ export interface operations {
             };
         };
     };
+    geocode_address_trips_geocode_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeocodeResult"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     find_matches_trips_matches_get: {
         parameters: {
             query: {
@@ -2075,6 +2216,10 @@ export interface operations {
                 destination: string;
                 time: string;
                 date?: string | null;
+                origin_lat?: number | null;
+                origin_lng?: number | null;
+                dest_lat?: number | null;
+                dest_lng?: number | null;
             };
             header?: {
                 authorization?: string | null;
@@ -2091,6 +2236,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Trip"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reverse_geocode_coords_trips_reverse_geocode_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeocodeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    route_preview_trips_route_preview_get: {
+        parameters: {
+            query?: {
+                origin?: string | null;
+                destination?: string | null;
+                origin_lat?: number | null;
+                origin_lng?: number | null;
+                dest_lat?: number | null;
+                dest_lng?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutePreviewResponse"];
                 };
             };
             /** @description Validation Error */

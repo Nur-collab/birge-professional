@@ -105,7 +105,7 @@ export default defineConfig(({ mode }) => {
                     if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
                         return 'vendor-react';
                     }
-                    if (id.includes('node_modules/@pbe')) {
+                    if (id.includes('node_modules/leaflet')) {
                         return 'vendor-maps';
                     }
                     if (id.includes('node_modules/lucide-react')) {

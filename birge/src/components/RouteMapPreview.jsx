@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Calendar, Clock, CreditCard, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Calendar, Clock, CreditCard, Navigation, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import RealMap from './RealMap';
 import './RouteMapPreview.css';
 
@@ -17,6 +18,8 @@ export default function RouteMapPreview({
   onClose,
   onSearch,
 }) {
+  const { t } = useTranslation();
+  const [routeInfo, setRouteInfo] = useState(null);
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -125,7 +128,8 @@ export default function RouteMapPreview({
           borderRadius="0"
           framed={false}
           showLegend={false}
-          showFallbackRoute={false}
+          showFallbackRoute={true}
+          onRouteInfo={setRouteInfo}
         />
       </div>
 
@@ -172,6 +176,12 @@ export default function RouteMapPreview({
         <div className="route-preview-meta">
           <span><Calendar size={14} aria-hidden="true" />{dateLabel}</span>
           <span><Clock size={14} aria-hidden="true" />{time}</span>
+          {routeInfo && (
+            <span>
+              <Navigation size={14} aria-hidden="true" />
+              {t('map.eta_badge', { distance: routeInfo.distance_km, minutes: routeInfo.eta_minutes })}
+            </span>
+          )}
           {role === 'driver' && (
             <>
               <span><Users size={14} aria-hidden="true" />{seatsLabel(seats)}</span>

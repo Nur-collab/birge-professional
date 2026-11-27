@@ -1,272 +1,289 @@
-import React, { useRef } from 'react';
-import { YMaps, Map, Placemark, GeolocationControl, ZoomControl, Polyline } from '@pbe/react-yandex-maps';
-import { MapPin } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useTranslation } from 'react-i18next';
+import { api, tokenStorage } from '../utils/api';
 import { escapeHtml } from '../utils/escapeHtml';
+import './RealMap.css';
 
-// Центр Бишкека
 const BISHKEK_CENTER = [42.8746, 74.5698];
 
-// Словарь известных точек Бишкека для геокодирования (оффлайн-fallback)
 const BISHKEK_LOCATIONS = {
-    // Жилмассивы
-    'ала-арча': [42.8380, 74.5520],
-    'ала арча': [42.8380, 74.5520],
-    'аламедин': [42.8700, 74.5200],
-    'джал': [42.8200, 74.5700],
-    'кара-жыгач': [42.8650, 74.5050],
-    'кара жыгач': [42.8650, 74.5050],
-    'асанбай': [42.8450, 74.6300],
-    'тунгуч': [42.8920, 74.5980],
-    'восток-5': [42.8750, 74.6100],
-    'восток 5': [42.8750, 74.6100],
-    'мкр 7': [42.8550, 74.5650],
-
-    // Центр и районы
-    'цум': [42.8760, 74.6050],
-    'центр': [42.8746, 74.5698],
-    'площадь': [42.8762, 74.6036],
-    'ала-тоо': [42.8762, 74.6036],
-    'ошский базар': [42.8820, 74.5780],
-    'ошский': [42.8820, 74.5780],
-    'дордой': [42.9100, 74.6300],
-    'кузнечная': [42.8780, 74.5850],
-    'карпинка': [42.8670, 74.6010],
-
-    // Аэропорт / Автовокзал
-    'манас': [42.8474, 74.4776],
-    'аэропорт': [42.8474, 74.4776],
-    'западный автовокзал': [42.8700, 74.5500],
+  'ала-арча': [42.8380, 74.5520],
+  'ала арча': [42.8380, 74.5520],
+  'аламедин': [42.8835, 74.6335],
+  'джал': [42.8425, 74.5620],
+  'кара-жыгач': [42.8650, 74.5050],
+  'кара жыгач': [42.8650, 74.5050],
+  'асанбай': [42.8240, 74.6305],
+  'тунгуч': [42.8575, 74.6870],
+  'восток-5': [42.8752, 74.6378],
+  'восток 5': [42.8752, 74.6378],
+  'мкр 7': [42.8315, 74.6160],
+  'мкр. 7': [42.8315, 74.6160],
+  'ак-өргө': [42.8570, 74.5170],
+  'ак-орго': [42.8570, 74.5170],
+  'орто-сай': [42.8390, 74.6145],
+  'южная магистраль': [42.8285, 74.5970],
+  'политех': [42.8495, 74.5872],
+  'бгу': [42.8495, 74.5872],
+  'asia mall': [42.8554, 74.5858],
+  'вефа': [42.8575, 74.6095],
+  'цум': [42.8760, 74.6140],
+  'центр': [42.8746, 74.5698],
+  'площадь': [42.8762, 74.6036],
+  'ала-тоо': [42.8762, 74.6036],
+  'ошский базар': [42.8758, 74.5705],
+  'ошский': [42.8758, 74.5705],
+  'дордой': [42.9330, 74.6225],
+  'кудайберген': [42.8935, 74.5445],
+  'манас': [43.0613, 74.4776],
+  'аэропорт': [43.0613, 74.4776],
+  'западный автовокзал': [42.8855, 74.5485],
+  'восточный автовокзал': [42.8860, 74.6395],
+  'кант': [42.8910, 74.8505],
+  'токмок': [42.8419, 75.3015],
+  'сокулук': [42.8569, 74.2940],
+  'кара-балта': [42.8140, 73.8481],
 };
 
 function geocodeOffline(locationStr) {
-    if (!locationStr) return null;
-    const lower = locationStr.toLowerCase().trim();
-    for (const [key, coords] of Object.entries(BISHKEK_LOCATIONS)) {
-        if (lower.includes(key)) return coords;
-    }
-    return null;
+  if (!locationStr) return null;
+  const lower = String(locationStr).toLowerCase().trim();
+  for (const [key, coords] of Object.entries(BISHKEK_LOCATIONS)) {
+    if (lower.includes(key)) return coords;
+  }
+  return null;
 }
 
-export default function RealMap({ from, to, height = "250px", showUserOnly = false, borderRadius = "12px", framed = true, showLegend = true, showFallbackRoute = true }) {
-    const ymapsRef = useRef(null);
-    const mapRef = useRef(null);
-    const routeRef = useRef(null);
-    const [userLocation, setUserLocation] = React.useState(null);
-    const [fromCoords, setFromCoords] = React.useState(geocodeOffline(from) || [42.8500, 74.5600]);
-    const [toCoords, setToCoords] = React.useState(geocodeOffline(to) || [42.8900, 74.6100]);
-    const [isDark, setIsDark] = React.useState(
-        () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+function estimateOfflineRoute(a, b) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  const straightKm = 6371 * 2 * Math.asin(Math.sqrt(h));
+  const roadKm = Math.round(Math.max(0.4, straightKm * 1.35) * 10) / 10;
+  const etaMinutes = Math.max(3, Math.round((roadKm / 26) * 60));
+  return {
+    distance_km: roadKm,
+    eta_minutes: etaMinutes,
+    geometry: [a, b],
+    source: 'offline_fallback',
+  };
+}
+
+function createPinIcon(fill, label) {
+  return L.divIcon({
+    className: 'birge-map-pin',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    html: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="14" cy="14" r="11" fill="${fill}" stroke="#ffffff" stroke-width="3" />
+      <text x="14" y="18" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="800" font-family="system-ui,sans-serif">${escapeHtml(label)}</text>
+    </svg>`,
+  });
+}
+
+export default function RealMap({
+  from,
+  to,
+  fromCoords = null,
+  toCoords = null,
+  height = '250px',
+  showUserOnly = false,
+  borderRadius = '12px',
+  framed = true,
+  showLegend = true,
+  showFallbackRoute = true,
+  onRouteInfo,
+}) {
+  const { t } = useTranslation();
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerGroupRef = useRef(null);
+  const onRouteInfoRef = useRef(onRouteInfo);
+  const [userLocation, setUserLocation] = useState(null);
+  const [routeMeta, setRouteMeta] = useState(null);
+
+  useEffect(() => {
+    onRouteInfoRef.current = onRouteInfo;
+  }, [onRouteInfo]);
+
+  useEffect(() => {
+    if (!navigator?.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { timeout: 5000 }
     );
+  }, []);
 
-    React.useEffect(() => {
-        const root = document.documentElement;
-        const syncTheme = () => setIsDark(root.getAttribute('data-theme') === 'dark');
-        syncTheme();
-        const observer = new MutationObserver(syncTheme);
-        observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-        return () => observer.disconnect();
-    }, []);
+  // Initialize Leaflet instance once.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || mapRef.current) return;
 
-    React.useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-                (err) => console.log('Geolocation disabled or denied', err),
-                { timeout: 5000 }
-            );
-        }
-    }, []);
+    const map = L.map(el, {
+      center: BISHKEK_CENTER,
+      zoom: 12,
+      zoomControl: false,
+      attributionControl: true,
+    });
 
-    // Реальное геокодирование через API Яндекса (если загрузился)
-    React.useEffect(() => {
-        if (!ymapsRef.current || showUserOnly) return;
-        
-        const geocodeAddress = async (address, setter, fallbackStr) => {
-            if (!address) return;
-            const offlineCoords = geocodeOffline(address);
-            if (offlineCoords) {
-                setter(offlineCoords);
-                return;
-            }
-            try {
-                // Добавляем "Бишкек ", чтобы геокодер искал именно в нашем городе
-                const res = await ymapsRef.current.geocode(`Бишкек, ${address}`, { results: 1 });
-                const firstGeoObject = res.geoObjects.get(0);
-                if (firstGeoObject) {
-                    setter(firstGeoObject.geometry.getCoordinates());
-                } else {
-                    setter(geocodeOffline(fallbackStr) || BISHKEK_CENTER);
-                }
-            } catch (e) {
-                console.warn('Geocoding error:', e);
-            }
-        };
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      maxZoom: 19,
+      subdomains: 'abcd',
+    }).addTo(map);
 
-        geocodeAddress(from, setFromCoords, 'центр');
-        geocodeAddress(to, setToCoords, 'цум');
-    }, [from, to, showUserOnly]);
+    const group = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    layerGroupRef.current = group;
 
-    // Вычисляем центр карты между двумя точками или центрируем на пользователе
-    const centerLat = showUserOnly && userLocation ? userLocation[0] : (fromCoords[0] + toCoords[0]) / 2;
-    const centerLng = showUserOnly && userLocation ? userLocation[1] : (fromCoords[1] + toCoords[1]) / 2;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      layerGroupRef.current = null;
+    };
+  }, []);
 
-    const handleApiAvailable = (ymaps) => {
-        ymapsRef.current = ymaps;
+  // Resolve route preview + update Leaflet markers and polyline.
+  useEffect(() => {
+    let cancelled = false;
+    const map = mapRef.current;
+    const group = layerGroupRef.current;
+    if (!map || !group) return;
+
+    const drawState = (aCoords, bCoords, preview) => {
+      if (cancelled || !mapRef.current || !layerGroupRef.current) return;
+      group.clearLayers();
+
+      if (userLocation) {
+        L.circleMarker(userLocation, {
+          radius: 7,
+          fillColor: '#3b82f6',
+          color: '#ffffff',
+          weight: 2,
+          fillOpacity: 0.95,
+        })
+          .bindPopup(escapeHtml(t('map.you_here')))
+          .addTo(group);
+      }
+
+      if (showUserOnly) {
+        map.setView(userLocation || BISHKEK_CENTER, 13);
+        return;
+      }
+
+      const geometry = Array.isArray(preview?.geometry) && preview.geometry.length >= 2
+        ? preview.geometry
+        : [aCoords, bCoords];
+      const isEstimated = !preview || preview.source !== 'osrm';
+
+      if (!isEstimated || showFallbackRoute) {
+        L.polyline(geometry, {
+          color: '#0F6B57',
+          weight: isEstimated ? 4 : 5,
+          opacity: isEstimated ? 0.6 : 0.92,
+          dashArray: isEstimated ? '7 6' : undefined,
+        }).addTo(group);
+      }
+
+      L.marker(aCoords, { icon: createPinIcon('#0F6B57', 'A') })
+        .bindPopup(`<b>${escapeHtml(t('search.from'))}:</b> ${escapeHtml(from || '—')}`)
+        .addTo(group);
+
+      L.marker(bCoords, { icon: createPinIcon('#dc2626', 'B') })
+        .bindPopup(`<b>${escapeHtml(t('search.to'))}:</b> ${escapeHtml(to || '—')}`)
+        .addTo(group);
+
+      const bounds = L.latLngBounds(geometry);
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 15 });
+      }
     };
 
-    const handleMapLoad = (map) => {
-        mapRef.current = map;
-        if (!ymapsRef.current) return;
+    const initialFrom = fromCoords || geocodeOffline(from) || [42.8500, 74.5600];
+    const initialTo = toCoords || geocodeOffline(to) || BISHKEK_CENTER;
+    const offlinePreview = estimateOfflineRoute(initialFrom, initialTo);
+    drawState(initialFrom, initialTo, offlinePreview);
 
-        if (showUserOnly) return;
+    if (showUserOnly || (!from && !fromCoords) || (!to && !toCoords)) {
+      setRouteMeta(null);
+      onRouteInfoRef.current?.(null);
+      return;
+    }
 
-        // Строим маршрут через многоточечный роутер Яндекс
-        try {
-            const multiRoute = new ymapsRef.current.multiRouter.MultiRoute(
-                {
-                    referencePoints: [fromCoords, toCoords],
-                    params: { routingMode: 'auto' }
-                },
-                {
-                    boundsAutoApply: true,
-                    routeActiveStrokeColor: '#0F6B57',
-                    routeActiveStrokeWidth: 5,
-                    routeStrokeColor: '#d1fae5',
-                    routeStrokeWidth: 3,
-                    wayPointStartIconColor: '#0F6B57',
-                    wayPointFinishIconColor: '#f43f5e',
-                }
-            );
-            routeRef.current = multiRoute;
-            map.geoObjects.add(multiRoute);
-        } catch (e) {
-            console.warn('Road route geometry unavailable', e);
-        }
+    setRouteMeta(offlinePreview);
+    onRouteInfoRef.current?.(offlinePreview);
+
+    if (!tokenStorage.get() || typeof api.getRoutePreview !== 'function') {
+      return;
+    }
+
+    api
+      .getRoutePreview({
+        origin: from,
+        destination: to,
+        origin_lat: fromCoords?.[0],
+        origin_lng: fromCoords?.[1],
+        dest_lat: toCoords?.[0],
+        dest_lng: toCoords?.[1],
+      })
+      .then((remote) => {
+        if (cancelled || !remote) return;
+        const resolvedA = [remote.origin_lat, remote.origin_lng];
+        const resolvedB = [remote.dest_lat, remote.dest_lng];
+        drawState(resolvedA, resolvedB, remote);
+        setRouteMeta(remote);
+        onRouteInfoRef.current?.(remote);
+      })
+      .catch(() => {
+        // Offline fallback route is already drawn cleanly.
+      });
+
+    return () => {
+      cancelled = true;
     };
+  }, [from, to, fromCoords, toCoords, showUserOnly, showFallbackRoute, userLocation, t]);
 
-    // Обновляем маршрут, если изменились координаты
-    React.useEffect(() => {
-        if (!routeRef.current || showUserOnly) return;
-        routeRef.current.model.setReferencePoints([fromCoords, toCoords]);
-    }, [fromCoords, toCoords, showUserOnly]);
+  return (
+    <div
+      className="birge-real-map-wrap"
+      style={{
+        height,
+        borderRadius,
+        border: framed ? '1px solid var(--border-subtle)' : 'none',
+      }}
+    >
+      <div className="birge-real-map-canvas" ref={containerRef} />
 
-    return (
-        <div style={{ height, width: '100%', borderRadius, overflow: 'hidden', border: framed ? '1px solid var(--border-subtle)' : 'none', position: 'relative' }}>
-            <div
-                style={{
-                    height: '100%',
-                    filter: isDark
-                        ? 'invert(0.9) hue-rotate(180deg) brightness(0.88) contrast(1.12) saturate(0.7)'
-                        : 'none',
-                    transition: 'filter 0.25s ease',
-                }}
-            >
-            <YMaps
-                query={{ lang: 'ru_RU', load: 'package.full' }}
-                onApiAvailable={handleApiAvailable}
-            >
-                <Map
-                    state={{
-                        center: [centerLat, centerLng],
-                        zoom: 12,
-                    }}
-                    width="100%"
-                    height="100%"
-                    instanceRef={handleMapLoad}
-                    options={{ suppressMapOpenBlock: true }}
-                >
-                    <GeolocationControl options={{ float: 'right' }} />
-                    <ZoomControl options={{ float: 'left' }} />
-
-                    {/* Маркер пользователя */}
-                    {userLocation && (
-                        <Placemark
-                            geometry={userLocation}
-                            options={{
-                                preset: 'islands#blueCircleDotIcon',
-                                iconColor: '#3b82f6'
-                            }}
-                            properties={{ hintContent: 'Вы здесь' }}
-                        />
-                    )}
-
-                    {!showUserOnly && (
-                        <>
-                            {/* Точка А — Откуда */}
-                            <Placemark
-                                geometry={fromCoords}
-                                properties={{
-                                    hintContent: 'Точка отправления',
-                                    balloonContent: `<b>Откуда:</b> ${escapeHtml(from || '—')}`
-                                }}
-                                options={{
-                                    preset: 'islands#greenDotIcon',
-                                    iconColor: '#0F6B57'
-                                }}
-                            />
-
-                            {/* Точка Б — Куда */}
-                            <Placemark
-                                geometry={toCoords}
-                                properties={{
-                                    hintContent: 'Точка назначения',
-                                    balloonContent: `<b>Куда:</b> ${escapeHtml(to || '—')}`
-                                }}
-                                options={{
-                                    preset: 'islands#redDotIcon',
-                                    iconColor: '#f43f5e'
-                                }}
-                            />
-
-                            {/* Запасная полилиния для карт без дорожной геометрии */}
-                            {showFallbackRoute && (
-                                <Polyline
-                                    geometry={[fromCoords, toCoords]}
-                                    options={{
-                                        strokeColor: '#0F6B5750',
-                                        strokeWidth: 4,
-                                        strokeStyle: 'dash',
-                                    }}
-                                />
-                            )}
-                        </>
-                    )}
-                </Map>
-            </YMaps>
-            </div>
-
-            {/* Легенда маршрута */}
-            {!showUserOnly && showLegend && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '10px',
-                    right: '10px',
-                    background: 'var(--surface-glass)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: '10px',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    boxShadow: '0 2px 8px var(--shadow-medium)',
-                    pointerEvents: 'none',
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {from || 'Откуда не указано'}
-                        </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {to || 'Куда не указано'}
-                        </span>
-                    </div>
-                </div>
-            )}
+      {!showUserOnly && routeMeta && (
+        <div className="birge-map-eta-pill" aria-label={t('map.eta_aria')}>
+          <span>
+            {t('map.eta_badge', {
+              distance: routeMeta.distance_km,
+              minutes: routeMeta.eta_minutes,
+            })}
+          </span>
         </div>
-    );
+      )}
+
+      {!showUserOnly && showLegend && (
+        <div className="birge-map-legend">
+          <div className="birge-map-legend-row">
+            <div className="birge-map-legend-dot" style={{ background: 'var(--primary)' }} />
+            <span className="birge-map-legend-text">{from || t('map.origin_missing')}</span>
+          </div>
+          <div className="birge-map-legend-row">
+            <div className="birge-map-legend-dot" style={{ background: 'var(--danger)' }} />
+            <span className="birge-map-legend-text">{to || t('map.dest_missing')}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

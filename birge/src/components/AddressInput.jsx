@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { api, tokenStorage } from '../utils/api';
 
 // Список популярных мест Бишкека для автодополнения
 const BISHKEK_PLACES = [
@@ -50,19 +51,40 @@ export default function AddressInput({
     const [highlighted, setHighlighted] = useState(-1);
     const inputRef = useRef(null);
     const dropdownRef = useRef(null);
+    const geoTimerRef = useRef(null);
     const listId = useId().replace(/:/g, '');
     const optionId = (index) => `${listId}-option-${index}`;
+
+    useEffect(() => {
+        return () => clearTimeout(geoTimerRef.current);
+    }, []);
 
     const handleChange = (e) => {
         const val = e.target.value;
         onChange(val);
         setHighlighted(-1);
+        clearTimeout(geoTimerRef.current);
         if (val.length >= 2) {
             const filtered = BISHKEK_PLACES.filter(p =>
                 p.toLowerCase().includes(val.toLowerCase())
             ).slice(0, 5);
             setSuggestions(filtered);
             setShowDropdown(filtered.length > 0);
+
+            if (val.trim().length >= 3 && tokenStorage.get() && typeof api.geocodeAddress === 'function') {
+                geoTimerRef.current = setTimeout(async () => {
+                    try {
+                        const remote = await api.geocodeAddress(val.trim(), 5);
+                        if (!Array.isArray(remote) || remote.length === 0) return;
+                        const remoteLabels = remote.map((r) => r.label).filter(Boolean);
+                        const merged = [...new Set([...filtered, ...remoteLabels])].slice(0, 5);
+                        setSuggestions(merged);
+                        setShowDropdown(merged.length > 0);
+                    } catch {
+                        // Offline fallback already displayed.
+                    }
+                }, 300);
+            }
         } else {
             setShowDropdown(false);
         }

@@ -174,15 +174,41 @@ class Trip(BaseModel):
     role: str
     origin: str
     destination: str
+    origin_lat: Optional[float] = None
+    origin_lng: Optional[float] = None
+    dest_lat: Optional[float] = None
+    dest_lng: Optional[float] = None
     time: str
     date: Optional[str] = None
     seats: int = 3
     seats_taken: int = 0
     price_per_seat: int = 0
     status: str
+    match_type: Optional[str] = None
+    detour_km: Optional[float] = None
+    distance_km: Optional[float] = None
+    eta_minutes: Optional[int] = None
     user: Optional[UserPublic] = None   # Защита от утечки телефонов и платёжных данных в поиске!
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GeocodeResult(BaseModel):
+    label: str
+    lat: float
+    lng: float
+    source: str
+
+
+class RoutePreviewResponse(BaseModel):
+    origin_lat: float
+    origin_lng: float
+    dest_lat: float
+    dest_lng: float
+    distance_km: float
+    eta_minutes: int
+    geometry: List[List[float]]
+    source: str
 
 # --- Chat Schemas ---
 class ChatMessageInput(BaseModel):

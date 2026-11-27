@@ -3,10 +3,10 @@ import html
 import json
 import logging
 import os
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_ as _or
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,7 +15,15 @@ import models
 import schemas
 from database import get_db
 from dependencies import get_current_user
-from geo import locations_match
+from geo import (
+    BISHKEK_CENTER,
+    estimate_route_metrics,
+    evaluate_trip_match,
+    forward_geocode,
+    get_route_preview,
+    resolve_coords,
+    reverse_geocode,
+)
 from rate_limit import enforce_user_limit, enforce_user_limit_sync, get_rate_limiter
 from realtime import (
     is_trip_participant,
@@ -51,6 +59,15 @@ def create_trip(trip: schemas.TripCreate, current_user: models.User = Depends(ge
     trip_data = trip.model_dump()
     trip_data["user_id"] = user.id
 
+    origin_coords = resolve_coords(trip.origin, trip.origin_lat, trip.origin_lng)
+    dest_coords = resolve_coords(trip.destination, trip.dest_lat, trip.dest_lng)
+    if origin_coords:
+        trip_data["origin_lat"] = origin_coords[0]
+        trip_data["origin_lng"] = origin_coords[1]
+    if dest_coords:
+        trip_data["dest_lat"] = dest_coords[0]
+        trip_data["dest_lng"] = dest_coords[1]
+
     # Если дата поездки в будущем — ставим статус 'scheduled', иначе 'active'
     trip_date = trip_data.get("date")
     if trip_date and trip_date > today_str:
@@ -69,13 +86,65 @@ def create_trip(trip: schemas.TripCreate, current_user: models.User = Depends(ge
     db.refresh(new_trip)
     return new_trip
 
+@router.get("/geocode", response_model=List[schemas.GeocodeResult])
+async def geocode_address(
+    q: str = Query(..., min_length=2, max_length=120),
+    limit: int = Query(5, ge=1, le=10),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Forward-geocode a Bishkek/Chuy address via curated hubs, cache, Photon, and Nominatim."""
+    await enforce_user_limit(current_user.id, "trip.geocode", 60, 60)
+    return await forward_geocode(q, limit=limit)
+
+
+@router.get("/reverse-geocode", response_model=schemas.GeocodeResult)
+async def reverse_geocode_coords(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Reverse-geocode coordinates into a Bishkek street/landmark label."""
+    await enforce_user_limit(current_user.id, "trip.geocode", 60, 60)
+    return await reverse_geocode(lat, lng)
+
+
+@router.get("/route-preview", response_model=schemas.RoutePreviewResponse)
+async def route_preview(
+    origin: Optional[str] = Query(None, max_length=200),
+    destination: Optional[str] = Query(None, max_length=200),
+    origin_lat: Optional[float] = Query(None, ge=-90, le=90),
+    origin_lng: Optional[float] = Query(None, ge=-180, le=180),
+    dest_lat: Optional[float] = Query(None, ge=-90, le=90),
+    dest_lng: Optional[float] = Query(None, ge=-180, le=180),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return driving polyline geometry, distance_km, and ETA via OSRM + fallback."""
+    await enforce_user_limit(current_user.id, "trip.geocode", 60, 60)
+    from_coords = resolve_coords(origin, origin_lat, origin_lng) or (42.8500, 74.5600)
+    to_coords = resolve_coords(destination, dest_lat, dest_lng) or BISHKEK_CENTER
+    return await get_route_preview(from_coords, to_coords)
+
+
 @router.get("/matches", response_model=List[schemas.Trip])
-def find_matches(role: str, origin: str, destination: str, time: str, date: Optional[str] = None, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def find_matches(
+    role: str,
+    origin: str,
+    destination: str,
+    time: str,
+    date: Optional[str] = None,
+    origin_lat: Annotated[Optional[float], Query(ge=-90, le=90)] = None,
+    origin_lng: Annotated[Optional[float], Query(ge=-180, le=180)] = None,
+    dest_lat: Annotated[Optional[float], Query(ge=-90, le=90)] = None,
+    dest_lng: Annotated[Optional[float], Query(ge=-180, le=180)] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Улучшенный алгоритм поиска попутчиков:
-    1. Haversine-расстояние по геокоординатам (радиус 2км)
-    2. Fallback: текстовый поиск с нормализацией
-    3. Время: разница не более 30 минут
+    1. Точное совпадение точек посадки/высадки (радиус 2 км)
+    2. Коридорный матчинг маршрута (по пути водителя в пределах 2 км в том же направлении)
+    3. Fallback: текстовый поиск с нормализацией
+    4. Время: разница не более 30 минут
     """
     enforce_user_limit_sync(current_user.id, "trip.matches", 60, 60)
     target_role = "passenger" if role == "driver" else "driver"
@@ -100,29 +169,64 @@ def find_matches(role: str, origin: str, destination: str, time: str, date: Opti
         )
 
     potential_trips = trip_query.order_by(models.Trip.id.desc()).limit(200).all()
+    search_o_coords = resolve_coords(origin, origin_lat, origin_lng)
+    search_d_coords = resolve_coords(destination, dest_lat, dest_lng)
+    my_total = parse_time_minutes(time)
 
-    matches = []
+    ranked_matches: list[tuple[int, float, int, models.Trip, str, Optional[float]]] = []
+    match_priority = {"exact": 0, "corridor": 1, "text": 2}
+
     for trip in potential_trips:
-        from_match = locations_match(origin, trip.origin)
-        to_match = locations_match(destination, trip.destination)
-
-        if not (from_match and to_match):
+        cand_o_coords = resolve_coords(trip.origin, trip.origin_lat, trip.origin_lng)
+        cand_d_coords = resolve_coords(trip.destination, trip.dest_lat, trip.dest_lng)
+        matched, match_type, detour_km = evaluate_trip_match(
+            searcher_role=role,
+            searcher_origin=origin,
+            searcher_dest=destination,
+            candidate_origin=trip.origin,
+            candidate_dest=trip.destination,
+            searcher_origin_coords=search_o_coords,
+            searcher_dest_coords=search_d_coords,
+            candidate_origin_coords=cand_o_coords,
+            candidate_dest_coords=cand_d_coords,
+        )
+        if not matched or not match_type:
             continue
-        
+
         # Сравниваем время (разница не более 30 минут)
-        my_total = parse_time_minutes(time)
         t_total = parse_time_minutes(trip.time)
+        circular_diff = 0
         if my_total is not None and t_total is not None:
             diff = abs(my_total - t_total)
             circular_diff = min(diff, 1440 - diff)
-            if circular_diff <= 30:
-                matches.append(trip)
+            if circular_diff > 30:
+                continue
+
+        ranked_matches.append(
+            (
+                match_priority.get(match_type, 2),
+                detour_km if detour_km is not None else 99.0,
+                circular_diff,
+                trip,
+                match_type,
+                detour_km,
+            )
+        )
+
+    ranked_matches.sort(key=lambda row: (row[0], row[1], row[2], -row[3].id))
 
     # Поиск доступен посторонним: номер машины раскрываем только после
     # принятия поездки, когда профиль уже доступен через /users/{id}.
     result = []
-    for trip in matches:
+    for _, _, _, trip, match_type, detour_km in ranked_matches:
         item = schemas.Trip.model_validate(trip)
+        item.match_type = match_type
+        item.detour_km = detour_km
+        trip_o = resolve_coords(trip.origin, trip.origin_lat, trip.origin_lng)
+        trip_d = resolve_coords(trip.destination, trip.dest_lat, trip.dest_lng)
+        dist_km, eta_min = estimate_route_metrics(trip_o, trip_d)
+        item.distance_km = dist_km
+        item.eta_minutes = eta_min
         if item.user is not None:
             item.user.car_plate = None
         result.append(item)

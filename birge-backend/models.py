@@ -76,6 +76,10 @@ class Trip(Base):
     role = Column(String) # 'driver' or 'passenger'
     origin = Column(String)
     destination = Column(String)
+    origin_lat = Column(Float, nullable=True)
+    origin_lng = Column(Float, nullable=True)
+    dest_lat = Column(Float, nullable=True)
+    dest_lng = Column(Float, nullable=True)
     time = Column(String)
     status = Column(String, default="active") # active, matched, completed
     date = Column(String)                      # 'YYYY-MM-DD' дата поездки (опц.)

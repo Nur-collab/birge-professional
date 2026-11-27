@@ -56,20 +56,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ru`,
-            { headers: { 'Accept-Language': 'ru' } }
-          );
-          const data = await res.json();
-          const addr = data.address;
-          const location =
-            addr.quarter ||
-            addr.suburb ||
-            addr.neighbourhood ||
-            addr.residential ||
-            addr.road ||
-            data.display_name?.split(',')[0];
-          if (location) setFrom(location);
+          const data = await api.reverseGeocode(latitude, longitude);
+          if (data?.label) setFrom(data.label);
         } catch {
           // ignore
         } finally {

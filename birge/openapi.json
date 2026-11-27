@@ -237,6 +237,34 @@
         "title": "ExportedTripRequest",
         "type": "object"
       },
+      "GeocodeResult": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "lat",
+          "lng",
+          "source"
+        ],
+        "title": "GeocodeResult",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -384,6 +412,60 @@
           "user_id"
         ],
         "title": "ReviewCreate",
+        "type": "object"
+      },
+      "RoutePreviewResponse": {
+        "properties": {
+          "dest_lat": {
+            "title": "Dest Lat",
+            "type": "number"
+          },
+          "dest_lng": {
+            "title": "Dest Lng",
+            "type": "number"
+          },
+          "distance_km": {
+            "title": "Distance Km",
+            "type": "number"
+          },
+          "eta_minutes": {
+            "title": "Eta Minutes",
+            "type": "integer"
+          },
+          "geometry": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Geometry",
+            "type": "array"
+          },
+          "origin_lat": {
+            "title": "Origin Lat",
+            "type": "number"
+          },
+          "origin_lng": {
+            "title": "Origin Lng",
+            "type": "number"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin_lat",
+          "origin_lng",
+          "dest_lat",
+          "dest_lng",
+          "distance_km",
+          "eta_minutes",
+          "geometry",
+          "source"
+        ],
+        "title": "RoutePreviewResponse",
         "type": "object"
       },
       "SendCodeRequest": {
@@ -544,17 +626,105 @@
             ],
             "title": "Date"
           },
+          "dest_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Lat"
+          },
+          "dest_lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dest Lng"
+          },
           "destination": {
             "title": "Destination",
             "type": "string"
+          },
+          "detour_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detour Km"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "eta_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Minutes"
           },
           "id": {
             "title": "Id",
             "type": "integer"
           },
+          "match_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Type"
+          },
           "origin": {
             "title": "Origin",
             "type": "string"
+          },
+          "origin_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Lat"
+          },
+          "origin_lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Lng"
           },
           "price_per_seat": {
             "default": 0,
@@ -2422,9 +2592,86 @@
         ]
       }
     },
+    "/trips/geocode": {
+      "get": {
+        "description": "Forward-geocode a Bishkek/Chuy address via curated hubs, cache, Photon, and Nominatim.",
+        "operationId": "geocode_address_trips_geocode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 120,
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 10,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GeocodeResult"
+                  },
+                  "title": "Response Geocode Address Trips Geocode Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Geocode Address",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
     "/trips/matches": {
       "get": {
-        "description": "Улучшенный алгоритм поиска попутчиков:\n1. Haversine-расстояние по геокоординатам (радиус 2км)\n2. Fallback: текстовый поиск с нормализацией\n3. Время: разница не более 30 минут",
+        "description": "Улучшенный алгоритм поиска попутчиков:\n1. Точное совпадение точек посадки/высадки (радиус 2 км)\n2. Коридорный матчинг маршрута (по пути водителя в пределах 2 км в том же направлении)\n3. Fallback: текстовый поиск с нормализацией\n4. Время: разница не более 30 минут",
         "operationId": "find_matches_trips_matches_get",
         "parameters": [
           {
@@ -2480,6 +2727,78 @@
             }
           },
           {
+            "in": "query",
+            "name": "origin_lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin_lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin Lng"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dest_lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dest Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dest_lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dest Lng"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -2523,6 +2842,234 @@
           }
         },
         "summary": "Find Matches",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/reverse-geocode": {
+      "get": {
+        "description": "Reverse-geocode coordinates into a Bishkek street/landmark label.",
+        "operationId": "reverse_geocode_coords_trips_reverse_geocode_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Lat",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lng",
+            "required": true,
+            "schema": {
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Lng",
+              "type": "number"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeocodeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reverse Geocode Coords",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/trips/route-preview": {
+      "get": {
+        "description": "Return driving polyline geometry, distance_km, and ETA via OSRM + fallback.",
+        "operationId": "route_preview_trips_route_preview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "query",
+            "name": "destination",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Destination"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin_lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin_lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin Lng"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dest_lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dest Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dest_lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dest Lng"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Route Preview",
         "tags": [
           "trips"
         ]

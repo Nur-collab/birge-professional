@@ -407,6 +407,20 @@ export default function Matches({
                   <Clock size={13} aria-hidden="true" />
                   {trip.time}
                 </span>
+                {trip.match_type === 'corridor' && (
+                  <span className="match-meta-chip match-meta-corridor">
+                    <Navigation size={13} aria-hidden="true" />
+                    {t('matches.corridor_badge')}
+                  </span>
+                )}
+                {trip.eta_minutes != null && (
+                  <span className="match-meta-chip">
+                    {t('map.eta_badge', {
+                      distance: trip.distance_km ?? '—',
+                      minutes: trip.eta_minutes,
+                    })}
+                  </span>
+                )}
                 {trip.role === 'driver' && (
                   <span className="match-meta-chip">
                     <Users size={13} aria-hidden="true" />

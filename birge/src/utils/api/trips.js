@@ -26,17 +26,25 @@ export const tripsApi = {
         date: tripData.date || null,
         seats: tripData.seats || 3,
         price_per_seat: tripData.price_per_seat || tripData.price || 0,
+        ...(tripData.origin_lat != null ? { origin_lat: tripData.origin_lat } : {}),
+        ...(tripData.origin_lng != null ? { origin_lng: tripData.origin_lng } : {}),
+        ...(tripData.dest_lat != null ? { dest_lat: tripData.dest_lat } : {}),
+        ...(tripData.dest_lng != null ? { dest_lng: tripData.dest_lng } : {}),
       }),
     });
   },
 
-  findMatches: async (_userId, role, origin, destination, time, _seats = 1, date = null) => {
+  findMatches: async (_userId, role, origin, destination, time, _seats = 1, date = null, coords = null) => {
     const params = new URLSearchParams({
       role,
       origin,
       destination,
       time,
       ...(date ? { date } : {}),
+      ...(coords?.origin_lat != null ? { origin_lat: String(coords.origin_lat) } : {}),
+      ...(coords?.origin_lng != null ? { origin_lng: String(coords.origin_lng) } : {}),
+      ...(coords?.dest_lat != null ? { dest_lat: String(coords.dest_lat) } : {}),
+      ...(coords?.dest_lng != null ? { dest_lng: String(coords.dest_lng) } : {}),
     });
 
     const list = await authFetch(`/trips/matches?${params.toString()}`);
@@ -50,11 +58,19 @@ export const tripsApi = {
       to: t.destination,
       origin: t.origin,
       destination: t.destination,
+      origin_lat: t.origin_lat ?? null,
+      origin_lng: t.origin_lng ?? null,
+      dest_lat: t.dest_lat ?? null,
+      dest_lng: t.dest_lng ?? null,
       time: t.time,
       date: t.date || null,
       seats: t.seats || 3,
       seats_taken: t.seats_taken || 0,
       price_per_seat: t.price_per_seat || 0,
+      match_type: t.match_type || null,
+      detour_km: t.detour_km ?? null,
+      distance_km: t.distance_km ?? null,
+      eta_minutes: t.eta_minutes ?? null,
       userId: t.user?.id || t.user_id,
       user_id: t.user?.id || t.user_id,
       user: {
@@ -97,6 +113,27 @@ export const tripsApi = {
 
   getScheduledTrips: async () => {
     return authFetch('/users/me/scheduled-trips');
+  },
+
+  geocodeAddress: async (q, limit = 5) => {
+    const params = new URLSearchParams({ q: String(q || ''), limit: String(limit) });
+    return authFetch(`/trips/geocode?${params.toString()}`);
+  },
+
+  reverseGeocode: async (lat, lng) => {
+    const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+    return authFetch(`/trips/reverse-geocode?${params.toString()}`);
+  },
+
+  getRoutePreview: async ({ origin, destination, origin_lat, origin_lng, dest_lat, dest_lng }) => {
+    const params = new URLSearchParams();
+    if (origin) params.set('origin', origin);
+    if (destination) params.set('destination', destination);
+    if (origin_lat != null) params.set('origin_lat', String(origin_lat));
+    if (origin_lng != null) params.set('origin_lng', String(origin_lng));
+    if (dest_lat != null) params.set('dest_lat', String(dest_lat));
+    if (dest_lng != null) params.set('dest_lng', String(dest_lng));
+    return authFetch(`/trips/route-preview?${params.toString()}`);
   },
 
   updateTripStatus: async (tripId, status) => {

@@ -998,6 +998,11 @@ textarea::placeholder {
   font-variant-numeric: tabular-nums;
 }
 
+.match-meta-corridor {
+  background: var(--accent-soft);
+  color: var(--primary);
+}
+
 .match-note {
   display: flex;
   align-items: flex-start;
