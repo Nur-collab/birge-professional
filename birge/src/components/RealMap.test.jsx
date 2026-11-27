@@ -51,6 +51,7 @@ vi.mock('maplibre-gl', async () => {
     NavigationControl: MockNav,
     Marker: MockMarker,
     Popup: MockPopup,
+    setWorkerUrl: vi.fn(),
   };
 });
 

@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup } from 'maplibre-gl';
+import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl } from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStorage } from '../utils/api';
 import { escapeHtml } from '../utils/escapeHtml';
 import './RealMap.css';
+
+// Configure self-contained ESM worker asset so Vite/PWA/Capacitor builds resolve it from same-origin.
+if (typeof setWorkerUrl === 'function' && maplibreWorkerUrl) {
+  setWorkerUrl(maplibreWorkerUrl);
+}
 
 const BISHKEK_CENTER_LAT_LNG = [42.8746, 74.5698];
 const STYLE_LIGHT_URL = 'https://tiles.openfreemap.org/styles/liberty';
@@ -137,6 +143,7 @@ export default function RealMap({
   const routeMarkersRef = useRef([]);
   const routeDrawStateRef = useRef(null);
   const boundsCoordsRef = useRef(null);
+  const appliedThemeRef = useRef(null);
   const onRouteInfoRef = useRef(onRouteInfo);
   const [userLocation, setUserLocation] = useState(null);
   const [routeMeta, setRouteMeta] = useState(null);
@@ -277,11 +284,12 @@ export default function RealMap({
     const el = containerRef.current;
     if (!el || mapRef.current || !supportsWebGL()) return;
 
+    const initialDark = isDarkThemeActive();
     let map;
     try {
       map = new MapLibreMap({
         container: el,
-        style: isDarkThemeActive() ? STYLE_DARK_URL : STYLE_LIGHT_URL,
+        style: initialDark ? STYLE_DARK_URL : STYLE_LIGHT_URL,
         center: toLngLat(BISHKEK_CENTER_LAT_LNG),
         zoom: 12,
         attributionControl: { compact: true },
@@ -292,6 +300,8 @@ export default function RealMap({
     } catch {
       return;
     }
+
+    appliedThemeRef.current = initialDark;
 
     map.on('style.load', () => {
       if (routeDrawStateRef.current) {
@@ -306,15 +316,17 @@ export default function RealMap({
       userMarkerRef.current = null;
       routeMarkersRef.current.forEach((m) => m.remove());
       routeMarkersRef.current = [];
+      appliedThemeRef.current = null;
       map.remove();
       mapRef.current = null;
     };
   }, [resolvedZoomPos, applyRouteOnMap]);
 
-  // Switch light/dark vector style without tearing down map or re-fetching route API.
+  // Switch light/dark vector style only when theme actually toggles.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || appliedThemeRef.current === isDark) return;
+    appliedThemeRef.current = isDark;
     map.setStyle(isDark ? STYLE_DARK_URL : STYLE_LIGHT_URL);
   }, [isDark]);
 
