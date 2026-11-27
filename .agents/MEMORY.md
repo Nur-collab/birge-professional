@@ -33,8 +33,8 @@
 
 ## 3. Active Work State
 
-- Current goal: P1 is deployed; finish production database/backup work before 2026-12-14, then P2 axe/visual contrast and i18n.
-- Working tree: clean at `2748929`; Render and Vercel are live on that commit.
+- Current goal: Keep `birge-postgres` ready for in-place paid upgrade (`0.1c-256mb`, $6/mo; Neon migration cancelled) before 2026-12-14, align Render `healthCheckPath` to `/health` (currently `/ready`) & `buildFilter`, then pick Stage 4 (monolith refactor `Login.jsx`/`api.js` or P2 product features).
+- Working tree: updated `docs/HANDOFF.md`, `docs/RUNBOOK.md`, `docs/ROADMAP.md` synced to `1255702` + 2026-11-27 backup (`birge-20261127-1255.dump.gpg`) and Postgres credential rotation (`birge_app_20261127`, Render deploy `dep-dc4irdei0phs73ad4df0`).
 - P1 done: shared Redis rate limiting for auth and write endpoints; Redis Pub/Sub for SSE and WS chat; CHECK constraints and partial unique index; audit log; `/ready`; `X-Request-ID`; JSON logs with request id; optional Sentry backend/frontend; manual Render setup + backup/restore runbook; Dependabot/pip-audit/gitleaks/Redis compose.
 - P1 hardening 2026-11-15: `User.token_version` + `/auth/logout` revoke all sessions; token version checked in HTTP, SSE and WS; SSE uses a short-lived stream-bound ticket; escaped map balloon HTML; security headers on Vercel/API; current production CORS fallback; safe API URL; local startup no longer registers a production Telegram webhook without `RENDER_EXTERNAL_URL`.
 - Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub PostgreSQL/E2E job passed on 2748929.

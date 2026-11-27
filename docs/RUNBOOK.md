@@ -2,24 +2,35 @@
 
 ## 0. Текущий production-деплой
 
-Срез: **2026-11-15**.
+Срез: **2026-11-27**. Git HEAD `1255702`; Vercel production `Ready` на
+`1255702` (`https://birge-professional.vercel.app` → HTTP 200).
+Последний backend-деплой Render — `dep-dc4irdei0phs73ad4df0` live,
+commit `1255702` (2026-11-27, credential rotation).
 
 | Компонент | Фактическое значение |
 | --- | --- |
 | Frontend | https://birge-professional.vercel.app |
 | Backend | https://birge-api.onrender.com |
-| Render web service | `birge-api`, free, Oregon, root `birge-backend` |
-| Postgres | `birge-postgres`, free, удалится 2026-12-14 |
+| Render web service | `birge-api` (`srv-dbs1hjrl550s73f6np5g`), free, Oregon, root `birge-backend` |
+| Postgres | `birge-postgres` (`dpg-dbs1f6afngtc73bfaju0-a`), PostgreSQL **18.6**, free, 8894 kB; default credential `birge_app_20261127` |
+| Postgres expiry | **2026-12-14 08:11 UTC** — free-база будет удалена |
+| Credential rotation | 2026-11-27; старый default деактивирован; подробности §10 |
 | Key Value | `birge-redis`, free 25 MB, persistence off |
+| Alembic revision | `a7f1c3e8b9d2` (head) |
 | Health / readiness | `https://birge-api.onrender.com/health`, `https://birge-api.onrender.com/ready` |
+| Health check path в Render | фактически сейчас задан `/ready`; рекомендуется переключить на `/health` (или пустой TCP), особенно до upgrade БД (§11); `/ready` проверять после deploy и вручную |
 | CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
-| Telegram | `TELEGRAM_BOT_TOKEN` задан; webhook зарегистрирован |
+| Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` заданы; webhook зарегистрирован |
+| Sentry | backend `SENTRY_DSN` задан, в логах `sentry.initialized`; frontend `VITE_SENTRY_DSN` и `SENTRY_AUTH_TOKEN` заданы |
+| Backup | `.backups/birge-20261127-1255.dump.gpg` (AES256) + checksum + manifest |
 
 Текущий деплой использует free-план Render. Pre-Deploy Command недоступен,
 поэтому start command: `alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT`.
-Free Postgres не имеет PITR/автобэкапов и будет удалён 14.12.2026; free
-Key Value имеет 25 MB и не сохраняет данные при рестарте; web-сервис
-засыпает после простоя. Для production без этих ограничений нужен платный план.
+Free Postgres не имеет PITR/автобэкапов и будет удалён 14.12.2026. До этой
+даты `birge-postgres` поднимается in-place до paid `0.1c-256mb` ($6/мес;
+PITR 3 дня). Free Key Value имеет 25 MB и не сохраняет данные при рестарте;
+web-сервис засыпает после простоя (первый запрос может занять 20+ секунд).
+Переезд на другую managed-БД не планируется; подробности — §11.
 
 Runbook for the manual Render setup. Render Blueprints/IaC are intentionally not
 used in this repository; the backend, Postgres and Key Value resources are
@@ -46,7 +57,7 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    - start command (free): `alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT`;
    - plan: free for the current deployment; paid (`starter` or higher) if
      Pre-Deploy and zero-downtime deploys are required;
-   - health check path: `/ready`;
+   - health check path: пустой (TCP) или `/health`; не `/ready`;
    - pre-deploy command: unavailable on free; migrations run in the start command.
 3. Create **Postgres**:
    - name: `birge-postgres`;
@@ -66,7 +77,7 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
 
    ```text
    ENVIRONMENT=production
-   PYTHON_VERSION=3.10.4
+   PYTHON_VERSION=3.12
    SECRET_KEY=<generate a long random value>
    DATABASE_URL=<Postgres internal connection string>
    REDIS_URL=<Key Value internal connection string>
@@ -78,7 +89,7 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    TELEGRAM_ADMIN_CHAT_ID=<optional>
    ADMIN_PHONES=<comma-separated admin phones>
    IMGBB_API_KEY=<optional; photo upload is disabled without it>
-   SENTRY_DSN=<optional; empty disables Sentry>
+   SENTRY_DSN=<set; enables Sentry; empty logs CRITICAL in production>
    SENTRY_ENVIRONMENT=production
    SENTRY_TRACES_SAMPLE_RATE=0.05
    LOG_LEVEL=INFO
@@ -103,7 +114,9 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
    curl -fsS https://<backend-host>/ready
    ```
 
-   `/ready` checks Postgres and, when configured, Redis.
+   `/ready` checks Postgres and, when configured, Redis. В текущем Render
+   `healthCheckPath` пустой — оставить TCP/`/health`; не ставить `/ready`
+   в Render health check; проверять его после deploy и вручную (§11).
 7. Set the frontend API URL to the backend host and add the exact frontend
    origin to `ALLOWED_ORIGINS`. Redeploy the backend after changing CORS.
    Auth uses a same-origin proxy: keep the Vercel rewrite
@@ -148,79 +161,102 @@ Production and staging must never share `DATABASE_URL`, `REDIS_URL`,
      --data-urlencode "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
    ```
 
-## 3. Включение входа через Telegram
+## 3. Вход через Telegram
 
-Вход по коду работает только после привязки номера к Telegram-боту. Токен
-бота — секрет; не коммитьте его и не вставляйте в чат.
+Вход по коду и Telegram-first challenge работают только после привязки номера
+к Telegram-боту. Токен бота — секрет; не коммитьте его и не вставляйте в чат.
 
-На 2026-11-15 токен уже добавлен в Render, webhook зарегистрирован на
-`https://birge-api.onrender.com/bot/webhook`; успешная доставка кода ещё
-требует привязки номера через `@BirgeAuthBot`.
+В текущем деплое `TELEGRAM_BOT_TOKEN` задан, webhook зарегистрирован на
+`https://birge-api.onrender.com/bot/webhook`, `TELEGRAM_WEBHOOK_SECRET` задан.
+Успешная доставка требует привязки номера через `@BirgeAuthBot`.
 
-1. Получите токен у @BotFather. Для текущего фронтенда используется
-   `@BirgeAuthBot`, поэтому проще всего взять токен этого бота.
-2. Render Dashboard → `birge-api` → **Environment** → **Edit** →
-   **Add variable**:
-   - `TELEGRAM_BOT_TOKEN` = токен из BotFather (без кавычек и пробелов);
-   - `TELEGRAM_WEBHOOK_SECRET` уже сгенерирован в текущем деплое; не меняйте
-     его без необходимости. Если переменной нет, сгенерируйте случайное
-     значение кнопкой **Generate**.
+### 3.1 Привязка номера
+
+1. Получите токен у @BotFather, если настраиваете нового бота.
+2. Render Dashboard → `birge-api` → **Environment** → добавьте
+   `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` (секрет можно сгенерировать
+   кнопкой **Generate**).
 3. Нажмите **Save, rebuild, and deploy**. При старте backend сам вызывает
-   `setWebhook` для `https://birge-api.onrender.com/bot/webhook` и передаёт
-   secret token. Отдельный Pre-Deploy не нужен.
-4. В Render → `birge-api` → **Logs** найдите строку
-   `[Telegram] ✅ Webhook установлен: https://birge-api.onrender.com/bot/webhook`.
-   Если там `❌ Ошибка webhook`, проверьте токен и URL.
-5. Проверьте webhook (токен подставьте локально, не сохраняйте в git):
+   `setWebhook` для `https://birge-api.onrender.com/bot/webhook`.
+4. Откройте `@BirgeAuthBot` → `/start` → **«Поделиться номером»**. Бот
+   подтверждает привязку; `/status` показывает номер и профиль.
+
+### 3.2 Telegram-first вход
+
+1. Браузер создаёт challenge:
 
    ```bash
-   curl -fsS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo" | python -m json.tool
+   curl -sS -X POST https://birge-professional.vercel.app/api/auth/telegram-challenge \
+     -H 'Content-Type: application/json' \
+     -H 'Origin: https://birge-professional.vercel.app'
    ```
 
-   Ожидаем `url` нового backend, `pending_update_count: 0` и отсутствие
-   `last_error_message`. Поле `secret_token` Telegram не возвращает.
-6. Откройте `@BirgeAuthBot` → `/start` → **«Поделиться номером»**. Бот должен
-   подтвердить привязку; `/status` показывает номер и профиль.
-7. На сайте введите тот же номер → **«Получить код»**. Бот пришлёт 6-значный
-   код; `POST /auth/send-code` должен вернуть 200 с нейтральным ответом.
-   Наличие привязки проверяйте по сообщению в Telegram, а не по ответу API:
-   production намеренно не раскрывает `tg_linked` и канал доставки.
-8. Введите код на сайте. Успешный `POST /auth/verify-code` возвращает
-   `access_token` и `csrf_token`, а refresh-токен приходит только в
-   `HttpOnly` cookie `birge_refresh`; после этого `/users/me` отвечает 200.
-   Через сайт refresh идёт на `/api/auth/refresh`; прямой `POST /auth/refresh`
-   не принимает JSON-body: он читает cookie и требует заголовок
-   `X-CSRF-Token`, совпадающий с cookie `birge_csrf`.
-9. Проверка защиты webhook: запрос без заголовка
-   `X-Telegram-Bot-Api-Secret-Token` должен вернуть 403 (если секрет задан):
+   Ответ содержит `challenge_id`, `verifier`, `telegram_url`, `expires_in`.
+2. Пользователь открывает `telegram_url` и подтверждает контакт в боте.
+3. Браузер опрашивает статус:
 
    ```bash
-   curl -i -X POST https://birge-api.onrender.com/bot/webhook \
-     -H 'Content-Type: application/json' --data '{}'
+   curl -sS -X POST https://birge-professional.vercel.app/api/auth/telegram-challenge/status \
+     -H 'Content-Type: application/json' \
+     --data '{"challenge_id":"...","verifier":"..."}'
    ```
 
-   Проверка отправки кода (номер должен быть привязан к боту):
+   Статусы: `pending`, `bot_started`, `verified`, `expired`.
+4. После `verified` браузер завершает вход:
 
    ```bash
-   curl -i -X POST https://birge-api.onrender.com/auth/send-code \
+   curl -sS -X POST https://birge-professional.vercel.app/api/auth/telegram-challenge/complete \
      -H 'Content-Type: application/json' \
      -H 'Origin: https://birge-professional.vercel.app' \
-     --data '{"phone":"+996700000000"}'
-   ```
-
-   Ожидаем 200 и нейтральный ответ; сообщение с кодом должно прийти в Telegram.
-   Затем проверьте код (подставьте код из бота):
-
-   ```bash
-   curl -i -X POST https://birge-api.onrender.com/auth/verify-code \
-     -H 'Content-Type: application/json' \
-     --data '{"phone":"+996700000000","code":"123456"}'
+     --data '{"challenge_id":"...","verifier":"...","name":"Имя"}'
    ```
 
    Успешный ответ содержит `access_token` и `csrf_token`; refresh-токен
-   остаётся в `HttpOnly` cookie.
+   приходит только в `HttpOnly` cookie `birge_refresh`.
 
-Если webhook не зарегистрировался автоматически, зарегистрируйте вручную:
+### 3.3 Legacy-флоу по коду
+
+Для уже привязанного номера сохранён старый вход:
+
+```bash
+curl -i -X POST https://birge-professional.vercel.app/api/auth/send-code \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: https://birge-professional.vercel.app' \
+  --data '{"phone":"+996700000000"}'
+```
+
+Ожидаем 200 и нейтральный ответ; код приходит в Telegram. Наличие привязки
+проверяйте по сообщению в боте, а не по ответу API: production намеренно не
+раскрывает `tg_linked` и канал доставки.
+
+```bash
+curl -i -X POST https://birge-professional.vercel.app/api/auth/verify-code \
+  -H 'Content-Type: application/json' \
+  --data '{"phone":"+996700000000","code":"123456"}'
+```
+
+Успешный ответ содержит `access_token` и `csrf_token`; refresh остаётся в
+`HttpOnly` cookie. `POST /api/auth/refresh` требует `X-CSRF-Token`, совпадающий
+с cookie `birge_csrf`.
+
+### 3.4 Webhook
+
+Проверка без вывода токена:
+
+```bash
+curl -fsS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo" | python -m json.tool
+```
+
+Ожидаем URL нового backend, `pending_update_count: 0` и отсутствие
+`last_error_message`. Запрос без `X-Telegram-Bot-Api-Secret-Token` должен
+вернуть 403:
+
+```bash
+curl -i -X POST https://birge-api.onrender.com/bot/webhook \
+  -H 'Content-Type: application/json' --data '{}'
+```
+
+Если webhook не зарегистрировался автоматически:
 
 ```bash
 curl -fsS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
@@ -229,8 +265,7 @@ curl -fsS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
 ```
 
 Если использовать тот же токен, что у старого `birge-backend`, webhook
-переедет на новый сервис и старый Telegram-вход перестанет получать
-обновления. Для параллельной работы нужен отдельный бот/токен.
+переедет на новый сервис. Для параллельной работы нужен отдельный бот/токен.
 
 ## 4. Staging
 
@@ -249,12 +284,12 @@ temporary copy, but production credentials must not be copied into staging.
 
 ## 5. Backup policy
 
-### Текущее ограничение
+### 5.1 Текущее ограничение
 
 `birge-postgres` — free: автоматических бэкапов и PITR нет; база будет удалена
-14.12.2026. Пока не выполнен upgrade, делайте ручной `pg_dump` и храните дамп
-вне Render. Внешний доступ к БД закрыт; для дампа временно добавьте свой IP в
-Networking и сразу удалите правило.
+**2026-12-14 08:11 UTC**. Пока не выполнен upgrade, делайте ручной `pg_dump` и
+храните зашифрованный дамп вне Render. Внешний доступ к БД закрыт; для дампа
+временно добавьте свой IP в allow-list и сразу удалите правило.
 
 Render continuously backs up **paid** Postgres instances for point-in-time
 recovery (PITR):
@@ -265,55 +300,151 @@ recovery (PITR):
 - PITR cannot restore to within 10 minutes of the current time.
 - A restore creates a new database; the original is untouched.
 
-In addition, before every migration or risky data operation:
+### 5.2 Фактический бэкап 2026-11-27
 
-1. Open Render Dashboard → Postgres → **Recovery**.
-2. Create an on-demand logical backup and download it. Render keeps on-demand
-   exports for 7 days.
-3. Record the backup timestamp and the migration revision in the deployment
-   notes.
+| Поле | Значение |
+| --- | --- |
+| Файл | `.backups/birge-20261127-1255.dump.gpg` |
+| Формат | PostgreSQL custom dump, `pg_dump` 18.6 |
+| Источник | `birge_production`, PostgreSQL 18.6, 8894 kB |
+| Alembic revision | `a7f1c3e8b9d2` |
+| Plaintext SHA-256 | `9fd9f46e22f6c9845c863b82b0916796c55da9d338f2f0604111f625ecb958cb` |
+| Encrypted SHA-256 | `95932ff4958a6355271b92132d6063bd3c219f4711593d515b75032f9f0e7369` |
+| Шифрование | GPG symmetric AES256, passphrase в `birge-20261115-1103.key` |
+| Restore | PostgreSQL 18.6 local, `pg_restore`/`psql` 18.6, exit 0, counts matched, `/ready` 200 |
+| Внешняя копия | не загружена с этой машины; скопировать `.gpg`, `.sha256`, manifest в private storage |
 
-For an external copy, temporarily add your IP to the database allow list and
-run:
+Counts: `users=2, trips=2, trip_requests=1, chat_messages=3, reviews=2,
+telegram_bindings=2, refresh_sessions=7, audit_logs=7, sms_codes=2,
+login_codes=0, telegram_auth_challenges=0`.
 
-```bash
-pg_dump "$DATABASE_URL" \
-  --format=custom --no-owner --no-acl \
-  --file "birge-$(date +%Y%m%d-%H%M).dump"
-```
+Plaintext-дамп после шифрования и проверки расшифровки удалён. Ключ хранится
+отдельно от зашифрованного дампа (baseline key уже занесён в Google Password
+Manager); не коммитьте ни дамп, ни ключ. Restore выполнен без фильтра
+`transaction_timeout`: source и target — PostgreSQL 18.6.
 
-Remove the temporary allow-list entry immediately afterwards.
+### 5.3 Как сделать следующий внешний дамп
 
-## 6. Restore drill (quarterly, staging first)
+1. Убедитесь, что установлен клиент PostgreSQL **не старше** сервера (сейчас
+   сервер 18.6; подойдёт `pg_dump` 18.x). Встроенный `pgserver` 16.2 для дампа
+   с сервера 18 не подходит.
+2. Получите external connection string через CLI, не печатая его:
 
-Never test a restore against production. Use a recovery instance and point only
-staging at it.
+   ```bash
+   umask 077
+   render pg get birge-postgres --include-sensitive-connection-info -o json      > /tmp/birge-pg.json
+   # извлеките connectionInfo.externalConnectionString в защищённый файл;
+   # не выводите JSON/URL на экран и удалите /tmp/birge-pg.json после
+   ```
 
-1. In the production Postgres **Recovery** page, trigger PITR to a timestamp
-   before the simulated incident. Name the new instance
-   `birge-restore-YYYYMMDD`.
-2. Wait until the recovery instance is available and note its internal
-   connection string.
-3. Point a temporary staging service (or a one-off Render job) at the recovery
-   database. Do **not** change production.
-4. Run:
+   Не запускайте `render pg get` без redirect: флаг
+   `--include-sensitive-connection-info` печатает пароль в stdout.
+3. Временно добавьте текущий IP:
+
+   ```bash
+   IP=$(curl -sS https://api.ipify.org)
+   render pg update birge-postgres \
+     --ip-allow-list "cidr=$IP/32,description=temp-backup-$(date -u +%Y%m%d)" \
+     --confirm
+   ```
+
+4. Снимите дамп и сразу закройте доступ (даже при ошибке):
+
+   ```bash
+   pg_dump "$DATABASE_URL" \
+     --format=custom --no-owner --no-acl \
+     --file "birge-$(date -u +%Y%m%d-%H%M).dump"
+   render pg update birge-postgres --clear-ip-allow-list --confirm
+   ```
+
+   Проверьте, что `ipAllowList` снова пуст.
+5. Зафиксируйте plaintext SHA-256, зашифруйте и проверьте расшифровку:
+
+   ```bash
+   sha256sum birge-YYYYMMDD-HHMM.dump
+   gpg --batch --pinentry-mode loopback --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
+     --passphrase-file birge-20261115-1103.key \
+     --output birge-YYYYMMDD-HHMM.dump.gpg birge-YYYYMMDD-HHMM.dump
+   sha256sum birge-YYYYMMDD-HHMM.dump.gpg
+   gpg --batch --pinentry-mode loopback --decrypt --passphrase-file birge-20261115-1103.key \
+     --output /tmp/verify.dump birge-YYYYMMDD-HHMM.dump.gpg
+   cmp birge-YYYYMMDD-HHMM.dump /tmp/verify.dump
+   ```
+
+6. Удалите plaintext и `/tmp/verify.dump`, создайте manifest с counts,
+   revision, checksums и результатом restore drill.
+7. Скопируйте `.gpg`, `.sha256` и manifest в private off-site storage; ключ
+   храните отдельно.
+
+### 5.4 Перед миграцией или рисковой операцией
+
+1. Render Dashboard → Postgres → **Recovery** (для paid) → создать on-demand
+   backup.
+2. Записать timestamp и Alembic revision в deployment notes.
+3. Для free-базы — сделать внешний дамп по §5.3.
+
+## 6. Restore drill
+
+Never test a restore against production. Use a temporary database or a recovery
+instance and point only staging at it.
+
+### 6.1 Выполнено 2026-11-27
+
+- временная локальная PostgreSQL 18.6 (официальные EDB binaries),
+  `pg_restore`/`psql` 18.6;
+- фильтрация `transaction_timeout` не понадобилась: source и target — PG18.6;
+- restore exit 0; `alembic current` = `a7f1c3e8b9d2` (head);
+  `alembic check` — `No new upgrade operations detected`;
+- counts совпали с production: users=2, trips=2, trip_requests=1,
+  chat_messages=3, reviews=2, telegram_bindings=2, refresh_sessions=7,
+  audit_logs=7, sms_codes=2, login_codes=0, telegram_auth_challenges=0;
+- backend поднят против восстановленной БД, `/ready` вернул
+  `{"status":"ready"}`;
+- production не изменялся.
+
+Drill выполнен на целевой версии PostgreSQL. После upgrade Render Postgres
+до paid-плана повторить restore в отдельную временную базу и проверить
+`/ready`; upgrade не меняет версию PG18.6 (§11).
+
+### 6.2 Повтор drill на свободной БД
+
+1. Создайте временную базу (локально или отдельный Render instance). Не
+   указывайте на production.
+2. Восстановите дамп:
+
+   ```bash
+   pg_restore --no-owner --no-acl --clean --if-exists \
+     -d "$RESTORE_DATABASE_URL" birge-YYYYMMDD-HHMM.dump
+   ```
+
+   Для PG16 и дампа PG18 удалите только строку `SET transaction_timeout = 0;`
+   либо используйте сервер 18.
+3. Проверьте:
 
    ```bash
    cd birge-backend
-   alembic current
-   alembic check
+   DATABASE_URL="$RESTORE_DATABASE_URL" alembic current
+   DATABASE_URL="$RESTORE_DATABASE_URL" alembic check
    ```
 
-5. Start the backend against the recovery database and verify:
-   - `/ready` returns `{"status": "ready"}`;
-   - login and a read-only trips request succeed;
-   - row counts match the expected snapshot;
-   - the newest `audit_logs` row is at or before the restore timestamp.
-6. Record the restored timestamp, durations and any mismatch in the incident
-   log. Delete the recovery instance after the drill.
-7. If a real production restore is required, update the production
-   `DATABASE_URL` to the verified recovery instance, redeploy, run the smoke
-   checks again, and keep the old instance until the restore is accepted.
+4. Сравните counts основных таблиц с production snapshot и проверьте
+   `audit_logs`, `alembic_version`.
+5. Запустите backend против восстановленной БД с `ENVIRONMENT=test`, пустыми
+   `REDIS_URL`/Telegram/Sentry и проверьте `/ready` и read-only запрос
+   (`/users/me` после логина или `/health` + `/ready`).
+6. Запишите timestamp, длительность, checksum и любые расхождения. Удалите
+   временную БД.
+
+### 6.3 Paid PITR
+
+1. В Render Postgres → **Recovery** запустить PITR на timestamp до инцидента;
+   новый instance назвать `birge-restore-YYYYMMDD`.
+2. Дождаться available и взять internal connection string.
+3. Направить временный staging/one-off job на recovery DB; production не
+   менять.
+4. Проверить `/ready`, login, read-only trips, counts и `audit_logs`.
+5. При реальном восстановлении обновить production `DATABASE_URL`, redeploy,
+   повторить smoke checks, старый instance держать до приёмки.
 
 ## 7. Migration and rollback rules
 
@@ -330,92 +461,209 @@ staging at it.
 
 ## 8. Verification checklist
 
-- [ ] Production and staging use different databases, Redis instances and
-      secrets.
-- [ ] External access to Postgres/Key Value is disabled or limited to explicit
-      operator IPs.
-- [ ] `/health` and `/ready` pass for `https://birge-api.onrender.com`.
-- [ ] Telegram `getWebhookInfo` has no `last_error_message`; `/bot/webhook` without the secret returns 403.
-- [ ] A bound phone receives a code; `/auth/send-code` returns 200 with a neutral response that does not reveal `tg_linked` or the delivery channel.
-- [ ] Login response has no `refresh_token` in JSON; `birge_refresh` is `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api/auth` in production.
-- [ ] `Set-Cookie` from the backend reaches the browser through the Vercel `/api/auth` rewrite unmodified (DevTools → Application → Cookies shows `Path=/api/auth`, and the request URL is the Vercel host, not `onrender.com`).
-- [ ] `POST /api/auth/refresh` without `X-CSRF-Token` returns 403; with the matching token it rotates the cookie and returns a new access token.
-- [ ] Reloading the SPA restores the session through `/api/auth/refresh` without reading the refresh token from JS.
-- [ ] Vercel `ORIGIN_SECRET` equals Render `AUTH_PROXY_SECRET`; a Vercel request with a forged `X-Forwarded-For` still shares the real visitor bucket, and a direct request to Render with a forged header and no secret does not reset the `/auth/send-code` limit.
-- [ ] Two clients behind the same Vercel edge get independent `/auth/send-code` limits (one client's 429 does not block the other).
-- [ ] CGNAT visitors (`100.64.0.0/10`) are rate-limited per address, not dropped as unknown.
-- [ ] Free plan is accepted: Postgres has no PITR and expires 2026-12-14; upgrade before that date if the data must survive.
-- [ ] A logical backup has been downloaded and its checksum recorded.
-- [ ] A PITR restore into a non-production instance has been verified.
-- [ ] The restore timestamp and drill result are recorded.
-- [ ] The frontend origin in `ALLOWED_ORIGINS` matches the deployed frontend.
+- [x] Production использует отдельные БД, Redis и секреты; staging ещё не поднят.
+- [ ] Staging создан с отдельными БД/Redis/секретами.
+- [x] Внешний доступ к Postgres закрыт; временный IP для дампа удалён,
+      `ipAllowList` пуст.
+- [ ] `/health` проходит; `/ready` проверен после deploy; переключить Render health check с текущего `/ready` на `/health` или пустой TCP.
+- [ ] Telegram `getWebhookInfo` без `last_error_message`; `/bot/webhook` без
+      secret возвращает 403.
+- [ ] Привязанный номер получает код; `/auth/send-code` возвращает 200 с
+      нейтральным ответом без `tg_linked`/канала доставки.
+- [ ] Telegram-first: `/auth/telegram-challenge` → `status=verified` →
+      `/complete` выдаёт сессию; expired/consumed challenge отклоняется.
+- [ ] В login response нет `refresh_token`; `birge_refresh` — `HttpOnly`,
+      `Secure`, `SameSite=Lax`, `Path=/api/auth`.
+- [ ] `Set-Cookie` доходит через Vercel `/api/auth` без изменений.
+- [ ] `POST /api/auth/refresh` без `X-CSRF-Token` — 403; с валидным — 200 и
+      ротация cookie.
+- [ ] Перезагрузка SPA восстанавливает сессию через refresh без доступа JS к
+      refresh token.
+- [ ] Vercel `ORIGIN_SECRET` = Render `AUTH_PROXY_SECRET`; поддельный
+      `X-Forwarded-For` не сбрасывает лимит; direct Render с поддельным
+      `x-auth-client-ip` без подписи не сбрасывает bucket.
+- [ ] Два клиента за одним Vercel edge имеют независимые лимиты.
+- [ ] CGNAT (`100.64.0.0/10`) лимитируется по адресу.
+- [x] Логический бэкап снят, зашифрован, checksum записан.
+- [x] Restore в не-production БД проверен; revision/counts/`/ready` совпали.
+- [ ] Внешняя копия `.gpg` + checksum + manifest загружена в private storage.
+- [ ] Sentry alert на `auth.proxy=unsigned` и на новые issues проверен
+      тестовым уведомлением.
+- [ ] Задан `VITE_SENTRY_RELEASE`/release из commit SHA для source maps.
+- [ ] `ALLOWED_ORIGINS` совпадает с production frontend.
 
-Render setup, secret entry and the first restore drill require dashboard access
-and are intentionally manual steps.
+Render setup, secret entry и paid PITR restore требуют dashboard access и
+остаются ручными шагами.
 
-## 9. Postgres protection plan until 2026-12-14
+## 9. Postgres paid upgrade before 2026-12-14
 
-`birge-postgres` is a free instance and will be deleted on **2026-12-14 at
-08:11 UTC**. It has no PITR and no automatic backups. Treat the dates below as
-gates, not suggestions.
+`birge-postgres` — free instance, будет удалён **2026-12-14 08:11 UTC**. PITR
+и автоматических бэкапов нет. Решение: **не переезжать на другую БД**, а
+поднять существующий instance in-place до paid `0.1c-256mb` — **$6/мес**.
+Hobby workspace остаётся бесплатным; Render Pro не требуется.
 
-### Recommended path: upgrade to a paid plan
+### Статус на 2026-11-27
 
-Upgrade the existing `birge-postgres` in place so the data and hostname stay
-the same. Choose the smallest paid plan that provides PITR/Recovery; verify that
-the Recovery page is active after the upgrade. If in-place upgrade is not
-available, create a paid instance, restore the latest dump there, update
-`DATABASE_URL`, redeploy, verify, and only then remove the free instance.
+- [x] Baseline dump снят, зашифрован, restore drill на PostgreSQL 18.6 прошёл
+  (§5.2, §6.1).
+- [ ] Paid plan `0.1c-256mb` включён; PITR 3 дня активно.
+- [ ] Внешняя копия дампа загружена в private storage.
+- [ ] Daily encrypted dumps и weekly restore drill настроены.
+- [ ] Upgrade проверен на production: `/ready`, counts, PITR.
+- [ ] Production больше не зависит от free-базы после upgrade.
+
+### Current path: Render Postgres paid in-place
+
+- план: `0.1c-256mb`, **$6/мес**, 0.1 CPU / 256 MB RAM, 100 connections;
+- включён 1 GB SSD; дополнительное storage — $0.30/GB/мес;
+- **PITR 3 дня** на Hobby; logical exports хранятся 7 дней;
+- database, hostname и `DATABASE_URL` не меняются;
+- при смене compute plan Render кратко останавливает БД — окно на несколько
+  минут; данные сохраняются;
+- 256 MB RAM — тот же размер, что у free; для текущей нагрузки этого
+  достаточно, при росте — `0.5c-1g` ($19/мес).
 
 ### Timeline
 
 | Dates | Action |
 | --- | --- |
-| 15–17 Nov | Baseline `pg_dump`, checksum, restore into a temporary database, record row counts and Alembic revision. |
-| 18–24 Nov | Upgrade `birge-postgres` to paid (or provision a paid replacement); enable PITR/Recovery and take a post-upgrade dump. |
-| 25 Nov–1 Dec | Daily encrypted logical dumps with 30-day retention; weekly restore drill; rotate the database credential. |
-| 2–7 Dec | Final cutover if a new instance was created; run login, trips, chat and photo smoke checks; freeze schema changes. |
-| 8–13 Dec | Final dump and restore verification; confirm no service uses the old `DATABASE_URL`; update this runbook. |
-| 14 Dec | Free instance expires. Confirm production is running only on the paid database. |
+| 2026-11-27 | Свежий dump, restore drill на PG18.6 и credential rotation — **выполнено**. |
+| 28 Nov–5 Dec | Подтвердить оплату/карту; сверить цену $6 и текущий storage; подготовить off-site копию. |
+| 6–10 Dec | Render Dashboard → Postgres → Plan → Compute: `0.1c-256mb`; дождаться `Available`. |
+| После upgrade | `/health`, `/ready`, counts, login/refresh, PITR; ежедневный encrypted dump. |
+| 13 Dec | **Hard stop:** upgrade должен быть завершён. |
+| 14 Dec, 08:11 UTC | Free DB удаляется; production уже на paid `birge-postgres`. |
 
-Targets: RPO ≤ 15 minutes once PITR is active; RTO ≤ 2 hours for a full
-restore and smoke test. Keep at least 30 days of logical dumps even after PITR
-is enabled; PITR protects from operator error, not from account/provider loss.
-
-### If paid is not possible
-
-Move the data to another managed Postgres before 14 Dec using the same dump and
-restore procedure. The free Render database will be deleted regardless. Daily
-dumps without a managed target are only a temporary measure, with up to 24
-hours of data loss.
+Targets: **RPO ≤ 24 часа** для off-site dump; PITR даёт восстановление на
+точку внутри 3 дней. **RTO ≤ 2 часа** (restore + smoke).
 
 ### Baseline dump and restore
 
-External access to Postgres is blocked; temporarily add the operator IP in
-**Networking → Inbound IP Rules** and remove it immediately after the dump.
+Актуальный артефакт и команды — §5.2–§5.3. Кратко:
 
 ```bash
-pg_dump "$DATABASE_URL" \
-  --format=custom --no-owner --no-acl \
-  --file "birge-$(date +%Y%m%d-%H%M).dump"
+# 1. temporary IP in Render allow-list
+# 2. pg_dump 18.6
+pg_dump "$RENDER_OLD_DATABASE_URL" --format=custom --no-owner --no-acl \
+  --file "birge-$(date -u +%Y%m%d-%H%M).dump"
 
-pg_restore --list "birge-YYYYMMDD-HHMM.dump" >/dev/null
+# 3. remove IP immediately
+render pg update birge-postgres --clear-ip-allow-list --confirm
 
-pg_restore --clean --if-exists --no-owner --no-acl \
-  -d "$RESTORE_DATABASE_URL" "birge-YYYYMMDD-HHMM.dump"
+# 4. checksum + encrypt
+sha256sum birge-YYYYMMDD-HHMM.dump
+gpg --batch --pinentry-mode loopback --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
+  --passphrase-file birge-20261115-1103.key \
+  --output birge-YYYYMMDD-HHMM.dump.gpg birge-YYYYMMDD-HHMM.dump
 ```
 
-Verify at minimum: restore exits 0, `alembic_version` matches production, core
-tables have rows, `/ready` passes against the restored database, and a read-only
-trip/login query succeeds. Record the dump timestamp, SHA-256 checksum, row
-counts and restore duration in the deployment notes.
+Verify: restore exits 0, `alembic_version` matches production, core tables have
+the same counts, `/ready` passes against the restored database, and a read-only
+trip/login query succeeds. Record dump timestamp, SHA-256, counts and duration in
+the manifest.
 
 ### Security rules
 
-- Encrypt dumps before storing them off Render and restrict access to the
-  backup location; do not commit dumps to Git.
+- Encrypt dumps before storing them off Render; restrict backup location; never
+  commit dumps, checksums, manifests or keys.
 - Keep Postgres external access blocked outside the short dump window.
 - Do not run migrations concurrently from multiple instances.
-- Alert on backup failure and on `/ready` failure.
-- Test the restore path before 10 Dec so the 14 Dec deletion is not the first
-  time the dump is exercised.
+- Alert on backup failure, `/ready` failure and Sentry error spikes.
+- Test the restore path before 13 Dec.
+- Do not put Render DSNs/passwords in docs, git, chat or shell history.
+
+## 10. Credential rotation — 2026-11-27
+
+Ротация выполнена после того, как старый default DSN попал в диагностический
+вывод. Пароли и connection strings в этом документе не хранятся.
+
+| Поле | Значение |
+| --- | --- |
+| Причина | старый default credential считался скомпрометированным |
+| Новый default | `birge_app_20261127` |
+| Старый default | `birgepostgres_csld_user` удалён из Render; original user деактивирован, его объекты сохранены |
+| `DATABASE_URL` | обновлён на нового пользователя, internal host Render |
+| Deploy | `dep-dc4irdei0phs73ad4df0` — `live`, commit `1255702` |
+| Проверка | `/ready` → 200; новый пользователь входит как `birge`, 12/12 таблиц имеют SELECT/INSERT/UPDATE/DELETE, 11/11 sequences — USAGE |
+| IP allowlist | `[]`; временный доступ закрыт |
+| Секреты | новые credentials только в Render; в git/доки/чат не попадали |
+
+Порядок будущей ротации:
+
+1. Render Dashboard → Postgres → Info → Credential Rotation → **+ New default
+   credential**.
+2. До переключения проверить новым подключением `SELECT 1`, доступ к таблицам и
+   последовательностям; не менять `DATABASE_URL` вслепую.
+3. Обновить `DATABASE_URL` у `birge-api`, выполнить deploy, проверить `/ready`
+   и read-only запрос.
+4. Убедиться, что у старого пользователя `openConnections = 0`, затем удалить
+   его. Render деактивирует original user, но сохраняет принадлежащие ему
+   объекты.
+5. Не совмещать ротацию с изменением compute plan Postgres. Держать свежий
+   encrypted dump до и после.
+
+## 11. Render Postgres paid upgrade (in place)
+
+**Статус: запланировано; тариф пока не включён.** Решение 2026-11-27:
+переезд на Neon отменён. `birge-postgres` поднимается in-place до paid
+`0.1c-256mb` за **$6/мес** до удаления free-базы 14.12.2026.
+
+### 11.1 Решение и стоимость
+
+| Параметр | Значение |
+| --- | --- |
+| План | `0.1c-256mb` |
+| Цена | **$6/мес** (+ налоги); Hobby workspace — $0 |
+| Compute | 0.1 CPU, 256 MB RAM, 100 connections |
+| Storage | 1 GB SSD включён; далее $0.30/GB/мес |
+| PITR | 3 дня на Hobby; 7 дней только на Pro (+$25/мес) |
+| Logical exports | 7 дней |
+| Простой при upgrade | несколько минут; данные и DSN сохраняются |
+| Free DB | удаляется 14.12.2026 08:11 UTC |
+
+Переезд не нужен: меняется только compute plan. `DATABASE_URL`, hostname,
+пользователь и пароль остаются прежними; backend deploy не требуется.
+PITR 3 дня — достаточный минимум; daily encrypted dump всё равно нужен для
+off-site копии и защиты от потери аккаунта.
+
+### 11.2 Порядок upgrade
+
+1. **Preflight:** проверить, что в Render привязана карта и доступен billing;
+   сверить цену `0.1c-256mb` в Dashboard.
+2. Снять свежий encrypted dump по §5.3; проверить checksum и manifest.
+3. Render Dashboard → `birge-postgres` → **Plan** → **Compute** → выбрать
+   `0.1c-256mb` → Review → **Update compute**.
+4. Дождаться статуса `Available`; простой — несколько минут.
+5. Проверить `/health` и `/ready`; counts, `alembic current`, login/refresh,
+   read-only trips/users. Убедиться, что `DATABASE_URL` не изменился.
+6. Открыть **Recovery** и убедиться, что PITR доступен (3 дня). Сделать
+   on-demand logical export и скачать его.
+7. Оставить daily encrypted dump + weekly restore; off-site copy — до 13.12.
+
+### 11.3 Acceptance criteria
+
+- [ ] В Render Plan показывает paid `0.1c-256mb`; expiry/free-ограничение ушло.
+- [ ] `/health` 200, `/ready` 200; counts и `alembic current` совпадают.
+- [ ] `DATABASE_URL` не менялся; backend deploy не потребовался.
+- [ ] PITR 3 дня доступен; logical export создаётся и скачивается.
+- [ ] Свежий encrypted dump и off-site copy есть; ключ хранится отдельно.
+- [ ] Free DB не удалена до подтверждения upgrade.
+
+### 11.4 Риски
+
+| Риск | Решение |
+| --- | --- |
+| Нет карты/оплаты | оформить до 13.12; иначе free DB удалится 14.12 |
+| Краткий простой при upgrade | выполнить в низкий трафик; окно несколько минут |
+| 256 MB RAM недостаточно | `0.5c-1g` $19/мес; текущей нагрузке хватает 256 MB |
+| PITR только 3 дня | daily encrypted dump + off-site; при необходимости Pro 7 дней |
+| Нет HA/SLA на $6 | принять для текущего этапа; критичный рост — отдельный paid-план |
+| Ошибка после upgrade | вернуть compute plan/использовать dump; не удалять `birge-postgres` до проверки |
+
+### 11.5 Что не делать
+
+- Не создавать Neon project и не менять `DATABASE_URL`: переезд отменён.
+- Не удалять `birge-postgres` до подтверждения paid-плана и проверки.
+- Не включать Render Pro без необходимости: для PITR 3 дня достаточно Hobby.
+- Не класть DSN/пароли в git, docs, issue или чат.
+- Не ставить `/ready` в Render health check.

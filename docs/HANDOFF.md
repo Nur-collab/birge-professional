@@ -1,337 +1,323 @@
 # Birge — handoff
 
-Дата среза: **2026-11-15**
+Дата среза: **2026-11-27**
 
-Этот документ описывает состояние рабочей копии, все выполненные изменения,
-команды проверки и следующие шаги. Он предназначен для продолжения работы
-с другого аккаунта или компьютера.
+Этот документ описывает текущее состояние рабочей копии, проверки и следующие
+шаги. Он предназначен для продолжения работы с другого аккаунта или компьютера.
 
 ## 1. Где лежит проект
 
-Рабочая копия:
-
 ```text
 C:\Users\User\.gemini\antigravity\scratch\birge-professional\
-├── birge\              # frontend: React + Vite PWA
-├── birge-backend\      # backend: FastAPI + SQLAlchemy + Alembic
+├── birge\              # React + Vite PWA
+├── birge-backend\      # FastAPI + SQLAlchemy + Alembic
+├── .backups\           # локальные зашифрованные дампы; в git не попадают
 ├── docs\
 │   ├── HANDOFF.md      # этот файл
-│   ├── CHAT_HISTORY.md # краткая история сессии
+│   ├── RUNBOOK.md      # staging, backup and restore
 │   ├── MIGRATIONS.md
 │   └── ROADMAP.md
 └── .github\workflows\ci.yml
 ```
 
-Оригиналы, которые **не изменялись**:
+Оригиналы `..\birge\` и `..\birge-backend\` не изменяются. Рабочая копия —
+отдельный репозиторий `Nur-collab/birge-professional`, ветка `main`.
 
-```text
-C:\Users\User\.gemini\antigravity\scratch\birge\
-C:\Users\User\.gemini\antigravity\scratch\birge-backend\
-```
-
-Копия специально отделена от оригиналов. Это отдельный Git-репозиторий
-с remote `origin`; исходные папки не затрагиваются. При переносе на другой компьютер
-достаточно скопировать папку `birge-professional` целиком, кроме локальных
-`venv`, `node_modules`, `.env*`, `dist` и `*.db` (их лучше пересоздать).
+Локальные `venv`, `node_modules`, `.env*`, `dist`, `*.db` и `.backups` при
+переносе не копируются в git; их нужно пересоздать или перенести отдельно.
 
 ## 2. С чего продолжить
 
-Для нового аккаунта/чата начните с фразы:
+> Прочитай `birge-professional/docs/HANDOFF.md`, `docs/RUNBOOK.md` и
+> `docs/ROADMAP.md`. Продолжай с незакрытых пунктов, не меняя API без
+> необходимости и не коммитя секреты.
 
-> Прочитай `birge-professional/docs/HANDOFF.md`, `docs/CHAT_HISTORY.md` и
-> `docs/ROADMAP.md`. Продолжай с незакрытых пунктов P0, не меняя API без
-> необходимости.
-
-Дальше работайте только в `birge-professional`; оригинальные папки не трогайте.
+Дальше работайте только в `birge-professional`.
 
 ## 3. Текущий статус
 
-### P0 — engineering baseline
+### Production
+
+| Компонент | Фактическое значение |
+| --- | --- |
+| Frontend | https://birge-professional.vercel.app |
+| Backend | https://birge-api.onrender.com |
+| Git HEAD | `1255702` (`Add automated axe WCAG 2.1 AA audit, contrast fixes, and full RU/KY i18n`) |
+| Vercel production | `Ready`, commit `1255702` (`https://birge-professional.vercel.app` → 200) |
+| Render web | `birge-api` (`srv-dbs1hjrl550s73f6np5g`), free, Oregon, root `birge-backend` |
+| Последний backend-деплой | `dep-dc4irdei0phs73ad4df0` — `live`, commit `1255702` (rotation, 2026-11-27) |
+| Postgres | `birge-postgres` (`dpg-dbs1f6afngtc73bfaju0-a`), PostgreSQL **18.6**, free, 8894 kB; default credential `birge_app_20261127` |
+| Postgres expiry | **2026-12-14 08:11 UTC** — free-база будет удалена |
+| Postgres plan | free; до 13.12 upgrade до paid `0.1c-256mb` ($6/мес), in-place |
+| Credential rotation | 2026-11-27; старый default деактивирован; подробности RUNBOOK §10 |
+| Backup | `.backups/birge-20261127-1255.dump.gpg` + checksum + manifest |
+| Key Value | `birge-redis`, free 25 MB, persistence off |
+| Alembic revision | `a7f1c3e8b9d2` (head) |
+| Health / readiness | `/health` — 200, `/ready` — 200 после прогрева |
+| Health check path в Render | фактически сейчас задан `/ready`; нужно переключить на `/health` (или пустой TCP), а `/ready` проверять после deploy и вручную |
+| Sentry backend | `SENTRY_DSN` задан; в логах `sentry.initialized`, environment `production` |
+| Sentry frontend | `VITE_SENTRY_DSN` задан в Vercel Production/Preview; `SENTRY_AUTH_TOKEN` — Production |
+| CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
+| Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` заданы; webhook зарегистрирован |
+
+Free-план: web засыпает после простоя (первый запрос может занять 20+ секунд),
+Pre-Deploy недоступен, миграции выполняются в start command. У Postgres нет
+PITR/автобэкапов, база удаляется 14.12.2026. Решение: поднять существующую
+`birge-postgres` in-place до paid `0.1c-256mb` ($6/мес) до 13.12; переезд
+на Neon отменён — RUNBOOK §11.
+
+### Engineering baseline
 
 | Пункт | Статус |
-|---|---|
-| Отдельная рабочая копия | готово |
-| README и `.env.example` | готово |
-| Зафиксированные зависимости | готово |
-| CI для backend lint/tests и frontend build | готово (GitHub Actions CI/Security зелёные на `89db8ab`) |
-| Удалён мёртвый frontend-код | готово |
-| Защита admin/internal endpoints и CORS | готово |
-| Серверная загрузка фото | готово (код и тесты; реальный ImgBB не проверялся без ключа) |
-| Access/refresh JWT | готово |
-| WebSocket tickets | готово |
-| Alembic и индексы | готово |
-| Backend HTTP-тесты | готово |
-| Frontend-тесты | готово |
-| Windows-safe UTF-8 | готово |
-| Разделение `main.py` | готово (WS/SSE и trip-request вынесены) |
-| Разделение `App.jsx` | готово (hooks + storage helper) |
+| --- | --- |
+| CI backend lint/tests + frontend build | готово; `CI` и `Security` зелёные на `1255702` |
+| Backend tests | **92 passed**, `ruff` чист |
+| Frontend tests | **42 passed** (11 файлов) + **9 E2E passed** (`@axe-core/playwright` WCAG 2.1 AA, SSE, login), production build проходит |
+| Локализация & A11y | Полное `ru`/`ky` покрытие (`i18n.js` + `<html lang>` sync) и контраст/ARIA-метки без нарушений |
+| OpenAPI | 38 paths; `openapi.json` и `src/types/api.d.ts` без drift |
+| Dependency audit | `npm audit --omit=dev` — 0; `pip-audit` — без известных уязвимостей |
+| Secret scan | в git только `.env.example`/`.env.production.example` |
+| Access/refresh JWT | готово; refresh — HttpOnly cookie, CSRF, rotation/replay detection |
+| WebSocket/SSE tickets | готово; revocation через `token_version` |
+| Redis rate limiting/PubSub | готово; без `REDIS_URL` — in-process fallback |
+| DB constraints/audit log | готово |
+| Разделение `main.py` | `main.py` — 260 строк; routers вынесены |
+| Backup/restore | зашифрованный дамп и restore drill на PostgreSQL 18.6 выполнены 2026-11-27 |
 
-Что уже вынесено из `main.py`:
+### Auth flow
+
+Основной вход — Telegram-first:
 
 ```text
-birge-backend/routers/auth.py     # /auth/*
-birge-backend/routers/users.py    # /users/*
-birge-backend/routers/trips.py    # /trips/* и платёжные реквизиты
-birge-backend/routers/trip_requests.py # /trip-requests/* и SSE
-birge-backend/routers/chat.py     # WebSocket-чат поездки
-birge-backend/dependencies.py     # get_current_user, get_current_admin
-birge-backend/time_utils.py       # время Бишкека
-birge-backend/realtime.py         # WebSocket/SSE state + is_trip_participant
+POST /auth/telegram-challenge        -> challenge_id, verifier, telegram_url
+POST /auth/telegram-challenge/status -> pending | bot_started | verified | expired
+POST /auth/telegram-challenge/complete -> access token + refresh cookie
 ```
 
-В `main.py` пока остались:
+Legacy-флоу по коду сохранён для привязанных номеров:
 
-- отзывы `/reviews/`;
-- Telegram webhook `/bot/webhook` и `/internal/get-binding`;
-- админский cleanup `/admin/cleanup-trips`;
-- lifecycle-задачи и фоновые циклы (напоминания, автоочистка).
+```text
+POST /auth/send-code   -> нейтральный ответ, код доставляется Telegram-ботом
+POST /auth/verify-code -> access token + refresh cookie
+```
 
-### P1/P2
+`send-code` не раскрывает, привязан ли номер, и удаляет код, если доставка
+невозможна. Оба флоу используют per-IP лимиты; IP берётся из
+`x-auth-client-ip` только при валидной подписи Vercel-прокси.
 
-Полный список — в `docs/ROADMAP.md`. Ближайшие production-задачи:
+### Структура backend
 
-1. Redis Pub/Sub, auth rate limiting и write-лимиты внедрены. `REDIS_URL`
-   включает Redis; пустой URL оставляет in-process режим.
-2. DB CHECK-ограничения, partial unique index и audit log внедрены.
-3. `/health` — liveness, `/ready` — readiness (DB + Redis); ответы содержат
-   `X-Request-ID`; JSON-логи включают request id.
-4. Sentry SDK подключён к backend и frontend; нужен DSN и проверка событий.
-5. Production задеплоен на Render/Vercel; Telegram-токен и webhook настроены, осталось проверить вход с привязанным номером.
-6. Dependabot, `pip-audit` и gitleaks настроены; CI/Security проверены на `2748929`.
-7. P1 hardening (2026-11-15): добавлены server-side revocation через `User.token_version`,
-   `/auth/logout`, проверка версии в HTTP/SSE/WS, SSE-ticket вместо access token
-   в query, экранирование HTML в карте, security headers и безопасный API fallback.
-   PostgreSQL migration check and browser SSE-ticket E2E added. P1 encryption/OTP
-   (migration `5c8f1a2b9d4e`), one-time refresh rotation (`6e2b7c4d1a3f`) and
-   Python 3.12 runtime/CI are now in place.
-
-P2: deep links, OpenAPI-типы и accessibility-baseline готовы; дальше
-automated axe/visual contrast sweep, i18n, аналитика воронки, ETA/маршруты,
-модерация, export/delete данных.
+```text
+routers/auth.py           # /auth/*, cookies, CSRF, Telegram challenge
+routers/users.py          # /users/*
+routers/trips.py          # /trips/*
+routers/trip_requests.py  # /trip-requests/*, SSE
+routers/chat.py           # WebSocket-чат
+routers/reviews.py        # /reviews/
+routers/bot.py            # /bot/webhook, /internal/get-binding
+routers/admin.py          # /admin/cleanup-trips
+trip_maintenance.py       # cleanup_stale_trips, reminder_loop
+realtime.py               # WebSocket/SSE state
+sentry_config.py          # init_sentry, auth-proxy alert
+rate_limit.py             # Redis/in-process limiter
+```
 
 ## 4. Проверки, которые проходят
 
-Последний подтверждённый прогон:
+Последний подтверждённый прогон (2026-11-27, HEAD `1255702`):
 
 ```text
 backend:
   ruff check .                 -> passed
-  pytest -q                    -> 53 passed (Redis multiprocess + write/constraints/audit/readiness/logging/Sentry/trip detail/security/logout/SSE ticket/PII/OTP/refresh rotation/refresh cleanup)
+  pytest -q                    -> 92 passed
 frontend:
-  npm test                     -> 19 passed (routing + API + date + a11y + XSS escaping + SSE ticket)
+  npm test                     -> 42 passed (11 files)
   npm run build                -> passed
-  npm run api:types            -> passed (src/types/api.d.ts, updated for /auth/logout and /trip-requests/sse-ticket)
-browser E2E:
-  npm run e2e                  -> 3 passed on PostgreSQL 16.2 (ticket issuance + EventSource; ?token rejection; logout revocation)
+  npm run e2e                  -> 9 passed (включая a11y.spec.js на PG 16.2)
+  npm run api:types            -> без diff
 database:
-  alembic upgrade head         -> passed (fresh SQLite)
-  alembic check                -> no new upgrade operations
-  PostgreSQL migration check   -> passed locally against ephemeral PostgreSQL 16.2 with migrations 5c8f1a2b9d4e and 6e2b7c4d1a3f; CI postgres:16 step added
-  Python 3.12.10               -> 53 passed; ruff passed; PostgreSQL migration check passed
+  alembic current              -> a7f1c3e8b9d2 (head)
+  OpenAPI export               -> без diff (38 paths)
 live:
+  GET https://birge-professional.vercel.app -> 200 (Ready)
   GET https://birge-api.onrender.com/health -> 200
-  GET https://birge-api.onrender.com/ready -> 200
-  GET https://birge-api.onrender.com/openapi.json -> 200 (33 paths; deployed on 2748929)
-telegram:
-  getWebhookInfo -> url https://birge-api.onrender.com/bot/webhook, pending 0, no errors
+  GET https://birge-api.onrender.com/ready  -> 200
+  /openapi.json                             -> 404 by design (docs disabled in production)
+sentry:
+  Render logs                               -> sentry.initialized, environment=production
 ```
 
-Команды для повторной проверки (Windows):
-
-```bash
-cd C:\Users\User\.gemini\antigravity\scratch\birge-professional\birge-backend
-.\venv\Scripts\ruff.exe check .
-.\venv\Scripts\python.exe -m pytest -q
-.\venv\Scripts\alembic.exe upgrade head
-.\venv\Scripts\uvicorn.exe main:app --reload --port 8000
-```
-
-```bash
-cd C:\Users\User\.gemini\antigravity\scratch\birge-professional\birge
-npm test
-npm run build
-npm run e2e
-npm run dev
-```
-
-Если `venv` или `node_modules` отсутствуют на новом компьютере, установите
-зависимости по инструкции из корневого `README.md`.
+`/openapi.json` в production намеренно отключён; контракт экспортируется
+скриптом `birge-backend/scripts/export_openapi.py` и проверяется в CI.
 
 ## 5. API и OpenAPI
 
-Проверено, что в OpenAPI присутствуют:
+`birge/openapi.json` — закоммиченный контракт (38 paths). После изменения
+backend-схем:
 
-```text
-/auth/send-code           POST
-/auth/verify-code         POST
-/auth/refresh             POST
-/auth/logout              POST (revokes all sessions)
-
-/users/me                 GET, PATCH
-/users/{user_id}          GET
-/users/me/photo           POST
-/users/me/trips           GET
-/users/me/active-trip     GET
-/users/me/verify          POST
-/users/me/scheduled-trips GET
-
-/trips/                        POST
-/trips/matches                 GET
-/trips/{trip_id}               GET (driver/accepted participant only), DELETE
-/trips/{trip_id}/ws-ticket     POST
-/trips/{trip_id}/messages      GET, POST
-/trips/{trip_id}/status        PATCH
-/trips/{trip_id}/panic         POST
-/trips/{trip_id}/passengers    GET
-/trips/{trip_id}/payment       GET
-
-/trip-requests/                     POST
-/trip-requests/incoming/            GET
-/trip-requests/{request_id}         PATCH
-/trip-requests/status/{trip_id}     GET
-/trip-requests/driver-events/{driver_id} GET (SSE, ?ticket=)
-/trip-requests/events/{requester_id}     GET (SSE, ?ticket=)
-/trip-requests/sse-ticket                POST
+```bash
+cd birge-backend
+./venv/Scripts/python.exe scripts/export_openapi.py
+cd ../birge
+npm run api:types
 ```
 
-WebSocket `/ws/chat/{trip_id}/{user_id}` зарегистрирован, но в OpenAPI не попадает.
+Основные группы:
 
-`birge/openapi.json` экспортируется скриптом
-`birge-backend/scripts/export_openapi.py` (33 paths, 18 schemas), а
-`npm run api:types` генерирует `birge/src/types/api.d.ts` (2217 lines). JSDoc в
-`birge/src/utils/api.js` использует сгенерированный `Trip`.
+```text
+/auth/*        send-code, verify-code, telegram-challenge, status, complete,
+               login-code, exchange-code, refresh, logout
+/users/*       me, me/photo, me/verify, me/trips, me/active-trip,
+               me/scheduled-trips, {user_id}
+/trips/*       create, matches, detail, delete, status, passengers, payment,
+               messages, panic, ws-ticket
+/trip-requests/* create, incoming, update, status, SSE, sse-ticket
+/reviews/      create/list
+/health        liveness
+/ready         readiness (DB + optional Redis)
+```
 
-Схемы ответов сохранены: `/users/me` → `User`, `/users/{user_id}` →
-`UserPublic`, `POST /trips/` → `Trip`.
+WebSocket `/ws/chat/{trip_id}/{user_id}` в OpenAPI не попадает.
 
-HTTP-регрессия users лежит в `tests/test_users_http.py` (5 тестов).
-HTTP-проверки trips добавлены в `tests/test_api.py`, включая OpenAPI и
-сценарий create → matches → status → delete.
+## 6. Backup и restore (2026-11-27)
 
-## 6. Безопасность и конфигурация
+Актуальный артефакт:
 
-В копии есть локальные, **некоммитимые** файлы:
+```text
+.backups/birge-20261127-1255.dump.gpg          # 8.5 KB, GPG AES256
+.backups/birge-20261127-1255.dump.gpg.sha256   # 95932ff4...
+.backups/birge-20261127-1255.manifest.txt
+```
 
-- `birge-backend/.env` — локальный dev `SECRET_KEY`, SQLite;
-- `birge/.env.development.local` — локальный `VITE_API_URL`;
-- `.env.production.example` — только шаблон.
+Параметры:
 
-Не копируйте production-секреты в репозиторий и не вставляйте их в чат.
-Для production нужны как минимум:
+- источник: `birge_production`, PostgreSQL 18.6, 8894 kB;
+- plaintext SHA-256: `9fd9f46e22f6c9845c863b82b0916796c55da9d338f2f0604111f625ecb958cb`;
+- encrypted SHA-256: `95932ff4958a6355271b92132d6063bd3c219f4711593d515b75032f9f0e7369`;
+- revision: `a7f1c3e8b9d2`;
+- counts: `users=2, trips=2, trip_requests=1, chat_messages=3, reviews=2,
+  telegram_bindings=2, refresh_sessions=7, audit_logs=7, sms_codes=2,
+  login_codes=0, telegram_auth_challenges=0`, остальные таблицы пустые;
+- пароль шифрования: `birge-20261115-1103.key` (baseline key, escrow в Google
+  Password Manager);
+- plaintext-дамп после шифрования и проверки расшифровки удалён.
+
+Restore drill:
+
+- выполнен в отдельной временной базе PostgreSQL 18.6 (официальные EDB
+  binaries), `pg_restore`/`psql` 18.6;
+- фильтрация `transaction_timeout` не понадобилась: source и target — PG18.6;
+- `pg_restore` exit 0; `alembic current` = `a7f1c3e8b9d2` (head),
+  `alembic check` — `No new upgrade operations detected`; все counts совпали;
+  `/ready` вернул `{"status":"ready"}`;
+- production не изменялся.
+
+Доступ к production БД был открыт только на время дампа: временный IP добавлен
+и сразу удалён; `ipAllowList` снова пуст. После upgrade Render Postgres до
+paid-плана повторить restore в отдельную временную базу — RUNBOOK §11.
+
+Внешняя копия (Google Drive/другое private storage) с этой машины не
+загружалась. Нужно скопировать `.gpg`, `.sha256` и manifest в private storage,
+а ключ хранить отдельно.
+
+## 7. Безопасность и конфигурация
+
+Production-секреты задаются только в Render/Vercel, не в git и не в чате.
+Обязательные/важные переменные:
 
 ```text
 ENVIRONMENT=production
 SECRET_KEY=<long random>
-PII_ENCRYPTION_KEY=<long random, do not rotate without re-encryption>
+PII_ENCRYPTION_KEY=<long random; не ротировать без re-encryption>
 OTP_HASH_KEY=<optional separate random key>
-DATABASE_URL=postgresql://...
-ALLOWED_ORIGINS=https://<frontend>
+DATABASE_URL=<Render Postgres internal DSN; при upgrade не меняется>
+ALLOWED_ORIGINS=https://birge-professional.vercel.app
 AUTH_COOKIE_PATH=/api/auth
-AUTH_PROXY_SECRET=<random; must equal Vercel ORIGIN_SECRET>
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_WEBHOOK_SECRET=...
-ADMIN_PHONES=...
-REDIS_URL=redis://<redis-host>:6379/0
+AUTH_PROXY_SECRET=<same value as Vercel ORIGIN_SECRET>
+TELEGRAM_BOT_TOKEN=<production bot token>
+TELEGRAM_WEBHOOK_SECRET=<random webhook secret>
+ADMIN_PHONES=<comma-separated admin phones>
+REDIS_URL=<Render Key Value>
+SENTRY_DSN=<set; enables backend Sentry>
+SENTRY_ENVIRONMENT=production
+SENTRY_TRACES_SAMPLE_RATE=0.05
+LOG_LEVEL=INFO
+INTERNAL_SYNC_ENABLED=false
 ```
 
-В текущем деплое `TELEGRAM_BOT_TOKEN` задан, webhook зарегистрирован; для
-успешного `/auth/send-code` номер всё ещё нужно привязать через
-`@BirgeAuthBot`. `TELEGRAM_WEBHOOK_SECRET` задан; порядок проверки — в
-`docs/RUNBOOK.md`, §3.
+Vercel:
 
-`IMGBB_API_KEY` нужен только для загрузки фото. Без него endpoint корректно
-возвращает `503`.
+```text
+VITE_API_URL=https://birge-api.onrender.com
+VITE_SENTRY_DSN=<public DSN>
+VITE_SENTRY_ENVIRONMENT=production
+SENTRY_AUTH_TOKEN=<secret, source map upload>
+ORIGIN_SECRET=<same as AUTH_PROXY_SECRET>
+```
 
-Frontend production build:
+`AUTH_PROXY_SECRET` обязателен в production: без него backend падает на старте.
+Пустой `SENTRY_DSN` даёт CRITICAL в логах, но не роняет деплой.
 
-- локальный URL должен быть в `.env.development.local`, **не** в `.env.local`;
-- production URL задаётся в `.env.production` или в env хостинга;
-- `vite.config.js` намеренно падает, если production `VITE_API_URL` указывает
-  на `localhost`, `127.0.0.1` или `0.0.0.0`.
-- auth-запросы всегда идут через same-origin `/api/auth`: Vite проксирует этот
-  путь на backend `/auth` локально, `vercel.json` — в production, поэтому
-  refresh-cookie остаётся first-party и имеет `Path=/api/auth` везде.
+- **Credential rotation 2026-11-27:** default `birge_app_20261127`; старый
+  `birgepostgres_csld_user` удалён/деактивирован; `DATABASE_URL` обновлён,
+  deploy `dep-dc4irdei0phs73ad4df0` live, `/ready` 200, allowlist `[]`.
+  Пароли и connection strings в репозиторий/доки не попадали.
 
-### Фактический production-деплой (2026-11-17, commit `2748929`)
+## 8. Риски и следующие шаги
 
-| Компонент | Значение |
-| --- | --- |
-| Frontend | https://birge-professional.vercel.app |
-| Backend | https://birge-api.onrender.com |
-| Render web | `birge-api`, free, Oregon, root `birge-backend` |
-| Postgres | `birge-postgres`, free, удалится 2026-12-14 |
-| Key Value | `birge-redis`, free 25 MB, persistence off |
-| CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
-| Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` set; webhook registered |
-| Commit | `2748929`; Render Live, Vercel production Ready |
+P0:
 
-Free-план: web засыпает после простоя; Pre-Deploy недоступен; миграции
-выполняются в start command; у Postgres нет PITR/автобэкапов; база будет
-удалена 14.12.2026. Для production без этих ограничений нужен платный план.
+1. **Postgres удаляется 14.12.2026.** До 13.12 поднять существующую
+   `birge-postgres` in-place до paid `0.1c-256mb` ($6/мес); переезд на Neon
+   отменён. Свежий encrypted dump и restore drill на PG18.6 уже есть;
+   после upgrade проверить `/ready`, counts и PITR — RUNBOOK §11.
+2. Переключить `healthCheckPath` в Render с текущего `/ready` на `/health` (или пустой TCP), чтобы кратковременный сбой/перезапуск БД или Redis не триггерил рестарт `birge-api`; `/ready` проверять после deploy и вручную.
+3. Проверить в Sentry alert rule на `auth.proxy=unsigned` и на новые issues;
+   подтвердить доставку тестового уведомления.
 
-Frontend deployment:
+P1:
 
-- Vercel project `birge-professional`, root `birge`, framework Vite;
-- production alias `https://birge-professional.vercel.app`;
-- `VITE_API_URL=https://birge-api.onrender.com` задан в Vercel Environment.
-- `vercel.json` проксирует `/api/auth/*` на Render через `routes` + `transforms`
-  и добавляет `x-auth-proxy-secret` из `ORIGIN_SECRET`; `proxy.js` (Routing
-  Middleware) передаёт санитизированный edge-IP в `x-auth-client-ip`, потому
-  что Vercel на external rewrite пробрасывает клиентский `X-Forwarded-For`;
-  куки выставляются с
-  `Path=/api/auth`, `HttpOnly`, `Secure`, `SameSite=Lax`. `ORIGIN_SECRET` в
-  Vercel должен совпадать с `AUTH_PROXY_SECRET` на Render. В production пустой
-  `AUTH_PROXY_SECRET` роняет старт с CRITICAL-логом, а не переключает лимиты
-  на общий Cloudflare IP незаметно. Первый в процессе запрос с
-  `x-auth-client-ip`, но без валидной подписи дополнительно уходит в Sentry
-  как error с fingerprint `auth-proxy-missing-origin-secret` и тегом
-  `auth.proxy=unsigned`; алерт в Sentry настраивается на этот тег. Пустой
-  `SENTRY_DSN` в production даёт CRITICAL при старте, чтобы выключенный алерт
-  был виден в логах Render.
+- задать `VITE_SENTRY_RELEASE`/release из `VERCEL_GIT_COMMIT_SHA`, чтобы source
+  maps совпадали с событиями;
+- не включать частый внешний uptime-мониторинг без необходимости: он
+  создаёт лишний трафик и шум; Sentry/логи + ручная проверка;
+- решить, нужен ли fallback входа для пользователей без Telegram;
+- staging с отдельными БД/Redis/секретами;
+- разбить большие `Login.jsx` (1723 строки) и `api.js` (790 строк);
+- настроить Build Filters на Render (`birge-backend/**`, сейчас `None`): frontend/docs-коммиты не должны пересобирать backend.
 
-Backend deployment:
+P2 (остаток из `docs/ROADMAP.md`; базовый WCAG audit и полное `ru`/`ky` i18n закрыты в `1255702`):
 
-- Render настраивается вручную: web service, managed Postgres, Key Value;
-- root directory: `birge-backend`; runtime: Python 3;
-- web-команда (free): `alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT`;
-- миграции: на free-плане Pre-Deploy недоступен, поэтому `alembic upgrade head` уже стоит в start command;
-- health check: `/ready` (Postgres + Redis);
-- текущие Postgres/Key Value — free (Postgres до 14.12.2026, Redis 25 MB без persistence); для production нужен платный план;
-- staging — отдельные сервисы, БД, Redis и секреты;
-- backup/restore: `docs/RUNBOOK.md`;
-- `Procfile` содержит `release: alembic upgrade head`; на free-плане Render это
-  не используется — миграции уже включены в start command.
+- воронка поиск → заявка → принятие → поездка → отзыв;
+- ETA/коридоры, повторяющиеся поездки, политика отмен;
+- модерация/жалобы/support;
+- export/delete данных и consent.
 
-## 7. Важные оговорки
+## 9. Полезные команды
 
-- Репозиторий `Nur-collab/birge-professional`, ветка `main`, последний коммит `2748929`;
-  P1 hardening закоммичен и задеплоен. GitHub Actions CI/Security успешно
-  прошли на `2748929`; локальные проверки также проходят.
-- Render/Vercel/Postgres/CORS проверены: `/health` и `/ready` — 200; Telegram webhook зарегистрирован, но успешная доставка кода требует привязки номера; ImgBB, Sentry и `ADMIN_PHONES` не настроены.
-- Frontend login-экран открыт; полный вход, поездки и чат вручную не прокликивались.
-- `npm audit`: 6 low/moderate только в dev/build/PWA-цепочке, high/critical нет; `npm audit --omit=dev` — 0.
-- `pytest` предупреждает о будущем `httpx2` в Starlette TestClient; это не ошибка.
-- Free Postgres не имеет PITR/автобэкапов и удалится 14.12.2026; до этой даты нужен upgrade или ручной `pg_dump`.
-- Realtime использует Redis Pub/Sub при `REDIS_URL`; без него работает
-  in-process fallback для локальной разработки.
-- Redis multiprocess-тесты локально используют RESP-заглушку; в CI — реальный
-  сервис `redis:7-alpine`. Write-лимиты и Redis Pub/Sub реализованы.
+```bash
+# backend
+cd birge-backend
+./venv/Scripts/python.exe -m pytest -q
+./venv/Scripts/python.exe -m ruff check .
+./venv/Scripts/python.exe -m alembic current
 
-## 8. Следующие шаги
+# frontend
+cd birge
+npm test
+npm run build
+npm run api:types
 
-1. P0 закрыт: WS/SSE, trip-request и `App.jsx` разделены.
-2. P1-код закрыт: Redis Pub/Sub, rate limiting, write-лимиты, DB constraints,
-   audit log, `/ready`, JSON-логи, Sentry SDK и backup/restore runbook.
-3. P1 hardening 2026-11-15: revocation/logout, XSS escaping, security headers,
-   API fallback, SSE-ticket, PostgreSQL migration CI and browser E2E. P1 encryption/OTP,
-   one-time refresh rotation and Python 3.12 runtime/CI are complete; GitHub Actions
-   CI/Security passed on `2748929`.
-4. Проверить вход по коду с номером, привязанным через `@BirgeAuthBot`, по `docs/RUNBOOK.md`, §3,
-   затем решить вопрос upgrade Postgres до 14.12.2026.
-5. CI/Security проверены на `2748929`; Render/Vercel задеплоены на этот коммит.
-6. P2: deep links, OpenAPI-типы и accessibility-baseline сделаны; дальше
-   axe/visual contrast sweep, i18n, аналитика, ETA/маршруты, модерация,
-   export/delete.
+# production probes
+curl -fsS https://birge-api.onrender.com/health
+curl -fsS https://birge-api.onrender.com/ready
 
-Перед изменениями API сначала добавляйте/обновляйте HTTP-регрессионный тест,
-затем проверяйте `ruff`, `pytest`, OpenAPI и production frontend build.
+# Render CLI
+render whoami
+render services
+render deploys list srv-dbs1hjrl550s73f6np5g -o json
+render logs --resources srv-dbs1hjrl550s73f6np5g --limit 200
+```
+
+Перед изменением API сначала добавьте/обновите HTTP-регрессионный тест, затем
+проверьте `ruff`, `pytest`, OpenAPI и production frontend build.

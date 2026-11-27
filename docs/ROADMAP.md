@@ -32,13 +32,13 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 - [x] CHECK constraints for seats, price and rating after legacy data cleanup
 - [x] Audit log for trip status changes, request decisions and payment-detail access
 - [x] Structured logs with request IDs
-- [~] Sentry SDK wired for backend + frontend (DSN/project validation pending)
+- [x] Sentry SDK wired for backend + frontend (production `SENTRY_DSN` and `VITE_SENTRY_DSN` + `SENTRY_AUTH_TOKEN` active)
 - [x] Separate liveness (`/health`) and readiness (`/ready`) probes
 - [x] Server-side session revocation: `User.token_version`, checked for HTTP, SSE and WS; `/auth/logout` revokes refresh tokens
 - [x] Escape user-controlled map balloon HTML and add baseline security headers
 - [x] Safe production API fallback and no local Telegram webhook registration by default
-- [~] Staging environment, database backups and restore drill (runbook ready; manual Render setup/drill pending)
-- [~] Dependabot, `pip-audit` and secret scanning (configured; verify on GitHub)
+- [~] Staging environment, database backups and restore drill (encrypted dump + PG 18.6 restore drill done 2026-11-27; staging & paid `0.1c-256mb` Postgres upgrade before 2026-12-14 pending)
+- [x] Dependabot, `pip-audit` and secret scanning (verified green on GitHub Actions)
 - [x] Short-lived SSE tickets instead of access token in the query string; WS/SSE tickets carry `token_version`
 - [x] Browser E2E for SSE ticket issuance and EventSource auth (Playwright; 3 tests pass locally on PostgreSQL 16.2)
 - [x] Encrypt payment details at rest (Fernet `enc:v1:`) and hash OTP codes (HMAC-SHA256); data migration added
@@ -50,8 +50,8 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 
 - [x] React Router with deep links (`/trips/:id`, `/scheduled`, `/profile`)
 - [x] Incremental TypeScript or OpenAPI-generated frontend types (`openapi.json` + generated `api.d.ts` + JSDoc client types)
-- [~] Accessibility baseline: labels, keyboard, dialogs, focus and contrast tokens fixed; automated axe/visual contrast sweep remains
-- [ ] Complete Russian/Kyrgyz i18n coverage
+- [x] Accessibility baseline: labels, keyboard, dialogs, focus, contrast tokens fixed, and automated `@axe-core/playwright` WCAG 2.1 AA audit (`a11y.spec.js`)
+- [x] Complete Russian/Kyrgyz i18n coverage (`i18n.js`, `i18n.test.js`, `<html lang>` sync)
 - [ ] Funnel analytics: search → request → accept → trip → review
 - [ ] Route-corridor matching, ETA, recurring trips and cancellation policy
 - [ ] Support/moderation tools and abuse reporting
