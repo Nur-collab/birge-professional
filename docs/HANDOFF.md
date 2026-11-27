@@ -284,7 +284,7 @@ P1:
 - решить, нужен ли fallback входа для пользователей без Telegram;
 - staging с отдельными БД/Redis/секретами;
 - разбить большие `Login.jsx` (1723 строки) и `api.js` (790 строк);
-- настроить Build Filters на Render (`birge-backend/**`, сейчас `None`): frontend/docs-коммиты не должны пересобирать backend.
+- Build Filters на Render настроены (`paths: birge-backend/**`, `ignoredPaths`: `tests/**`, `scripts/**`, `requirements-dev.txt`, `requirements-e2e.txt`, `**/*.md`) в дополнение к `rootDir: birge-backend`.
 
 P2 (остаток из `docs/ROADMAP.md`; базовый WCAG audit и полное `ru`/`ky` i18n закрыты в `1255702`):
 
