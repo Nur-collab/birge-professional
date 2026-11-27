@@ -525,6 +525,39 @@
   letter-spacing: 0.05em;
 }
 
+.recurrence-block {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.recurrence-days-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.recurrence-day-btn {
+  min-width: 34px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.recurrence-day-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
 .submit-action-btn {
   min-height: 50px;
   border-radius: 14px;

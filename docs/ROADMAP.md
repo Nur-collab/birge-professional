@@ -52,9 +52,9 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 - [x] Incremental TypeScript or OpenAPI-generated frontend types (`openapi.json` + generated `api.d.ts` + JSDoc client types)
 - [x] Accessibility baseline: labels, keyboard, dialogs, focus, contrast tokens fixed, and automated `@axe-core/playwright` WCAG 2.1 AA audit (`a11y.spec.js`)
 - [x] Complete Russian/Kyrgyz i18n coverage (`i18n.js`, `i18n.test.js`, `<html lang>` sync)
-- [ ] Funnel analytics: search → request → accept → trip → review
-- [ ] Route-corridor matching, ETA, recurring trips and cancellation policy
-- [ ] Support/moderation tools and abuse reporting
+- [x] Funnel analytics: search → request → accept → trip → review (`funnel_events`, `analytics.py`, `GET /admin/funnel`)
+- [x] Route-corridor matching, ETA, recurring trips and cancellation policy (`geo.py`, `leaflet`, `/trips/geocode|reverse-geocode|route-preview`, `recurrence_days`, `late_cancellations`)
+- [x] Support/moderation tools and abuse reporting (`abuse_reports`, `POST /reports/`, `/admin/reports*`, `ReportModal`, `AdminModerationPanel`)
 - [x] Data export/deletion and consent flows (`GET /users/me/export`, `DELETE /users/me`, Settings privacy & account deletion dialog)
 
 ## Deliberate non-goals

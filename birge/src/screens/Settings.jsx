@@ -3,6 +3,7 @@ import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Sma
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { exportJsonFile, isNativeApp, openExternalUrl } from '../utils/platform';
+import AdminModerationPanel from './AdminModerationPanel';
 import './Settings.css';
 
 export default function Settings({ currentUser, onBack, onUpdate, onAccountDeleted }) {
@@ -368,6 +369,8 @@ export default function Settings({ currentUser, onBack, onUpdate, onAccountDelet
           </div>
         )}
       </section>
+
+      {currentUser?.is_admin && <AdminModerationPanel />}
 
       {showDeleteModal && (
         <div

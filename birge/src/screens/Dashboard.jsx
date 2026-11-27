@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import AddressInput from '../components/AddressInput';
 import RouteMapPreview from '../components/RouteMapPreview';
+import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 import DriverParameters from './dashboard/DriverParameters';
 import HubsDisclosure from './dashboard/HubsDisclosure';
@@ -32,6 +33,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const [date, setDate] = useState(localDateStr());
   const [seats, setSeats] = useState(3);
   const [price, setPrice] = useState(100);
+  const [recurrenceDays, setRecurrenceDays] = useState([]);
   const [geoLoading, setGeoLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showHubs, setShowHubs] = useState(false);
@@ -94,7 +96,17 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
     date,
     seats: role === 'driver' ? seats : 1,
     price: role === 'driver' ? price : 0,
+    ...(role === 'driver' && recurrenceDays.length > 0
+      ? { recurrence_days: recurrenceDays.join(',') }
+      : {}),
   });
+
+  const handleToggleRecurrenceDay = (dayIndex) => {
+    const key = String(dayIndex);
+    setRecurrenceDays((prev) =>
+      prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key].sort()
+    );
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -290,6 +302,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             onChangeSeats={setSeats}
             price={price}
             onChangePrice={setPrice}
+            recurrenceDays={recurrenceDays}
+            onToggleRecurrenceDay={handleToggleRecurrenceDay}
           />
         )}
 

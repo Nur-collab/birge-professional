@@ -12,7 +12,7 @@ import auth as auth_service
 import models
 import schemas
 from database import get_db
-from dependencies import get_current_user
+from dependencies import get_current_user, is_admin_user
 from rate_limit import enforce_user_limit, enforce_user_limit_sync
 from time_utils import get_bishkek_today_str
 
@@ -34,7 +34,10 @@ def read_current_user(
         .filter(models.User.id == current_user.id)
         .first()
     )
-    return user or current_user
+    resolved = user or current_user
+    payload = schemas.User.model_validate(resolved)
+    payload.is_admin = is_admin_user(resolved)
+    return payload
 
 def _is_accepted_passenger(db: Session, driver_id: int, passenger_id: int) -> bool:
     """True, если passenger принят в поездку driver."""
@@ -396,6 +399,7 @@ def read_scheduled_trips(
             "time": trip.time,
             "seats": trip.seats or 3,
             "seats_taken": trip.seats_taken or 0,
+            "recurrence_days": trip.recurrence_days,
             "passengers": passengers,
             "driver": None,
         })
@@ -445,6 +449,7 @@ def read_scheduled_trips(
             "time": driver_trip.time,
             "seats": driver_trip.seats or 3,
             "seats_taken": driver_trip.seats_taken or 0,
+            "recurrence_days": driver_trip.recurrence_days,
             "passengers": [],
             "driver": {
                 "id": driver_user.id if driver_user else None,

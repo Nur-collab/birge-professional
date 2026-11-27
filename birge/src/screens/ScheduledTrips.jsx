@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Clock, Users, Car,
-  Star, ShieldCheck, ChevronRight, RefreshCw, Trash2, Plus
+  Star, ShieldCheck, ChevronRight, RefreshCw, Repeat, Trash2, Plus
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
@@ -74,10 +74,11 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
     // Водитель отменяет свою поездку, пассажир — своё участие в поездке
     // водителя. Удалять requester_trip_id нельзя: это лишь поисковая
     // поездка пассажира, а принятая заявка останется на сервере.
-    const confirmMsg =
+    const confirmMsg = `${
       trip.role === 'driver'
         ? t('sched.confirm_driver_cancel')
-        : t('sched.confirm_passenger_cancel');
+        : t('sched.confirm_passenger_cancel')
+    }\n\n${t('trip.cancel_policy_hint')}`;
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -196,6 +197,18 @@ export default function ScheduledTrips({ currentUser, onOpenTrip, onCancel }) {
                   <div className="sched-seats-mini">
                     <Users size={12} color="var(--primary)" />
                     <span>{trip.seats_taken} / {trip.seats}</span>
+                  </div>
+                )}
+                {trip.recurrence_days && (
+                  <div className="sched-seats-mini" title={t('dash.repeat_days')}>
+                    <Repeat size={12} color="var(--primary)" aria-hidden="true" />
+                    <span>
+                      {trip.recurrence_days
+                        .split(',')
+                        .filter(Boolean)
+                        .map((d) => t(`dash.weekday_${d.trim()}`))
+                        .join(', ')}
+                    </span>
                   </div>
                 )}
               </div>

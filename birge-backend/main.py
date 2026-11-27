@@ -28,6 +28,7 @@ from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.bot import TELEGRAM_WEBHOOK_SECRET, router as bot_router, telegram_webhook
 from routers.chat import router as chat_router
+from routers.reports import router as reports_router
 from routers.reviews import create_review, router as reviews_router
 from routers.trip_requests import router as trip_requests_router
 from routers.trips import router as trips_router
@@ -211,6 +212,7 @@ app.include_router(users_router)
 app.include_router(trip_requests_router)
 app.include_router(chat_router)
 app.include_router(reviews_router)
+app.include_router(reports_router)
 app.include_router(bot_router)
 app.include_router(admin_router)
 

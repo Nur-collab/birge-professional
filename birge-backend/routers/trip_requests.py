@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 import auth
 import models
 import schemas
+from analytics import record_funnel_event
 from database import SessionLocal, get_db
 from dependencies import get_current_user
 from rate_limit import enforce_user_limit, enforce_user_limit_sync
@@ -218,6 +219,7 @@ async def send_trip_request(
         created_at=get_bishkek_now().strftime("%Y-%m-%d %H:%M:%S"),
     )
     db.add(req)
+    record_funnel_event(db, "request_sent", requester_id, role="passenger")
     try:
         db.commit()
     except IntegrityError:
@@ -415,6 +417,8 @@ async def respond_to_request(
         entity_id=req.id,
         details=json.dumps({"from": "pending", "to": new_status, "trip_id": req.trip_id}),
     ))
+    if new_status == "accepted":
+        record_funnel_event(db, "request_accepted", current_user.id, role="driver")
     db.commit()
 
     response_payload = {

@@ -23,18 +23,18 @@
 
 ## 2. Current Metrics (2026-11-26)
 
-- Backend tests: 96 passed (ruff `E9,F,B` ignoring `B008`; includes native WebView CORS + body refresh fallback, `/users/me/export` & `DELETE /users/me`, batch `/trip-requests/statuses`, `/users/me/verify` `@BirgeAuthBot` URL, `/trips/matches` rate limit, Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 50 passed in 13 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `routes`, `escapeHtml`, `date`, `swPolicy`).
+- Backend tests: 101 passed (ruff `E9,F,B` ignoring `B008`; includes geo/corridor matching/route-preview/OSRM+Photon fallback, moderation reports & blocking, 6-stage conversion funnel, recurring trips & late cancellation policy, native WebView CORS + body refresh fallback, `/users/me/export` & `DELETE /users/me`, batch `/trip-requests/statuses`, `/users/me/verify`, Telegram challenge flow, PII/OTP, refresh rotation, SSE/WS).
+- Frontend tests: 52 passed in 15 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `ReportModal`, `RealMap`, `routes`, `escapeHtml`, `date`, `swPolicy`).
 - Browser E2E: 9 passed on PostgreSQL 16.2 (`a11y.spec.js` `@axe-core/playwright` WCAG 2.1 AA light+dark + `ky` language switch, `login-code` + `390x844` fit checks + `sse-ticket`).
-- Production build: passed; 18 precache entries; Vite + PWA `injectManifest` + `@sentry/bundler-plugins`.
-- `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
+- Production build: passed; Leaflet bundled (`vendor-maps`), `build` + `build:mobile` pass.
+- `main.py`: ~265 lines (extracted `routers/{admin,bot,reports,reviews,users_privacy}.py`, `trip_maintenance.py`, `analytics.py`, `geo.py`, `auth_challenges.py`).
 - OpenAPI: regenerated `birge/openapi.json` and `birge/src/types/api.d.ts`.
-- P0: complete. P1: complete & deployed; PostgreSQL migration CI, browser E2E, PII/OTP encryption, refresh rotation, Sentry, and Stage 1+2 Telegram-first auth are live. Manual Render restore drill and post-migration backup remain before `2026-12-14`. P2: deep links, OpenAPI types and accessibility baseline complete.
+- P0: complete. P1: complete & deployed; P2: complete (deep links, OpenAPI types, accessibility, RU/KY i18n, export/deletion, Capacitor WebView hardening, Leaflet/OSM corridor/ETA maps, abuse moderation, conversion funnel, recurring trips & cancellation policy). Paid `0.1c-256mb` Postgres upgrade before `2026-12-14` & Capacitor native app packaging remain next.
 
 ## 3. Active Work State
 
 - Current goal: Keep `birge-postgres` ready for in-place paid upgrade (`0.1c-256mb`, $6/mo; Neon migration cancelled) before 2026-12-14, then pick remaining P2 product features (funnel analytics, corridor/ETA, moderation/reports).
-- Working tree: Milestone A tech-debt cleanup complete (`datetime.utcnow()` removed -> `_utc_now_naive` / `datetime.now(timezone.utc)`; extracted `geo.py`, `auth_challenges.py`, `routers/users_privacy.py`, and `birge/src/screens/dashboard/*`; `96` pytest with zero utcnow warnings, `50` vitest, `9` E2E pass). Next: free map/corridor/ETA stack (Leaflet + backend geocache/OSRM), then P2 moderation/funnel/recurring trips.
+- Working tree: Milestones A, B, and C complete (`datetime.utcnow()` removed; `geo.py`/`auth_challenges.py`/`users_privacy.py`/`Dashboard` split; Leaflet/OSM + backend geocache/corridor/ETA; abuse reports/moderation, 6-stage funnel analytics, recurring trips & late cancellation policy). Ready for Capacitor mobile app testing after CI/deploy verification.
 - P1 done: shared Redis rate limiting for auth and write endpoints; Redis Pub/Sub for SSE and WS chat; CHECK constraints and partial unique index; audit log; `/ready`; `X-Request-ID`; JSON logs with request id; optional Sentry backend/frontend; manual Render setup + backup/restore runbook; Dependabot/pip-audit/gitleaks/Redis compose.
 - P1 hardening 2026-11-15: `User.token_version` + `/auth/logout` revoke all sessions; token version checked in HTTP, SSE and WS; SSE uses a short-lived stream-bound ticket; escaped map balloon HTML; security headers on Vercel/API; current production CORS fallback; safe API URL; local startup no longer registers a production Telegram webhook without `RENDER_EXTERNAL_URL`.
 - Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub PostgreSQL/E2E job passed on 2748929.
@@ -88,7 +88,7 @@
 - Frontend `@sentry/react` must stay dynamically imported; a static import adds ~90 KB gzip to the initial bundle.
 - Gitleaks organization repositories need `GITLEAKS_LICENSE`; personal repositories do not.
 - Windows: use UTF-8 for console/files; dispose the SQLite engine before unlinking the test DB.
-- CI: `npm ci` requires a lockfile; keep `npm ci --dry-run` green after dependency changes.
+- CI: `npm ci` requires a lockfile; keep `npm ci --dry-run` green after dependency changes, and on Windows verify Linux optional packages (`@emnapi/core`, `@emnapi/runtime` for `@rolldown/binding-wasm32-wasi`) are not pruned from `package-lock.json`.
 - React Router: `setActiveTab('trip')` may navigate to `/scheduled` when called immediately after `setActiveTrip` (state not rendered yet); the `/scheduled` effect canonicalizes to `/trips/:id`. Bottom-nav passes the active trip id directly.
 - Generated OpenAPI types are editor-time declarations only; do not import the runtime `.d.ts` file into the bundle.
 - Light-background modals must keep fixed dark text (`#1f2937`/`#4b5563`); using `var(--text-main)` there turns text white in dark theme.
@@ -98,8 +98,8 @@
 
 ## 6. Rolling Changelog (max 5)
 
+- 2026-11-27: Milestone C P2 product & trust features: abuse reports & moderation (`POST /reports/`, `/admin/reports*`, `ReportModal`, `AdminModerationPanel`), 6-stage privacy-safe funnel analytics (`GET /admin/funnel`), recurring trips (`recurrence_days` auto-rescheduling), and late-cancellation tracking (`< 30 min`, `101` pytest, alembic `c2d5e8f1a3b4`).
+- 2026-11-27: Milestone B free map & geo stack: replaced `@pbe/react-yandex-maps` with bundled `leaflet` + OSM/CARTO tiles, CSP updated, backend `/trips/geocode|reverse-geocode|route-preview` with Redis/memory TTL cache + directional corridor matching + ETA (`b1e4c9d2a6f0`, `99` pytest, `51` vitest).
 - 2026-11-27: Milestone A tech-debt cleanup: replaced deprecated `datetime.utcnow()` in `models.py` & tests (0 utcnow warnings in pytest); extracted `geo.py`, `auth_challenges.py`, `routers/users_privacy.py`, and `birge/src/screens/dashboard/{bishkekHubs.js,HubsDisclosure.jsx,DriverParameters.jsx}` (`96` backend, `50` unit, `9` E2E pass).
 - 2026-11-27: Mobile WebView/Capacitor hardening: added `NATIVE_WEBVIEW_ORIGINS` (`capacitor://localhost`, `ionic://localhost`, `https://localhost`) CORS & JSON `refresh_token` fallback in `routers/auth.py` (strictly isolated from web), created `src/utils/platform.js`, `npm run build:mobile` (SW disabled), safe Notification/links/clipboard, `localStorage` Telegram challenge recovery, and SSE foreground resume (`96` backend, `50` unit, `9` E2E pass).
 - 2026-11-27: P2 privacy & App Store compliance: added `GET /users/me/export` (rate-limited JSON export + `AuditLog`), `DELETE /users/me` (blocks `in_progress`, cancels open trips/releases seats + SSE notify, deletes Telegram/session bindings, anonymizes PII, bumps `token_version`), OpenAPI (40 paths) + Settings UI/RU+KY i18n (`95` backend, `45` unit, `9` E2E pass).
-- 2026-11-27: Stage 4 frontend refactor: split `utils/api.js` (790->30) into `utils/api/{client,auth,users,trips,chat}.js`, `Login.jsx` (1723->163) into `screens/login/{authFlowStorage,PhoneStep,TelegramChallengeStep,CodeStep,login.css}`, and extracted all remaining JSX `<style>` blocks into deduplicated `.css` files (`42` unit, `551.91 KiB` build, `9` E2E pass).
-- 2026-11-27: Synced docs + switched Render `birge-api` `healthCheckPath` from `/ready` to `/health` and added `buildFilter` (`paths: birge-backend/**`, ignored tests/scripts/dev-e2e-reqs/md); zero spurious backend builds on docs commits (`b02a993`).

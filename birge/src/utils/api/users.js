@@ -21,6 +21,9 @@ export const usersApi = {
         car_plate: data.car_plate || null,
         mbank_phone: data.mbank_phone || null,
         elkart_number: data.elkart_number || null,
+        is_admin: Boolean(data.is_admin),
+        is_blocked: Boolean(data.is_blocked),
+        late_cancellations: data.late_cancellations ?? 0,
         reviews: data.reviews || [],
       };
     } catch (e) {
@@ -69,5 +72,37 @@ export const usersApi = {
     tokenStorage.clear();
     closeActiveChatSocket();
     return res;
+  },
+
+  submitReport: async ({ target_user_id, trip_id = null, reason, details = '' }) => {
+    return authFetch('/reports/', {
+      method: 'POST',
+      body: JSON.stringify({
+        target_user_id: Number(target_user_id),
+        trip_id: trip_id ? Number(trip_id) : null,
+        reason,
+        details,
+      }),
+    });
+  },
+
+  getAdminReports: async (status = '') => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return authFetch(`/admin/reports${query}`);
+  },
+
+  moderateReport: async (reportId, { status, admin_note = null, block_target = null }) => {
+    return authFetch(`/admin/reports/${reportId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status,
+        ...(admin_note !== null ? { admin_note } : {}),
+        ...(block_target !== null ? { block_target } : {}),
+      }),
+    });
+  },
+
+  getAdminFunnel: async (days = 7) => {
+    return authFetch(`/admin/funnel?days=${Number(days) || 7}`);
   },
 };

@@ -1,6 +1,8 @@
 import React from 'react';
-import { ChevronDown, CreditCard, Minus, Plus, Users } from 'lucide-react';
+import { ChevronDown, CreditCard, Minus, Plus, Repeat, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+const WEEKDAY_INDICES = [0, 1, 2, 3, 4, 5, 6];
 
 export default function DriverParameters({
   showDetails,
@@ -9,6 +11,8 @@ export default function DriverParameters({
   onChangeSeats,
   price,
   onChangePrice,
+  recurrenceDays = [],
+  onToggleRecurrenceDay,
 }) {
   const { t } = useTranslation();
 
@@ -98,6 +102,31 @@ export default function DriverParameters({
               <span className="currency-label">{t('common.som_upper')}</span>
             </div>
           </div>
+
+          {typeof onToggleRecurrenceDay === 'function' && (
+            <div className="recurrence-block">
+              <div className="param-label-group">
+                <Repeat size={15} className="text-muted" aria-hidden="true" />
+                <span className="param-title">{t('dash.repeat_days')}</span>
+              </div>
+              <div className="recurrence-days-row" role="group" aria-label={t('dash.repeat_days')}>
+                {WEEKDAY_INDICES.map((idx) => {
+                  const active = recurrenceDays.includes(String(idx));
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`recurrence-day-btn ${active ? 'active' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => onToggleRecurrenceDay(idx)}
+                    >
+                      {t(`dash.weekday_${idx}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>

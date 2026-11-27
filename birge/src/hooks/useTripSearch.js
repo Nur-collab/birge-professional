@@ -49,6 +49,7 @@ export default function useTripSearch({
         date: tripData.date || null,
         seats: tripData.seats || 3,
         price_per_seat: tripData.price || 0,
+        ...(tripData.recurrence_days ? { recurrence_days: tripData.recurrence_days } : {}),
       };
 
       const createdTrip = await api.createTrip(apiTripData);

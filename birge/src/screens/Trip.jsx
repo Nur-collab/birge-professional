@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertTriangle, MapPin, Navigation, MessageCircle, Star, ShieldCheck,
   Car, Zap, Users, Calendar, XCircle, CreditCard, Smartphone, Copy, Check,
-  Map as MapIcon, ChevronDown
+  Map as MapIcon, ChevronDown, Flag
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import RealMap from '../components/RealMap';
 import Chat from '../components/Chat';
+import ReportModal from '../components/ReportModal';
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
 import { copyToClipboardSafely, openExternalUrl } from '../utils/platform';
@@ -29,6 +30,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
   });
   const [paymentError, setPaymentError] = useState('');
   const [showMap, setShowMap] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
   const copiedTimerRef = useRef(null);
   const copiedElkartTimerRef = useRef(null);
   const cancelTimerRef = useRef(null);
@@ -244,6 +246,15 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                         {p.is_verified && <ShieldCheck size={11} color="var(--primary)" />}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="trip-report-mini-btn"
+                      onClick={() => setReportTarget({ id: p.id, name: p.name })}
+                      aria-label={t('trip.report_btn')}
+                      title={t('trip.report_btn')}
+                    >
+                      <Flag size={13} aria-hidden="true" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -314,6 +325,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <Navigation size={11} color="var(--danger)" /> {toLocation}
               </div>
+              <button
+                type="button"
+                className="trip-report-link-btn"
+                onClick={() => setReportTarget({ id: trip.user_id || trip.userId || partner.id, name: partnerName })}
+              >
+                <Flag size={11} aria-hidden="true" />
+                <span>{t('trip.report_btn')}</span>
+              </button>
             </div>
           </div>
         )}
@@ -462,6 +481,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
                 {cancelError}
               </p>
             )}
+            <p className="trip-cancel-policy-note">{t('trip.cancel_policy_hint')}</p>
           </>
         )}
 
@@ -473,6 +493,14 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
         )}
 
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          targetUser={reportTarget}
+          tripId={trip.id}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
 
     </div>
   );

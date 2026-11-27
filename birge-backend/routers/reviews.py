@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
+from analytics import record_funnel_event
 from database import get_db
 from dependencies import get_current_user
 from rate_limit import enforce_user_limit_sync
@@ -92,6 +93,7 @@ def create_review(
     count = len(all_reviews) + 1
     user.trust_rating = int(total_rating * 10 / count) / 10.0
 
+    record_funnel_event(db, "review_submitted", current_user.id, meta=f"rating:{review.rating}")
     db.commit()
     db.refresh(new_review)
     return new_review

@@ -1,4 +1,5 @@
 """Trip, chat and payment routes."""
+from datetime import datetime, timedelta
 import html
 import json
 import logging
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 import auth as auth_service
 import models
 import schemas
+from analytics import record_funnel_event
 from database import get_db
 from dependencies import get_current_user
 from geo import (
@@ -230,6 +232,14 @@ def find_matches(
         if item.user is not None:
             item.user.car_plate = None
         result.append(item)
+    record_funnel_event(
+        db,
+        "search",
+        current_user.id,
+        role=role,
+        meta=f"results:{len(result)}",
+        commit=True,
+    )
     return result
 
 @router.post("/{trip_id}/ws-ticket")
@@ -268,6 +278,105 @@ def get_trip_messages(trip_id: int, current_user: models.User = Depends(get_curr
         raise HTTPException(status_code=403, detail="Access denied to this trip chat")
     messages = db.query(models.ChatMessage).filter(models.ChatMessage.trip_id == trip_id).all()
     return messages
+
+
+def _is_late_cancellation(trip: models.Trip, has_accepted: bool) -> bool:
+    """True if cancelling with accepted co-travelers within 30 minutes before departure."""
+    if not has_accepted or not trip.time:
+        return False
+    mins = parse_time_minutes(trip.time)
+    if mins is None:
+        return False
+    now_kg = get_bishkek_now()
+    base_date = now_kg.date()
+    if trip.date:
+        try:
+            base_date = datetime.strptime(trip.date, "%Y-%m-%d").date()
+        except ValueError:
+            return False
+    dep_dt = datetime(
+        base_date.year,
+        base_date.month,
+        base_date.day,
+        mins // 60,
+        mins % 60,
+        tzinfo=now_kg.tzinfo,
+    )
+    seconds_until = (dep_dt - now_kg).total_seconds()
+    return 0 <= seconds_until <= 1800
+
+
+def _schedule_next_recurring_trip(
+    db: Session,
+    completed_trip: models.Trip,
+    today_str: str,
+) -> Optional[models.Trip]:
+    """Create the next scheduled occurrence when a recurring trip completes."""
+    if not completed_trip.recurrence_days:
+        return None
+    weekdays = {
+        int(part)
+        for part in completed_trip.recurrence_days.split(",")
+        if part.strip().isdigit() and 0 <= int(part) <= 6
+    }
+    if not weekdays:
+        return None
+
+    today_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+    base_date = today_date
+    if completed_trip.date:
+        try:
+            parsed = datetime.strptime(completed_trip.date, "%Y-%m-%d").date()
+            if parsed > base_date:
+                base_date = parsed
+        except ValueError:
+            pass
+
+    next_date_str: Optional[str] = None
+    for offset in range(1, 8):
+        candidate = base_date + timedelta(days=offset)
+        if candidate.weekday() in weekdays:
+            next_date_str = candidate.isoformat()
+            break
+    if not next_date_str:
+        return None
+
+    existing = (
+        db.query(models.Trip.id)
+        .filter(
+            models.Trip.user_id == completed_trip.user_id,
+            models.Trip.role == completed_trip.role,
+            models.Trip.origin == completed_trip.origin,
+            models.Trip.destination == completed_trip.destination,
+            models.Trip.date == next_date_str,
+            models.Trip.time == completed_trip.time,
+            models.Trip.status.in_(("active", "scheduled", "matched")),
+        )
+        .first()
+    )
+    if existing:
+        return None
+
+    next_trip = models.Trip(
+        user_id=completed_trip.user_id,
+        role=completed_trip.role,
+        origin=completed_trip.origin,
+        destination=completed_trip.destination,
+        origin_lat=completed_trip.origin_lat,
+        origin_lng=completed_trip.origin_lng,
+        dest_lat=completed_trip.dest_lat,
+        dest_lng=completed_trip.dest_lng,
+        time=completed_trip.time,
+        date=next_date_str,
+        seats=completed_trip.seats or 3,
+        seats_taken=0,
+        price_per_seat=completed_trip.price_per_seat or 0,
+        recurrence_days=completed_trip.recurrence_days,
+        status="scheduled",
+    )
+    db.add(next_trip)
+    db.flush()
+    return next_trip
 
 
 @router.patch("/{trip_id}/status")
@@ -327,12 +436,15 @@ async def update_trip_status(
             trip.status = "scheduled" if (trip.date and trip.date > today) else "active"
 
         _update_passenger_trip(req.requester_trip_id, current_user.id, completed=False)
+        late_cancel = _is_late_cancellation(trip, has_accepted=True)
+        if late_cancel:
+            current_user.late_cancellations = (current_user.late_cancellations or 0) + 1
         db.add(models.AuditLog(
             actor_id=current_user.id,
             action="trip.passenger_cancelled",
             entity_type="trip",
             entity_id=trip_id,
-            details=_json.dumps({"from": old_status, "request_id": req.id}),
+            details=_json.dumps({"from": old_status, "request_id": req.id, "late_cancellation": late_cancel}),
         ))
         db.commit()
 
@@ -341,7 +453,12 @@ async def update_trip_status(
             "trip_id": trip_id,
             "passenger_name": current_user.name,
         }))
-        return {"id": trip_id, "status": "passenger_cancelled"}
+        return {
+            "id": trip_id,
+            "status": "passenger_cancelled",
+            "late_cancellation": late_cancel,
+            "late_cancellations": current_user.late_cancellations or 0,
+        }
 
     # Пассажир завершает поездку со своей стороны (после отправки отзыва)
     if new_status == "completed" and trip.user_id != current_user.id:
@@ -373,8 +490,13 @@ async def update_trip_status(
 
     trip.status = new_status
     notifications: list[tuple[int, str]] = []
+    next_recurring: Optional[models.Trip] = None
+    late_cancel = False
 
-    if new_status == "completed":
+    if new_status == "in_progress":
+        record_funnel_event(db, "trip_started", current_user.id, role="driver")
+
+    elif new_status == "completed":
         accepted = db.query(models.TripRequest).filter(
             models.TripRequest.trip_id == trip_id,
             models.TripRequest.status == "accepted",
@@ -385,12 +507,17 @@ async def update_trip_status(
             _update_passenger_trip(r.requester_trip_id, r.requester_id, completed=True)
             if r.requester_id:
                 notifications.append((r.requester_id, event_data))
+        record_funnel_event(db, "trip_completed", current_user.id, role="driver")
+        next_recurring = _schedule_next_recurring_trip(db, trip, today)
 
     elif new_status == "cancelled":
         accepted = db.query(models.TripRequest).filter(
             models.TripRequest.trip_id == trip_id,
             models.TripRequest.status == "accepted",
         ).all()
+        late_cancel = _is_late_cancellation(trip, has_accepted=bool(accepted))
+        if late_cancel:
+            current_user.late_cancellations = (current_user.late_cancellations or 0) + 1
         event_data = _json.dumps({
             "event": "trip_cancelled",
             "trip_id": trip_id,
@@ -408,7 +535,12 @@ async def update_trip_status(
         action="trip.status_changed",
         entity_type="trip",
         entity_id=trip_id,
-        details=_json.dumps({"from": old_status, "to": new_status, "role": "driver"}),
+        details=_json.dumps({
+            "from": old_status,
+            "to": new_status,
+            "role": "driver",
+            "late_cancellation": late_cancel,
+        }),
     ))
 
     # Сначала фиксируем изменения в БД, затем уведомляем: обрыв SSE не должен
@@ -418,7 +550,16 @@ async def update_trip_status(
     for user_id, payload in notifications:
         await publish_requester_event(user_id, payload)
 
-    return {"id": trip_id, "status": new_status}
+    resp_body: dict = {"id": trip_id, "status": new_status}
+    if new_status == "cancelled":
+        resp_body["late_cancellation"] = late_cancel
+        resp_body["late_cancellations"] = current_user.late_cancellations or 0
+    if next_recurring is not None:
+        resp_body["next_scheduled_trip"] = {
+            "id": next_recurring.id,
+            "date": next_recurring.date,
+        }
+    return resp_body
 
 
 @router.delete("/{trip_id}")
@@ -449,9 +590,12 @@ async def cancel_trip(
         models.TripRequest.requester_id == current_user.id,
         models.TripRequest.status == "accepted",
     ).all()
+    late_cancel = False
     for r in own_requests:
         driver_trip = db.query(models.Trip).filter(models.Trip.id == r.trip_id).first()
         if driver_trip:
+            if _is_late_cancellation(driver_trip, has_accepted=True):
+                late_cancel = True
             if driver_trip.seats_taken and driver_trip.seats_taken > 0:
                 driver_trip.seats_taken -= 1
             if driver_trip.status == "matched" and (driver_trip.seats_taken or 0) < (driver_trip.seats or 3):
@@ -471,6 +615,10 @@ async def cancel_trip(
         models.TripRequest.trip_id == trip_id,
         models.TripRequest.status == "accepted",
     ).all()
+    if accepted and _is_late_cancellation(trip, has_accepted=True):
+        late_cancel = True
+    if late_cancel:
+        current_user.late_cancellations = (current_user.late_cancellations or 0) + 1
     for r in accepted:
         if r.requester_trip_id:
             p_trip = db.query(models.Trip).filter(
@@ -510,7 +658,12 @@ async def cancel_trip(
     for user_id, payload in passenger_notifications:
         await publish_requester_event(user_id, payload)
 
-    return {"id": trip_id, "deleted": True}
+    return {
+        "id": trip_id,
+        "deleted": True,
+        "late_cancellation": late_cancel,
+        "late_cancellations": current_user.late_cancellations or 0,
+    }
 
 
 @router.post("/{trip_id}/panic")

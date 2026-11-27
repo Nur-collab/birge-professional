@@ -175,6 +175,11 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           ></div>
         </div>
         <p className="limits-hint">{t('profile.trips_hint')}</p>
+        {(user.late_cancellations || 0) > 0 && (
+          <p className="limits-hint" style={{ color: 'var(--warning-strong)', marginTop: 4 }}>
+            {t('profile.late_cancels', { count: user.late_cancellations })}
+          </p>
+        )}
       </div>
 
       {/* Карточка машины водителя */}

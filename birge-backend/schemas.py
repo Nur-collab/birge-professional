@@ -98,6 +98,7 @@ class UserPublic(BaseModel):
     car_color: Optional[str] = None
     car_plate: Optional[str] = None
     registered_since: Optional[str] = "2024"
+    late_cancellations: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -128,6 +129,9 @@ class User(BaseModel):
     car_plate: Optional[str] = None
     mbank_phone: Optional[str] = None
     elkart_number: Optional[str] = None
+    is_blocked: bool = False
+    late_cancellations: int = 0
+    is_admin: bool = False
     reviews: List[Review] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -141,6 +145,26 @@ class TripBase(BaseModel):
     date: Optional[str] = None          # 'YYYY-MM-DD', None = без привязки к дате
     seats: int = Field(3, ge=1, le=8)   # макс мест (для водителя)
     price_per_seat: int = Field(0, ge=0, le=100000)  # стоимость места в сомах (0 = бесплатно)
+    recurrence_days: Optional[str] = Field(None, max_length=40)
+
+    @field_validator("recurrence_days")
+    @classmethod
+    def _normalize_recurrence_days(cls, value: Optional[str]) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        parts = [p.strip() for p in str(value).split(",") if p.strip()]
+        if not parts:
+            return None
+        days: list[int] = []
+        for p in parts:
+            if not p.isdigit():
+                raise ValueError("recurrence_days must contain comma-separated weekdays 0..6")
+            d = int(p)
+            if d < 0 or d > 6:
+                raise ValueError("recurrence_days values must be between 0 (Mon) and 6 (Sun)")
+            if d not in days:
+                days.append(d)
+        return ",".join(str(d) for d in sorted(days))
 
     @field_validator("date")
     @classmethod
@@ -183,6 +207,7 @@ class Trip(BaseModel):
     seats: int = 3
     seats_taken: int = 0
     price_per_seat: int = 0
+    recurrence_days: Optional[str] = None
     status: str
     match_type: Optional[str] = None
     detour_km: Optional[float] = None
@@ -267,3 +292,63 @@ class AccountDeleteResponse(BaseModel):
     deleted: bool = True
     cancelled_trips: int = 0
     released_bookings: int = 0
+
+
+ReportReason = Literal[
+    "no_show",
+    "unsafe_driving",
+    "rude_behavior",
+    "payment_issue",
+    "spam",
+    "other",
+]
+ReportStatus = Literal["open", "reviewed", "resolved", "dismissed"]
+
+
+class AbuseReportCreate(BaseModel):
+    target_user_id: int = Field(..., gt=0)
+    trip_id: Optional[int] = Field(None, gt=0)
+    reason: ReportReason
+    details: str = Field(default="", max_length=1000)
+
+
+class AbuseReportOut(BaseModel):
+    id: int
+    reporter_id: Optional[int] = None
+    reporter_name: Optional[str] = None
+    target_user_id: int
+    target_name: Optional[str] = None
+    trip_id: Optional[int] = None
+    reason: str
+    details: Optional[str] = None
+    status: str
+    admin_note: Optional[str] = None
+    target_is_blocked: bool = False
+    created_at: Optional[str] = None
+    resolved_at: Optional[str] = None
+
+
+class AbuseReportModerationUpdate(BaseModel):
+    status: ReportStatus
+    admin_note: Optional[str] = Field(None, max_length=500)
+    block_target: Optional[bool] = None
+
+
+class FunnelStageSummary(BaseModel):
+    stage: str
+    events_count: int
+    unique_actors: int
+    conversion_from_prev_pct: float
+    conversion_from_search_pct: float
+
+
+class FunnelDaySummary(BaseModel):
+    day: str
+    counts: dict[str, int]
+
+
+class FunnelSummaryResponse(BaseModel):
+    days: int
+    since_day: str
+    stages: List[FunnelStageSummary]
+    by_day: List[FunnelDaySummary]

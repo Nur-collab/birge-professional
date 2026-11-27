@@ -1,6 +1,214 @@
 {
   "components": {
     "schemas": {
+      "AbuseReportCreate": {
+        "properties": {
+          "details": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Details",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "no_show",
+              "unsafe_driving",
+              "rude_behavior",
+              "payment_issue",
+              "spam",
+              "other"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_user_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Target User Id",
+            "type": "integer"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "target_user_id",
+          "reason"
+        ],
+        "title": "AbuseReportCreate",
+        "type": "object"
+      },
+      "AbuseReportModerationUpdate": {
+        "properties": {
+          "admin_note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Note"
+          },
+          "block_target": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Target"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "reviewed",
+              "resolved",
+              "dismissed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "AbuseReportModerationUpdate",
+        "type": "object"
+      },
+      "AbuseReportOut": {
+        "properties": {
+          "admin_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Note"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reporter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Id"
+          },
+          "reporter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Name"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_is_blocked": {
+            "default": false,
+            "title": "Target Is Blocked",
+            "type": "boolean"
+          },
+          "target_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Name"
+          },
+          "target_user_id": {
+            "title": "Target User Id",
+            "type": "integer"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "id",
+          "target_user_id",
+          "reason",
+          "status"
+        ],
+        "title": "AbuseReportOut",
+        "type": "object"
+      },
       "AccountDeleteResponse": {
         "properties": {
           "cancelled_trips": {
@@ -235,6 +443,94 @@
           "id"
         ],
         "title": "ExportedTripRequest",
+        "type": "object"
+      },
+      "FunnelDaySummary": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "counts"
+        ],
+        "title": "FunnelDaySummary",
+        "type": "object"
+      },
+      "FunnelStageSummary": {
+        "properties": {
+          "conversion_from_prev_pct": {
+            "title": "Conversion From Prev Pct",
+            "type": "number"
+          },
+          "conversion_from_search_pct": {
+            "title": "Conversion From Search Pct",
+            "type": "number"
+          },
+          "events_count": {
+            "title": "Events Count",
+            "type": "integer"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "unique_actors": {
+            "title": "Unique Actors",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stage",
+          "events_count",
+          "unique_actors",
+          "conversion_from_prev_pct",
+          "conversion_from_search_pct"
+        ],
+        "title": "FunnelStageSummary",
+        "type": "object"
+      },
+      "FunnelSummaryResponse": {
+        "properties": {
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelDaySummary"
+            },
+            "title": "By Day",
+            "type": "array"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "since_day": {
+            "title": "Since Day",
+            "type": "string"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelStageSummary"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days",
+          "since_day",
+          "stages",
+          "by_day"
+        ],
+        "title": "FunnelSummaryResponse",
         "type": "object"
       },
       "GeocodeResult": {
@@ -731,6 +1027,17 @@
             "title": "Price Per Seat",
             "type": "integer"
           },
+          "recurrence_days": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Days"
+          },
           "role": {
             "title": "Role",
             "type": "string"
@@ -863,6 +1170,18 @@
             "minimum": 0.0,
             "title": "Price Per Seat",
             "type": "integer"
+          },
+          "recurrence_days": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Days"
           },
           "role": {
             "enum": [
@@ -1021,10 +1340,25 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "is_blocked": {
+            "default": false,
+            "title": "Is Blocked",
+            "type": "boolean"
+          },
           "is_verified": {
             "default": false,
             "title": "Is Verified",
             "type": "boolean"
+          },
+          "late_cancellations": {
+            "default": 0,
+            "title": "Late Cancellations",
+            "type": "integer"
           },
           "mbank_phone": {
             "anyOf": [
@@ -1216,6 +1550,11 @@
             "default": false,
             "title": "Is Verified",
             "type": "boolean"
+          },
+          "late_cancellations": {
+            "default": 0,
+            "title": "Late Cancellations",
+            "type": "integer"
           },
           "name": {
             "anyOf": [
@@ -1481,6 +1820,220 @@
           }
         },
         "summary": "Run Admin Cleanup",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/funnel": {
+      "get": {
+        "description": "Return anonymized conversion funnel counts and conversion percentages.",
+        "operationId": "get_conversion_funnel_admin_funnel_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunnelSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversion Funnel",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reports": {
+      "get": {
+        "description": "List submitted abuse reports for moderation review.",
+        "operationId": "list_abuse_reports_admin_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AbuseReportOut"
+                  },
+                  "title": "Response List Abuse Reports Admin Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Abuse Reports",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/reports/{report_id}": {
+      "patch": {
+        "description": "Update moderation status on a report and optionally suspend/unsuspend the target user.",
+        "operationId": "moderate_abuse_report_admin_reports__report_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbuseReportModerationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbuseReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Moderate Abuse Report",
         "tags": [
           "admin"
         ]
@@ -2002,6 +2555,66 @@
           }
         },
         "summary": "Readiness Check"
+      }
+    },
+    "/reports/": {
+      "post": {
+        "description": "Submit a conduct/safety report against another participant.",
+        "operationId": "submit_abuse_report_reports__post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbuseReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbuseReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Abuse Report",
+        "tags": [
+          "reports"
+        ]
       }
     },
     "/reviews/": {

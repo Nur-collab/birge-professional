@@ -26,6 +26,7 @@ export const tripsApi = {
         date: tripData.date || null,
         seats: tripData.seats || 3,
         price_per_seat: tripData.price_per_seat || tripData.price || 0,
+        ...(tripData.recurrence_days ? { recurrence_days: tripData.recurrence_days } : {}),
         ...(tripData.origin_lat != null ? { origin_lat: tripData.origin_lat } : {}),
         ...(tripData.origin_lng != null ? { origin_lng: tripData.origin_lng } : {}),
         ...(tripData.dest_lat != null ? { dest_lat: tripData.dest_lat } : {}),

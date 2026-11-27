@@ -43,6 +43,8 @@ class User(Base):
     car_plate = Column(String)
     mbank_phone = Column(EncryptedString)
     elkart_number = Column(EncryptedString)
+    is_blocked = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    late_cancellations = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
     trips = relationship("Trip", back_populates="user")
     reviews = relationship("Review", foreign_keys="[Review.user_id]", back_populates="user")
@@ -86,6 +88,7 @@ class Trip(Base):
     seats = Column(Integer, default=3)         # макс мест (для водителя)
     seats_taken = Column(Integer, default=0)   # занято мест
     price_per_seat = Column(Integer, default=0) # стоимость одного места в сомах (0 = бесплатно)
+    recurrence_days = Column(String(40), nullable=True)  # e.g. '0,1,2,3,4' (Mon..Sun)
     reminder_sent = Column(Boolean, default=False) # True = напоминание уже отправлено (не повторяем при рестарте)
     created_at = Column(DateTime, default=_utc_now_naive)  # UTC, для очистки legacy-поисков
 
@@ -273,3 +276,59 @@ class TelegramAuthChallenge(Base):
     )
     verified_at = Column(DateTime(timezone=True), nullable=True)
     consumed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AbuseReport(Base):
+    """User-submitted safety/conduct report reviewed by allowlisted admins."""
+
+    __tablename__ = "abuse_reports"
+    __table_args__ = (
+        Index("ix_abuse_reports_status_created", "status", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    reporter_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    target_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    trip_id = Column(
+        Integer,
+        ForeignKey("trips.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    reason = Column(String(40), nullable=False)
+    details = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="open", server_default=text("'open'"))
+    admin_note = Column(Text, nullable=True)
+    reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=_utc_now_naive, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+
+    reporter = relationship("User", foreign_keys=[reporter_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
+
+
+class FunnelEvent(Base):
+    """Anonymized conversion funnel event (search -> request -> accept -> trip -> review)."""
+
+    __tablename__ = "funnel_events"
+    __table_args__ = (
+        Index("ix_funnel_events_day_stage", "day", "stage"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    stage = Column(String(40), nullable=False, index=True)
+    role = Column(String(20), nullable=True)
+    actor_hash = Column(String(32), nullable=True, index=True)
+    day = Column(String(10), nullable=False, index=True)
+    meta = Column(String(80), nullable=True)
+    created_at = Column(DateTime, default=_utc_now_naive, nullable=False)

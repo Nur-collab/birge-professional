@@ -45,6 +45,11 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+    if getattr(user, "is_blocked", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is suspended",
+        )
 
     token_version = auth.get_token_version(raw_token)
     if token_version is None or token_version != (user.token_version or 0):
@@ -68,10 +73,17 @@ _ADMIN_PHONES = {
 }
 
 
+def is_admin_user(user: Optional[models.User]) -> bool:
+    """Return True when the user's phone matches the configured ADMIN_PHONES allowlist."""
+    if not user or not _ADMIN_PHONES:
+        return False
+    return _normalize_phone_for_admin(user.phone) in _ADMIN_PHONES
+
+
 def get_current_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
     """Административный доступ по явному allowlist номеров."""
     if not _ADMIN_PHONES:
         raise HTTPException(status_code=403, detail="Admin access is not configured")
-    if _normalize_phone_for_admin(current_user.phone) not in _ADMIN_PHONES:
+    if not is_admin_user(current_user):
         raise HTTPException(status_code=403, detail="Admin access denied")
     return current_user
