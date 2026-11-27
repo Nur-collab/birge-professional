@@ -1,4 +1,4 @@
-import { authFetch, restoreSession, tokenStorage } from './client';
+import { authFetch, restoreSession, tokenStorage, warmUpServer } from './client';
 import { closeActiveChatSocket } from './chat';
 
 function persistSessionTokens(data) {
@@ -9,10 +9,13 @@ function persistSessionTokens(data) {
 }
 
 export const authApi = {
+  warmUpServer,
+
   sendCode: async (phone) => {
     return authFetch('/auth/send-code', {
       method: 'POST',
       body: JSON.stringify({ phone }),
+      retryOnWake: true,
     });
   },
 
@@ -28,6 +31,7 @@ export const authApi = {
     const data = await authFetch('/auth/exchange-code', {
       method: 'POST',
       body: JSON.stringify({ code }),
+      retryOnWake: true,
     });
     return persistSessionTokens(data);
   },
@@ -35,6 +39,7 @@ export const authApi = {
   createTelegramChallenge: async () => {
     return authFetch('/auth/telegram-challenge', {
       method: 'POST',
+      retryOnWake: true,
     });
   },
 

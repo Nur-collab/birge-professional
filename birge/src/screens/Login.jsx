@@ -21,6 +21,11 @@ export default function Login({ onLoggedIn }) {
     writeStoredFlow({ step, phone, tgOpened, challenge });
   }, [step, phone, tgOpened, challenge]);
 
+  // Wake the free Render API while the user fills in their phone or clicks Telegram.
+  useEffect(() => {
+    void api.warmUpServer?.();
+  }, []);
+
   const handleStartTelegram = (challengeData) => {
     const expiresAt = Date.now() + (Number(challengeData?.expires_in || 300) * 1000);
     const stored = { ...challengeData, expiresAt };

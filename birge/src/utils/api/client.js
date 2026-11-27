@@ -129,6 +129,58 @@ function apiError(message, status = 0) {
 }
 
 let refreshPromise = null;
+let warmUpPromise = null;
+let lastWarmUpAt = 0;
+
+const WARMUP_COOLDOWN_MS = 45000;
+const REFRESH_TIMEOUT_MS = 40000;
+const DEFAULT_TIMEOUT_MS = 65000;
+
+/**
+ * Wake up the Render backend directly via `/health`, bypassing the Vercel
+ * `/api/auth` proxy timeout so cold starts finish before auth mutations run.
+ */
+export async function warmUpServer({ force = false, timeoutMs = 60000 } = {}) {
+  if (typeof fetch !== 'function') return false;
+  const now = Date.now();
+  if (!force && lastWarmUpAt && (now - lastWarmUpAt) < WARMUP_COOLDOWN_MS) {
+    return true;
+  }
+  if (warmUpPromise) return warmUpPromise;
+
+  warmUpPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(`${API_URL}/health`, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (response.ok) {
+        lastWarmUpAt = Date.now();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+      warmUpPromise = null;
+    }
+  })();
+
+  return warmUpPromise;
+}
+
+export function resetWarmUpStateForTests() {
+  warmUpPromise = null;
+  lastWarmUpAt = 0;
+}
+
+const isTransientWakeStatus = (status) => status === 502 || status === 503 || status === 504;
 
 const requestUrl = (endpoint) => {
   if (endpoint.startsWith('/auth/')) {
@@ -136,6 +188,28 @@ const requestUrl = (endpoint) => {
   }
   return `${API_URL}${endpoint}`;
 };
+
+async function attemptRefresh(authBaseUrl, csrf, nativeRefresh) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+  try {
+    const fetchOptions = {
+      method: 'POST',
+      credentials: 'include',
+      headers: nativeRefresh
+        ? {
+            'Content-Type': 'application/json',
+            ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+          }
+        : { 'X-CSRF-Token': csrf },
+      ...(nativeRefresh ? { body: JSON.stringify({ refresh_token: nativeRefresh }) } : {}),
+      signal: controller.signal,
+    };
+    return await fetch(`${authBaseUrl}/refresh`, fetchOptions);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 async function refreshAccessToken() {
   const csrf = tokenStorage.getCsrf();
@@ -145,22 +219,22 @@ async function refreshAccessToken() {
 
   const authBaseUrl = getAuthBaseUrl(API_URL);
   refreshPromise = (async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const fetchOptions = {
-        method: 'POST',
-        credentials: 'include',
-        headers: nativeRefresh
-          ? {
-              'Content-Type': 'application/json',
-              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-            }
-          : { 'X-CSRF-Token': csrf },
-        ...(nativeRefresh ? { body: JSON.stringify({ refresh_token: nativeRefresh }) } : {}),
-        signal: controller.signal,
-      };
-      const response = await fetch(`${authBaseUrl}/refresh`, fetchOptions);
+      let response;
+      try {
+        response = await attemptRefresh(authBaseUrl, csrf, nativeRefresh);
+      } catch (firstErr) {
+        if (firstErr?.name === 'AbortError') {
+          await warmUpServer({ force: true });
+          response = await attemptRefresh(authBaseUrl, csrf, nativeRefresh);
+        } else {
+          throw firstErr;
+        }
+      }
+      if (isTransientWakeStatus(response.status)) {
+        await warmUpServer({ force: true });
+        response = await attemptRefresh(authBaseUrl, csrf, nativeRefresh);
+      }
       if (response.status === 401 || response.status === 403) return false;
       if (!response.ok) {
         throw apiError(`Ошибка ${response.status}`, response.status);
@@ -173,7 +247,6 @@ async function refreshAccessToken() {
       if (error.status) throw error;
       throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
     } finally {
-      clearTimeout(timeoutId);
       refreshPromise = null;
     }
   })();
@@ -187,32 +260,54 @@ export async function restoreSession() {
 }
 
 export async function authFetch(endpoint, options = {}, allowRefresh = true) {
+  const { retryOnWake = false, ...fetchInit } = options;
   const token = tokenStorage.get();
-  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const isFormData = typeof FormData !== 'undefined' && fetchInit.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
+    ...(fetchInit.headers || {}),
   };
 
   const url = requestUrl(endpoint);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+  const runOnce = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+    try {
+      return await fetch(url, {
+        credentials: 'include',
+        ...fetchInit,
+        headers,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   let response;
   try {
-    response = await fetch(url, {
-      credentials: 'include',
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-  } catch (netErr) {
-    if (netErr.name === 'AbortError') {
-      throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
+    response = await runOnce();
+    if (retryOnWake && isTransientWakeStatus(response.status)) {
+      await warmUpServer({ force: true });
+      response = await runOnce();
     }
-    throw apiError('Не удалось подключиться к серверу. Проверьте интернет-соединение.');
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (netErr) {
+    if (retryOnWake && netErr?.name === 'AbortError') {
+      try {
+        await warmUpServer({ force: true });
+        response = await runOnce();
+      } catch (retryErr) {
+        if (retryErr?.name === 'AbortError') {
+          throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
+        }
+        throw apiError('Не удалось подключиться к серверу. Проверьте интернет-соединение.');
+      }
+    } else if (netErr.name === 'AbortError') {
+      throw apiError('Сервер не отвечает. Попробуйте ещё раз.');
+    } else {
+      throw apiError('Не удалось подключиться к серверу. Проверьте интернет-соединение.');
+    }
   }
 
   if (response.status === 401) {

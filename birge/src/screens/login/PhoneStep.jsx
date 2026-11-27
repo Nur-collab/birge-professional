@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
+  Clock,
   ExternalLink,
   Loader2,
   Send,
@@ -23,7 +24,17 @@ export default function PhoneStep({ initialPhone, initialTgOpened, onNext, onSta
   const [tgOpened, setTgOpened] = useState(Boolean(initialTgOpened));
   const [loading, setLoading] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
+  const [slowWakeHint, setSlowWakeHint] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!loading && !tgLoading) {
+      setSlowWakeHint(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSlowWakeHint(true), 4000);
+    return () => clearTimeout(timer);
+  }, [loading, tgLoading]);
 
   const handleTelegramLogin = async () => {
     setTgLoading(true);
@@ -118,7 +129,14 @@ export default function PhoneStep({ initialPhone, initialTgOpened, onNext, onSta
               autoFocus
             />
           </div>
-          {error && (
+          {slowWakeHint && !error && (
+          <div className="delivery-notice" role="status">
+            <Clock size={15} aria-hidden="true" />
+            <span>{t('auth.waking_server')}</span>
+          </div>
+        )}
+
+        {error && (
             <div className="auth-error-banner" id="login-phone-error" role="alert">
               <AlertCircle size={15} aria-hidden="true" />
               <span>{error}</span>

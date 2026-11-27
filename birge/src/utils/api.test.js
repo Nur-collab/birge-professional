@@ -370,4 +370,31 @@ describe('WebSocket chat subscription', () => {
       tokenStorage.clear();
     }
   });
+
+  it('warms up backend directly via /health and retries sendCode after a 504 wake-up', async () => {
+    const { resetWarmUpStateForTests } = await import('./api/client');
+    resetWarmUpStateForTests();
+
+    let sendCalls = 0;
+    let healthCalls = 0;
+    global.fetch = vi.fn(async (url) => {
+      if (url.endsWith('/health')) {
+        healthCalls += 1;
+        return { ok: true, status: 200, json: async () => ({ status: 'ok' }) };
+      }
+      if (url.includes('/auth/send-code')) {
+        sendCalls += 1;
+        if (sendCalls === 1) {
+          return { ok: false, status: 504, json: async () => ({ detail: 'Gateway Timeout' }) };
+        }
+        return { ok: true, status: 200, json: async () => ({ message: 'Запрос на отправку кода принят' }) };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const result = await api.sendCode('+996555123456');
+    expect(result).toEqual({ message: 'Запрос на отправку кода принят' });
+    expect(healthCalls).toBe(1);
+    expect(sendCalls).toBe(2);
+  });
 });
