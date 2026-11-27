@@ -283,7 +283,7 @@ P1:
   создаёт лишний трафик и шум; Sentry/логи + ручная проверка;
 - решить, нужен ли fallback входа для пользователей без Telegram;
 - staging с отдельными БД/Redis/секретами;
-- разбить большие `Login.jsx` (1723 строки) и `api.js` (790 строк);
+- разбить крупные модули: **выполнено 2026-11-27** (`Login.jsx` 1723→163 строки в `screens/login/*`; `api.js` 790→30 строк фасад над `utils/api/{client,auth,users,trips,chat}.js`; все 19 JSX `<style>`-блоков вынесены в `.css`);
 - Build Filters на Render настроены (`paths: birge-backend/**`, `ignoredPaths`: `tests/**`, `scripts/**`, `requirements-dev.txt`, `requirements-e2e.txt`, `**/*.md`) в дополнение к `rootDir: birge-backend`.
 
 P2 (остаток из `docs/ROADMAP.md`; базовый WCAG audit и полное `ru`/`ky` i18n закрыты в `1255702`):

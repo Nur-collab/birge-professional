@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Star, X, Send, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './ReviewModal.css';
 
 export default function ReviewModal({ partner, onSubmit, onSkip }) {
     const { t } = useTranslation();
@@ -203,35 +204,6 @@ export default function ReviewModal({ partner, onSubmit, onSkip }) {
                 </div>
             </div>
 
-            <style>{`
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: var(--surface-overlay);
-          backdrop-filter: blur(4px);
-          z-index: 1000;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          animation: fadeIn 0.2s ease-out;
-        }
-        .review-modal {
-          background: var(--bg-card);
-          border-radius: 24px 24px 0 0;
-          padding: 1.5rem;
-          width: 100%;
-          max-width: 480px;
-          animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes slideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
         </div>
     );
 }

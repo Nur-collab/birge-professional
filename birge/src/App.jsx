@@ -26,6 +26,7 @@ import useTripActions from './hooks/useTripActions';
 import useTripSearch from './hooks/useTripSearch';
 import { api } from './utils/api';
 import { isKnownPath, pathToTab, tabToPath, tripIdFromPath } from './utils/routes';
+import './App.css';
 
 function App() {
   const { t } = useTranslation();
@@ -449,67 +450,6 @@ function App() {
         </button>
       </nav>
 
-      <style>{`
-        .bottom-nav {
-          position: fixed;
-          bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-          left: 50%;
-          transform: translateX(-50%);
-          width: calc(100% - 24px);
-          max-width: 456px;
-          background: var(--nav-bg);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid var(--nav-border);
-          border-radius: 20px;
-          box-shadow: var(--floating-shadow);
-          display: flex;
-          justify-content: space-around;
-          gap: 2px;
-          padding: 6px;
-          z-index: 100;
-          transition: background-color 0.25s ease, border-color 0.25s ease;
-        }
-        .app-container.keyboard-open .bottom-nav {
-          display: none;
-        }
-        .nav-item {
-          flex: 1;
-          display: flex; flex-direction: column; align-items: center;
-          justify-content: center;
-          gap: 4px; background: none; border: none; color: var(--text-subtle);
-          font-size: 0.64rem; font-weight: 700; cursor: pointer;
-          position: relative; transition: background-color 0.2s ease, color 0.2s ease;
-          min-height: 52px;
-          padding: 7px 4px;
-          border-radius: 14px;
-          letter-spacing: 0.01em;
-        }
-        .nav-item svg { width: 22px; height: 22px; }
-        .header-brand { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; }
-        #main-content:focus { outline: none; }
-        .nav-item:hover { color: var(--text-main); background: var(--bg-subtle); }
-        .nav-item.active {
-          color: var(--primary);
-          background: var(--nav-active-bg);
-        }
-        .nav-item.active svg { stroke-width: 2.35; }
-        .badge {
-          position: absolute; top: 3px; right: 12px;
-          background: var(--danger); color: var(--on-primary); font-size: 0.6rem;
-          font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px;
-          display: flex; align-items: center; justify-content: center;
-          padding: 0 4px; border: 2px solid var(--nav-bg);
-          font-variant-numeric: tabular-nums;
-        }
-        .badge.dot {
-          width: 7px; height: 7px; min-width: unset; right: 16px; padding: 0;
-          top: 5px; background: var(--primary);
-        }
-        .badge.incoming-badge {
-          background: var(--warning);
-        }
-      `}</style>
       {/* Модал входящего запроса для водителя */}
       {incomingRequest && (
         <TripRequestModal

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './InstallPWA.css';
 
 export default function InstallPWA() {
     const { t } = useTranslation();
@@ -62,90 +63,6 @@ export default function InstallPWA() {
                 </button>
             </div>
 
-            <style>{`
-        .install-banner {
-          position: fixed;
-          bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-          left: 50%;
-          transform: translateX(-50%);
-          width: calc(100% - 24px);
-          max-width: 456px;
-          background: var(--surface-glass);
-          backdrop-filter: blur(10px);
-          border-radius: 16px;
-          padding: 12px 15px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          box-shadow: 0 10px 25px var(--shadow-medium);
-          z-index: 1000;
-          animation: slideUp 0.3s ease-out;
-          border: 1px solid var(--border-subtle);
-        }
-        .install-content {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex: 1;
-        }
-        .install-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: var(--primary);
-          color: var(--on-primary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 1.2rem;
-          flex-shrink: 0;
-        }
-        .install-text {
-          flex: 1;
-        }
-        .install-title {
-          margin: 0;
-          font-weight: 600;
-          font-size: 0.9rem;
-          color: var(--text-main);
-        }
-        .install-desc {
-          margin: 0;
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          line-height: 1.2;
-          margin-top: 2px;
-        }
-        .install-actions {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .install-btn {
-          padding: 6px 12px;
-          font-size: 0.8rem;
-          border-radius: 8px;
-          height: auto;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .close-btn {
-          width: 44px;
-          height: 44px;
-          flex-shrink: 0;
-          background: none;
-          border: none;
-          border-radius: 10px;
-          color: var(--text-muted);
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-      `}</style>
         </div>
     );
 }

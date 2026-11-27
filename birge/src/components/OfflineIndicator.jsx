@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { WifiOff, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './OfflineIndicator.css';
 
 /**
  * OfflineIndicator — показывает toast-баннер когда пропадает интернет.
@@ -61,7 +62,7 @@ export default function OfflineIndicator() {
           fontWeight: 600,
           boxShadow: '0 4px 24px var(--shadow-medium)',
           whiteSpace: 'nowrap',
-          animation: 'slideUp 0.3s ease',
+          animation: 'offline-slide-up 0.3s ease',
           fontFamily: 'inherit',
         }}
       >
@@ -78,12 +79,6 @@ export default function OfflineIndicator() {
         )}
       </div>
 
-      <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateX(-50%) translateY(16px); }
-          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-      `}</style>
     </>
   );
 }

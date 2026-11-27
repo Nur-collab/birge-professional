@@ -1,0 +1,212 @@
+.spin-loader { animation: spin 1s linear infinite; }
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding-top: 0.25rem;
+  animation: fadeIn 0.25s ease-out;
+}
+.profile-header {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+.avatar-container {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 1rem auto;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 15px var(--shadow-medium);
+}
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--bg-card);
+}
+.avatar-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 30%;
+  background: var(--surface-overlay);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.avatar-container:hover .avatar-overlay {
+  opacity: 1;
+}
+.avatar-loader {
+  position: absolute; top:0; left:0; right:0; bottom:0;
+  background: var(--primary-glow);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.verified-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--primary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-card);
+  z-index: 2;
+}
+.user-phone {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+  margin-bottom: 1.5rem;
+}
+.stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px;
+}
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.stat-value {
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.1rem;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-divider {
+  width: 1px;
+  height: 30px;
+  background: var(--border-subtle);
+}
+.limits-card {
+  padding: 1.2rem;
+}
+.limits-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.limits-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+.limits-count {
+  font-weight: 700;
+  color: var(--text-main);
+}
+.progress-bar {
+  height: 8px;
+  background: var(--border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.limits-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.reviews-section h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+}
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-card {
+  padding: 1rem;
+}
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.review-author {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+.review-rating {
+  display: flex;
+  gap: 2px;
+}
+.review-text {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+.car-card {
+  padding: 1.2rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.car-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+}
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 0;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.menu-item:hover {
+  background: var(--bg-subtle);
+  transform: translateX(2px);
+}

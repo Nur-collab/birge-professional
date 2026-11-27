@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Car, ShieldCheck, Clock, X, ChevronRight, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './TripAcceptedCard.css';
 
 /**
  * TripAcceptedCard — красивая карточка "Поездка принята" для пассажира.
@@ -148,68 +149,11 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
           borderRadius: '28px 28px 0 0',
           padding: '0 0 32px 0',
           boxShadow: '0 -8px 40px var(--shadow-strong)',
-          animation: animateOut ? 'slideDown 0.4s ease-in forwards' : 'slideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
+          animation: animateOut ? 'tac-slide-down 0.4s ease-in forwards' : 'tac-slide-up 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
           overflow: 'hidden',
           position: 'relative',
         }}
       >
-        <style>{`
-          @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes slideDown {
-            from { transform: translateY(0); opacity: 1; }
-            to { transform: translateY(100%); opacity: 0; }
-          }
-          @keyframes pulse-ring {
-            0% { transform: translateX(-50%) scale(0.9); opacity: 0.8; }
-            50% { transform: translateX(-50%) scale(1.1); opacity: 0.3; }
-            100% { transform: translateX(-50%) scale(0.9); opacity: 0.8; }
-          }
-          @keyframes shimmer {
-            0% { background-position: -200% center; }
-            100% { background-position: 200% center; }
-          }
-          .tac-plate-badge {
-            font-family: 'Courier New', monospace;
-            font-weight: 800;
-            font-size: 0.95rem;
-            letter-spacing: 2px;
-            background: var(--inverse-surface);
-            color: var(--inverse-text);
-            padding: 4px 14px;
-            border-radius: 6px;
-            border: 2px solid var(--inverse-border);
-            text-transform: uppercase;
-            box-shadow: inset 0 -2px 0 var(--shadow-strong);
-          }
-          .tac-btn-chat {
-            width: 100%; padding: 16px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: var(--on-primary); border: none; border-radius: 16px;
-            font-size: 1rem; font-weight: 700;
-            cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 6px 20px var(--primary-glow);
-            letter-spacing: 0.3px;
-          }
-          .tac-btn-chat:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 28px var(--primary-glow);
-          }
-          .tac-color-dot {
-            width: 14px; height: 14px; border-radius: 50%;
-            border: 2px solid var(--shadow-medium);
-            flex-shrink: 0;
-          }
-          .tac-avatar-ring {
-            border-radius: 50%;
-            padding: 3px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            display: inline-block;
-          }
-        `}</style>
 
         {/* Зелёная полоска прогресса (автозакрытие) */}
         <div style={{ height: 4, background: 'var(--border-subtle)', position: 'relative', overflow: 'hidden' }}>
@@ -217,15 +161,9 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             position: 'absolute',
             top: 0, left: 0, height: '100%',
             background: 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
-            animation: 'shrinkBar 8s linear forwards',
+            animation: 'tac-shrink-bar 8s linear forwards',
             width: '100%',
           }} />
-          <style>{`
-            @keyframes shrinkBar {
-              from { width: 100%; }
-              to { width: 0%; }
-            }
-          `}</style>
         </div>
 
         {/* Кнопка закрыть */}
@@ -261,10 +199,9 @@ export default function TripAcceptedCard({ trip, onDismiss }) {
             fontSize: '0.78rem', fontWeight: 700,
             marginBottom: 10, letterSpacing: 0.3,
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', animation: 'pulse-badge 1.5s ease-in-out infinite' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', animation: 'tac-pulse-badge 1.5s ease-in-out infinite' }} />
             {t('accepted.badge').toUpperCase()}
           </div>
-          <style>{`@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px 0' }}>
             {t('accepted.found_title')}
           </h2>

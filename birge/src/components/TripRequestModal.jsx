@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Star, Check, X, Clock, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './TripRequestModal.css';
 
 const AUTO_DECLINE_SECONDS = 30;
 
@@ -80,25 +81,9 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                 background: 'var(--bg-card)', borderRadius: '24px', padding: '1.5rem',
                 width: '100%', maxWidth: '360px',
                 boxShadow: '0 24px 70px var(--shadow-strong)',
-                animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                animation: 'req-slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 position: 'relative', overflow: 'hidden',
             }}>
-                <style>{`
-                    @keyframes slideUp {
-                        from { transform: translateY(50px) scale(0.9); opacity: 0; }
-                        to { transform: translateY(0) scale(1); opacity: 1; }
-                    }
-                    @keyframes ringPulse {
-                        0% { box-shadow: 0 0 0 0 var(--primary-glow); }
-                        70% { box-shadow: 0 0 0 20px var(--primary-glow); }
-                        100% { box-shadow: 0 0 0 0 var(--primary-glow); }
-                    }
-                    @keyframes urgentPulse {
-                        0% { box-shadow: 0 0 0 0 var(--danger-border); }
-                        70% { box-shadow: 0 0 0 16px var(--danger-soft); }
-                        100% { box-shadow: 0 0 0 0 var(--danger-soft); }
-                    }
-                `}</style>
 
                 {/* Прогресс-бар вверху (тает по мере истечения времени) */}
                 <div style={{
@@ -120,7 +105,7 @@ export default function TripRequestModal({ request, onAccept, onDecline }) {
                         background: urgency ? 'var(--danger)' : 'var(--primary)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         margin: '0 auto 0.75rem',
-                        animation: urgency ? 'urgentPulse 1s ease-in-out infinite' : 'ringPulse 2s ease-in-out infinite',
+                        animation: urgency ? 'req-urgent-pulse 1s ease-in-out infinite' : 'req-ring-pulse 2s ease-in-out infinite',
                     }}>
                         <User size={26} color='var(--on-primary)' />
                     </div>

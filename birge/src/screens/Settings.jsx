@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import './Settings.css';
 
 export default function Settings({ currentUser, onBack, onUpdate }) {
   const { t, i18n } = useTranslation();
@@ -240,140 +241,6 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
 
       </form>
 
-      <style>{`
-        .settings {
-          animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .settings-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1rem 0 1.5rem 0;
-        }
-        .settings-header h2 {
-          font-size: 1.2rem;
-          color: var(--text-main);
-          margin: 0;
-        }
-        .back-btn {
-          min-width: 44px;
-          min-height: 44px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          padding: 8px;
-          margin-left: -10px;
-          cursor: pointer;
-        }
-        .settings-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1.2rem;
-        }
-        .settings-section {
-          padding: 1.2rem;
-        }
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 700;
-          font-size: 1rem;
-          color: var(--dark);
-          margin-bottom: 1rem;
-          border-bottom: 1px solid var(--bg-subtle);
-          padding-bottom: 8px;
-        }
-        .section-desc {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-          margin-bottom: 1rem;
-          margin-top: -8px;
-        }
-        .form-group {
-          margin-bottom: 1rem;
-        }
-        .form-group:last-child {
-          margin-bottom: 0;
-        }
-        .form-group label {
-          display: block;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--text-muted);
-          margin-bottom: 6px;
-        }
-        .form-group input {
-          width: 100%;
-          padding: 12px;
-          border: 1px solid var(--border-strong);
-          border-radius: 10px;
-          font-size: 0.95rem;
-          background: var(--bg-input);
-          color: var(--text-main);
-          transition: border-color 0.2s ease, background-color 0.2s ease;
-        }
-        .form-group input:focus {
-          outline: none;
-          border-color: var(--primary);
-          background: var(--bg-card);
-        }
-        .input-with-icon {
-          position: relative;
-        }
-        .input-with-icon svg {
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .input-with-icon input {
-          padding-left: 36px;
-        }
-        .language-select {
-          width: 100%;
-          min-height: 46px;
-          padding: 12px;
-          border: 1px solid var(--border-strong);
-          border-radius: 10px;
-          font-size: 0.95rem;
-          background: var(--bg-input);
-          color: var(--text-main);
-          cursor: pointer;
-          outline: none;
-        }
-        .language-select:focus {
-          border-color: var(--primary);
-        }
-        .save-btn {
-          margin-top: 1rem;
-          background: ${saved ? 'var(--primary)' : 'var(--primary)'};
-          transition: all 0.3s;
-        }
-        .error-msg {
-          color: var(--danger);
-          background: var(--danger-soft);
-          padding: 10px;
-          border-radius: 8px;
-          font-size: 0.9rem;
-          text-align: center;
-        }
-        .loader-small {
-          width: 20px;
-          height: 20px;
-          border: 2px solid var(--bg-card);
-          border-top: 2px solid transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

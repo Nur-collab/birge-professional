@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Calendar, CheckCircle, Clock, Car, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import './TripHistory.css';
 
 export default function TripHistory({ currentUser, onBack }) {
   const { t } = useTranslation();
@@ -95,137 +96,6 @@ export default function TripHistory({ currentUser, onBack }) {
         )}
       </div>
 
-      <style>{`
-        .history {
-          animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .history-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1rem 0 1.5rem 0;
-        }
-        .history-header h2 {
-          font-size: 1.2rem;
-          color: var(--dark);
-          margin: 0;
-        }
-        .back-btn {
-          min-width: 44px;
-          min-height: 44px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          padding: 8px;
-          margin-left: -10px;
-          cursor: pointer;
-        }
-        .history-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .empty-state {
-          text-align: center;
-          padding: 3rem 1.5rem;
-          border: 1px dashed var(--border-strong);
-        }
-        .empty-state h3 {
-          color: var(--dark);
-          margin: 0;
-        }
-        .history-card {
-          padding: 1.2rem;
-          transition: transform 0.2s;
-        }
-        .history-card:active {
-          transform: scale(0.98);
-        }
-        .history-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
-          padding-bottom: 0.8rem;
-          border-bottom: 1px solid var(--bg-subtle);
-        }
-        .history-date {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.85rem;
-          color: var(--text-muted);
-          font-weight: 500;
-        }
-        .history-status {
-          font-size: 0.75rem;
-          font-weight: 600;
-          padding: 4px 8px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .history-status.completed {
-          background: var(--accent-soft);
-          color: var(--primary-hover);
-        }
-        .history-status.active {
-          background: var(--warning-soft);
-          color: var(--warning);
-        }
-        .history-route {
-          position: relative;
-          padding-left: 8px;
-          margin-bottom: 1rem;
-        }
-        .route-line {
-          position: absolute;
-          left: 15px;
-          top: 20px;
-          bottom: 20px;
-          width: 2px;
-          background: var(--border-subtle);
-          z-index: 0;
-        }
-        .route-point {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 10px 0;
-          position: relative;
-          z-index: 1;
-        }
-        .route-point svg {
-          background: var(--glass-bg);
-          border-radius: 50%;
-        }
-        .point-text {
-          font-size: 0.95rem;
-          font-weight: 600;
-          color: var(--dark);
-        }
-        .history-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 1rem;
-          padding-top: 1rem;
-          border-top: 1px dashed var(--border-subtle);
-          font-size: 0.85rem;
-        }
-        .history-role {
-          color: var(--text-muted);
-          font-weight: 500;
-        }
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

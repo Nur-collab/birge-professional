@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigation, Trash2, RotateCcw, Clock, Car, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import './ResumeTripBanner.css';
 
 /**
  * ResumeTripBanner — всплывает снизу если у пользователя есть
@@ -69,12 +70,6 @@ export default function ResumeTripBanner({ trip, onResume, onDiscard }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes birge-slide-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

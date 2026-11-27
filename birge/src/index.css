@@ -291,6 +291,7 @@ body {
   padding: 0;
   background: none;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
@@ -590,6 +591,25 @@ textarea::placeholder {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.back-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px;
+  margin-left: -10px;
+  cursor: pointer;
+}
 
 /* ============ MATCHES / TRIP CARDS ============ */
 .matches {
