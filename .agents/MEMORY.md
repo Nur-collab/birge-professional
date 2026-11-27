@@ -24,7 +24,7 @@
 ## 2. Current Metrics (2026-11-26)
 
 - Backend tests: 101 passed (ruff `E9,F,B` ignoring `B008`; includes geo/corridor matching/route-preview/OSRM+Photon fallback, moderation reports & blocking, 6-stage conversion funnel, recurring trips & late cancellation policy, native WebView CORS + body refresh fallback, `/users/me/export` & `DELETE /users/me`, batch `/trip-requests/statuses`, `/users/me/verify`, Telegram challenge flow, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 54 passed in 15 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `ReportModal`, `RealMap`, `routes`, `escapeHtml`, `date`, `swPolicy`).
+- Frontend tests: 55 passed in 15 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `ReportModal`, `RealMap`, `routes`, `escapeHtml`, `date`, `swPolicy`).
 - Browser E2E: 9 passed on PostgreSQL 16.2 (`a11y.spec.js` `@axe-core/playwright` WCAG 2.1 AA light+dark + `ky` language switch, `login-code` + `390x844` fit checks + `sse-ticket`).
 - Production build: passed; Leaflet bundled (`vendor-maps`), `build` + `build:mobile` pass.
 - `main.py`: ~265 lines (extracted `routers/{admin,bot,reports,reviews,users_privacy}.py`, `trip_maintenance.py`, `analytics.py`, `geo.py`, `auth_challenges.py`).
@@ -34,7 +34,7 @@
 ## 3. Active Work State
 
 - Current goal: Keep `birge-postgres` ready for in-place paid upgrade (`0.1c-256mb`, $6/mo; Neon migration cancelled) before 2026-12-14, then pick remaining P2 product features (funnel analytics, corridor/ETA, moderation/reports).
-- Working tree: Milestones A, B, and C complete (`datetime.utcnow()` removed; `geo.py`/`auth_challenges.py`/`users_privacy.py`/`Dashboard` split; Leaflet/OSM + backend geocache/corridor/ETA; abuse reports/moderation, 6-stage funnel analytics, recurring trips & late cancellation policy). Ready for Capacitor mobile app testing after CI/deploy verification.
+- Working tree: Milestones A, B, and C complete + auth cold-start prewarm/retry (`a6b9e55`) + MapLibre GL & OpenFreeMap light/dark vector maps (`tiles.openfreemap.org`, isolated GPS marker, no CSS blur/invert lag). Ready for Capacitor mobile packaging.
 - P1 done: shared Redis rate limiting for auth and write endpoints; Redis Pub/Sub for SSE and WS chat; CHECK constraints and partial unique index; audit log; `/ready`; `X-Request-ID`; JSON logs with request id; optional Sentry backend/frontend; manual Render setup + backup/restore runbook; Dependabot/pip-audit/gitleaks/Redis compose.
 - P1 hardening 2026-11-15: `User.token_version` + `/auth/logout` revoke all sessions; token version checked in HTTP, SSE and WS; SSE uses a short-lived stream-bound ticket; escaped map balloon HTML; security headers on Vercel/API; current production CORS fallback; safe API URL; local startup no longer registers a production Telegram webhook without `RENDER_EXTERNAL_URL`.
 - Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub PostgreSQL/E2E job passed on 2748929.

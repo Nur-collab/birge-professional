@@ -11,81 +11,83 @@
   z-index: 1;
 }
 
-.birge-real-map-canvas .leaflet-container {
+.birge-real-map-canvas .maplibregl-map {
   width: 100%;
   height: 100%;
   font-family: inherit;
+}
+
+.birge-real-map-canvas .maplibregl-ctrl-group {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  background: var(--bg-card);
+}
+
+.birge-real-map-canvas .maplibregl-ctrl-group button {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.birge-real-map-canvas .maplibregl-ctrl-group button:last-child {
+  border-bottom: none;
+}
+
+.birge-real-map-canvas .maplibregl-ctrl-group button:hover {
   background: var(--bg-subtle);
 }
 
-[data-theme="dark"] .birge-real-map-canvas .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.82);
+[data-theme="dark"] .birge-real-map-canvas .maplibregl-ctrl-icon {
+  filter: invert(0.92);
 }
 
-.birge-real-map-canvas .leaflet-control-zoom {
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-  box-shadow: var(--card-shadow) !important;
-  background: var(--surface-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+.birge-real-map-canvas .maplibregl-ctrl-attrib {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 10px;
 }
 
-.birge-real-map-canvas .leaflet-control-zoom a {
-  width: 36px !important;
-  height: 36px !important;
-  line-height: 36px !important;
-  background: transparent !important;
-  color: var(--text-main) !important;
-  border-bottom-color: var(--border-subtle) !important;
-  font-weight: 700;
+.birge-real-map-canvas .maplibregl-ctrl-attrib a {
+  color: var(--text-muted);
 }
 
-.birge-real-map-canvas .leaflet-control-zoom a:hover {
-  background: var(--bg-subtle) !important;
-}
-
-.birge-real-map-canvas .leaflet-control-attribution {
-  background: var(--surface-glass) !important;
-  color: var(--text-muted) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  font-size: 10px !important;
-  padding: 2px 6px !important;
-  border-radius: 6px 0 0 0;
-}
-
-.birge-real-map-canvas .leaflet-control-attribution a {
-  color: var(--text-muted) !important;
-}
-
-.route-preview-map .leaflet-top.leaflet-right {
+.route-preview-map .maplibregl-ctrl-top-right {
   top: calc(64px + env(safe-area-inset-top, 0px));
   right: 4px;
 }
 
-.route-preview-map .leaflet-bottom {
+.route-preview-map .maplibregl-ctrl-bottom-right,
+.route-preview-map .maplibregl-ctrl-bottom-left {
   display: none;
 }
 
-.birge-map-pin {
-  background: transparent;
-  border: none;
+.birge-map-pin-el {
+  cursor: pointer;
+}
+
+.birge-map-user-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
 }
 
 .birge-map-recenter-btn {
   position: absolute;
-  top: 10px;
+  top: 94px;
   right: 10px;
-  z-index: 400;
+  z-index: 4;
   width: 36px;
   height: 36px;
   border-radius: 11px;
   border: 1px solid var(--border-subtle);
-  background: var(--surface-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-card);
   color: var(--text-main);
   display: flex;
   align-items: center;
@@ -103,16 +105,14 @@
   position: absolute;
   top: 10px;
   left: 10px;
-  z-index: 400;
+  z-index: 4;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background: var(--surface-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-card);
   color: var(--text-main);
   font-size: 0.74rem;
   font-weight: 700;
@@ -125,10 +125,8 @@
   bottom: 10px;
   left: 10px;
   right: 10px;
-  z-index: 400;
-  background: var(--surface-glass);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  z-index: 4;
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 8px 12px;

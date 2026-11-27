@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStorage } from '../utils/api';
 import { escapeHtml } from '../utils/escapeHtml';
 import './RealMap.css';
 
-const BISHKEK_CENTER = [42.8746, 74.5698];
-const PRIMARY_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const FALLBACK_TILE_URL = 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
+const BISHKEK_CENTER_LAT_LNG = [42.8746, 74.5698];
+const STYLE_LIGHT_URL = 'https://tiles.openfreemap.org/styles/liberty';
+const STYLE_DARK_URL = 'https://tiles.openfreemap.org/styles/dark';
+const ROUTE_SOURCE_ID = 'birge-route-source';
+const ROUTE_CASING_LAYER_ID = 'birge-route-casing';
+const ROUTE_LINE_LAYER_ID = 'birge-route-line';
 const DEFAULT_FIT_TOP_LEFT = [28, 36];
 const DEFAULT_FIT_BOTTOM_RIGHT = [28, 28];
 
@@ -79,16 +82,34 @@ function estimateOfflineRoute(a, b) {
   };
 }
 
-function createPinIcon(fill, label) {
-  return L.divIcon({
-    className: 'birge-map-pin',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    html: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="14" cy="14" r="11" fill="${fill}" stroke="#ffffff" stroke-width="3" />
-      <text x="14" y="18" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="800" font-family="system-ui,sans-serif">${escapeHtml(label)}</text>
-    </svg>`,
-  });
+function toLngLat(latLng) {
+  return [latLng[1], latLng[0]];
+}
+
+function isDarkThemeActive() {
+  return typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function supportsWebGL() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if (window.__BIRGE_FORCE_WEBGL_MAP__ === true) return true;
+  if (typeof WebGLRenderingContext === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
+function buildPinElement(fill, label) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'birge-map-pin-el';
+  wrapper.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="14" cy="14" r="11" fill="${fill}" stroke="#ffffff" stroke-width="3" />
+    <text x="14" y="18" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="800" font-family="system-ui,sans-serif">${escapeHtml(label)}</text>
+  </svg>`;
+  return wrapper;
 }
 
 export default function RealMap({
@@ -103,7 +124,7 @@ export default function RealMap({
   showLegend = true,
   showEtaPill = true,
   showFallbackRoute = true,
-  zoomPosition = 'topright',
+  zoomPosition = 'top-right',
   fitPaddingTopLeft = DEFAULT_FIT_TOP_LEFT,
   fitPaddingBottomRight = DEFAULT_FIT_BOTTOM_RIGHT,
   isOverlayPreview = false,
@@ -112,15 +133,29 @@ export default function RealMap({
   const { t } = useTranslation();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const layerGroupRef = useRef(null);
-  const boundsRef = useRef(null);
+  const userMarkerRef = useRef(null);
+  const routeMarkersRef = useRef([]);
+  const routeDrawStateRef = useRef(null);
+  const boundsCoordsRef = useRef(null);
   const onRouteInfoRef = useRef(onRouteInfo);
   const [userLocation, setUserLocation] = useState(null);
   const [routeMeta, setRouteMeta] = useState(null);
+  const [isDark, setIsDark] = useState(isDarkThemeActive);
+
+  const resolvedZoomPos = zoomPosition === 'topright' ? 'top-right' : zoomPosition === 'topleft' ? 'top-left' : zoomPosition;
 
   useEffect(() => {
     onRouteInfoRef.current = onRouteInfo;
   }, [onRouteInfo]);
+
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return undefined;
+    const observer = new MutationObserver(() => {
+      setIsDark(isDarkThemeActive());
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!navigator?.geolocation) return;
@@ -131,123 +166,214 @@ export default function RealMap({
     );
   }, []);
 
-  const fitCurrentBounds = useCallback(() => {
+  const fitCurrentBounds = useCallback((duration = 250) => {
     const map = mapRef.current;
-    const bounds = boundsRef.current;
-    if (!map || !bounds || !bounds.isValid()) return;
+    const coords = boundsCoordsRef.current;
+    if (!map || !Array.isArray(coords) || coords.length === 0) return;
+
+    const bounds = coords.reduce(
+      (acc, lngLat) => acc.extend(lngLat),
+      new LngLatBounds(coords[0], coords[0])
+    );
     try {
-      map.invalidateSize(false);
+      map.resize();
     } catch {
-      // Ignore layout measurement issues inside detached containers.
+      // Ignore layout measurement edge cases in detached containers.
     }
     map.fitBounds(bounds, {
-      paddingTopLeft: fitPaddingTopLeft,
-      paddingBottomRight: fitPaddingBottomRight,
+      padding: {
+        top: fitPaddingTopLeft[1] ?? 36,
+        left: fitPaddingTopLeft[0] ?? 28,
+        bottom: fitPaddingBottomRight[1] ?? 28,
+        right: fitPaddingBottomRight[0] ?? 28,
+      },
       maxZoom: 15,
+      duration,
     });
   }, [fitPaddingTopLeft, fitPaddingBottomRight]);
 
-  // Initialize Leaflet instance once.
+  const applyRouteOnMap = useCallback((map, state) => {
+    if (!map || !state) return;
+
+    routeMarkersRef.current.forEach((m) => m.remove());
+    routeMarkersRef.current = [];
+
+    if (showUserOnly) {
+      boundsCoordsRef.current = null;
+      return;
+    }
+
+    const { aCoords, bCoords, preview, fromLabel, toLabel, fromPrefix, toPrefix } = state;
+    const rawGeometry = Array.isArray(preview?.geometry) && preview.geometry.length >= 2
+      ? preview.geometry
+      : [aCoords, bCoords];
+    const lineCoords = rawGeometry.map(toLngLat);
+    const isEstimated = !preview || preview.source !== 'osrm';
+    const showLine = !isEstimated || showFallbackRoute;
+
+    const applyGeoJson = () => {
+      if (!mapRef.current) return;
+      const geojson = {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: showLine ? lineCoords : [],
+        },
+      };
+
+      const existingSource = map.getSource(ROUTE_SOURCE_ID);
+      if (existingSource) {
+        existingSource.setData(geojson);
+      } else {
+        map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: geojson });
+        map.addLayer({
+          id: ROUTE_CASING_LAYER_ID,
+          type: 'line',
+          source: ROUTE_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': isEstimated ? 6 : 8,
+            'line-opacity': isEstimated ? 0.55 : 0.9,
+          },
+        });
+        map.addLayer({
+          id: ROUTE_LINE_LAYER_ID,
+          type: 'line',
+          source: ROUTE_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#0F6B57',
+            'line-width': isEstimated ? 3.5 : 5,
+            'line-opacity': isEstimated ? 0.72 : 0.96,
+            ...(isEstimated ? { 'line-dasharray': [2, 2] } : {}),
+          },
+        });
+      }
+    };
+
+    if (map.isStyleLoaded?.()) {
+      applyGeoJson();
+    } else {
+      map.once('style.load', applyGeoJson);
+    }
+
+    const markerA = new Marker({ element: buildPinElement('#0F6B57', 'A') })
+      .setLngLat(toLngLat(aCoords))
+      .setPopup(new Popup({ offset: 18 }).setHTML(`<b>${escapeHtml(fromPrefix)}:</b> ${escapeHtml(fromLabel)}`))
+      .addTo(map);
+
+    const markerB = new Marker({ element: buildPinElement('#dc2626', 'B') })
+      .setLngLat(toLngLat(bCoords))
+      .setPopup(new Popup({ offset: 18 }).setHTML(`<b>${escapeHtml(toPrefix)}:</b> ${escapeHtml(toLabel)}`))
+      .addTo(map);
+
+    routeMarkersRef.current = [markerA, markerB];
+    boundsCoordsRef.current = lineCoords;
+  }, [showUserOnly, showFallbackRoute]);
+
+  // Initialize MapLibre GL map once.
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || mapRef.current) return;
+    if (!el || mapRef.current || !supportsWebGL()) return;
 
-    const map = L.map(el, {
-      center: BISHKEK_CENTER,
-      zoom: 12,
-      zoomControl: false,
-      attributionControl: true,
+    let map;
+    try {
+      map = new MapLibreMap({
+        container: el,
+        style: isDarkThemeActive() ? STYLE_DARK_URL : STYLE_LIGHT_URL,
+        center: toLngLat(BISHKEK_CENTER_LAT_LNG),
+        zoom: 12,
+        attributionControl: { compact: true },
+        pitchWithRotate: false,
+        dragRotate: false,
+      });
+      map.addControl(new NavigationControl({ showCompass: false }), resolvedZoomPos);
+    } catch {
+      return;
+    }
+
+    map.on('style.load', () => {
+      if (routeDrawStateRef.current) {
+        applyRouteOnMap(map, routeDrawStateRef.current);
+      }
     });
 
-    L.control.zoom({ position: zoomPosition }).addTo(map);
-    const primaryLayer = L.tileLayer(PRIMARY_TILE_URL, {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19,
-    }).addTo(map);
-
-    // Switch automatically to OSM HOT tiles if the primary tile server fails.
-    primaryLayer.once('tileerror', () => {
-      if (!mapRef.current) return;
-      map.removeLayer(primaryLayer);
-      L.tileLayer(FALLBACK_TILE_URL, {
-        attribution: '&copy; OpenStreetMap HOT',
-        maxZoom: 19,
-        subdomains: 'abc',
-      }).addTo(map);
-    });
-
-    const group = L.layerGroup().addTo(map);
     mapRef.current = map;
-    layerGroupRef.current = group;
 
     return () => {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      routeMarkersRef.current.forEach((m) => m.remove());
+      routeMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
-      layerGroupRef.current = null;
     };
-  }, [zoomPosition]);
+  }, [resolvedZoomPos, applyRouteOnMap]);
 
-  // Resolve route preview + update Leaflet markers and polyline.
+  // Switch light/dark vector style without tearing down map or re-fetching route API.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setStyle(isDark ? STYLE_DARK_URL : STYLE_LIGHT_URL);
+  }, [isDark]);
+
+  // Isolated user GPS marker update: never resets route polyline or triggers route-preview API.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !userLocation) return;
+
+    const lngLat = toLngLat(userLocation);
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat(lngLat);
+    } else {
+      const dot = document.createElement('div');
+      dot.className = 'birge-map-user-dot';
+      dot.setAttribute('aria-label', t('map.you_here'));
+      userMarkerRef.current = new Marker({ element: dot })
+        .setLngLat(lngLat)
+        .addTo(map);
+    }
+
+    if (showUserOnly) {
+      map.jumpTo({ center: lngLat, zoom: 13 });
+    }
+  }, [userLocation, showUserOnly, t]);
+
+  // Resolve route preview and draw markers/polyline (independent of userLocation).
   useEffect(() => {
     let cancelled = false;
-    const map = mapRef.current;
-    const group = layerGroupRef.current;
-    if (!map || !group) return;
 
-    const drawState = (aCoords, bCoords, preview) => {
-      if (cancelled || !mapRef.current || !layerGroupRef.current) return;
-      group.clearLayers();
-
-      if (userLocation) {
-        L.circleMarker(userLocation, {
-          radius: 7,
-          fillColor: '#3b82f6',
-          color: '#ffffff',
-          weight: 2,
-          fillOpacity: 0.95,
-        })
-          .bindPopup(escapeHtml(t('map.you_here')))
-          .addTo(group);
+    const updateRouteState = (aCoords, bCoords, preview, duration = 0) => {
+      if (cancelled) return;
+      const state = {
+        aCoords,
+        bCoords,
+        preview,
+        fromLabel: from || '—',
+        toLabel: to || '—',
+        fromPrefix: t('search.from'),
+        toPrefix: t('search.to'),
+      };
+      routeDrawStateRef.current = state;
+      if (mapRef.current) {
+        applyRouteOnMap(mapRef.current, state);
+        fitCurrentBounds(duration);
       }
-
-      if (showUserOnly) {
-        map.setView(userLocation || BISHKEK_CENTER, 13);
-        boundsRef.current = null;
-        return;
-      }
-
-      const geometry = Array.isArray(preview?.geometry) && preview.geometry.length >= 2
-        ? preview.geometry
-        : [aCoords, bCoords];
-      const isEstimated = !preview || preview.source !== 'osrm';
-
-      if (!isEstimated || showFallbackRoute) {
-        L.polyline(geometry, {
-          color: '#0F6B57',
-          weight: isEstimated ? 4 : 5,
-          opacity: isEstimated ? 0.65 : 0.94,
-          dashArray: isEstimated ? '7 6' : undefined,
-        }).addTo(group);
-      }
-
-      L.marker(aCoords, { icon: createPinIcon('#0F6B57', 'A') })
-        .bindPopup(`<b>${escapeHtml(t('search.from'))}:</b> ${escapeHtml(from || '—')}`)
-        .addTo(group);
-
-      L.marker(bCoords, { icon: createPinIcon('#dc2626', 'B') })
-        .bindPopup(`<b>${escapeHtml(t('search.to'))}:</b> ${escapeHtml(to || '—')}`)
-        .addTo(group);
-
-      boundsRef.current = L.latLngBounds(geometry);
-      fitCurrentBounds();
     };
 
-    const initialFrom = fromCoords || geocodeOffline(from) || [42.8500, 74.5600];
-    const initialTo = toCoords || geocodeOffline(to) || BISHKEK_CENTER;
-    const offlinePreview = estimateOfflineRoute(initialFrom, initialTo);
-    drawState(initialFrom, initialTo, offlinePreview);
+    if (showUserOnly) {
+      setRouteMeta(null);
+      onRouteInfoRef.current?.(null);
+      return;
+    }
 
-    if (showUserOnly || (!from && !fromCoords) || (!to && !toCoords)) {
+    const initialFrom = fromCoords || geocodeOffline(from) || [42.8500, 74.5600];
+    const initialTo = toCoords || geocodeOffline(to) || BISHKEK_CENTER_LAT_LNG;
+    const offlinePreview = estimateOfflineRoute(initialFrom, initialTo);
+    updateRouteState(initialFrom, initialTo, offlinePreview, 0);
+
+    if ((!from && !fromCoords) || (!to && !toCoords)) {
       setRouteMeta(null);
       onRouteInfoRef.current?.(null);
       return;
@@ -273,18 +399,18 @@ export default function RealMap({
         if (cancelled || !remote) return;
         const resolvedA = [remote.origin_lat, remote.origin_lng];
         const resolvedB = [remote.dest_lat, remote.dest_lng];
-        drawState(resolvedA, resolvedB, remote);
+        updateRouteState(resolvedA, resolvedB, remote, 0);
         setRouteMeta(remote);
         onRouteInfoRef.current?.(remote);
       })
       .catch(() => {
-        // Offline fallback route is already drawn cleanly.
+        // Offline fallback route is already displayed.
       });
 
     return () => {
       cancelled = true;
     };
-  }, [from, to, fromCoords, toCoords, showUserOnly, showFallbackRoute, userLocation, fitCurrentBounds, t]);
+  }, [from, to, fromCoords, toCoords, showUserOnly, applyRouteOnMap, fitCurrentBounds, t]);
 
   return (
     <div
@@ -312,10 +438,9 @@ export default function RealMap({
         <button
           type="button"
           className={`birge-map-recenter-btn ${isOverlayPreview ? 'in-preview' : ''}`}
-          onClick={fitCurrentBounds}
+          onClick={() => fitCurrentBounds(250)}
           aria-label={t('map.recenter')}
           title={t('map.recenter')}
-          style={!isOverlayPreview ? { top: 92 } : undefined}
         >
           <LocateFixed size={16} aria-hidden="true" />
         </button>

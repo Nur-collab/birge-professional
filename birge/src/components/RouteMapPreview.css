@@ -30,11 +30,9 @@
 .route-preview-edit {
   min-height: 44px;
   border: 1px solid var(--border-subtle);
-  background: var(--surface-glass);
+  background: var(--bg-card);
   color: var(--text-main);
   box-shadow: var(--card-shadow);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
 }
 .route-preview-icon-btn {

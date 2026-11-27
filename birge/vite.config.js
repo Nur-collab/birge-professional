@@ -105,7 +105,7 @@ export default defineConfig(({ mode }) => {
                     if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
                         return 'vendor-react';
                     }
-                    if (id.includes('node_modules/leaflet')) {
+                    if (id.includes('node_modules/maplibre-gl')) {
                         return 'vendor-maps';
                     }
                     if (id.includes('node_modules/lucide-react')) {
@@ -114,7 +114,7 @@ export default defineConfig(({ mode }) => {
                 },
             },
         },
-        chunkSizeWarningLimit: 600,
+        chunkSizeWarningLimit: 1100,
     },
     }
 })
