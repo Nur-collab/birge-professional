@@ -24,7 +24,7 @@
 ## 2. Current Metrics (2026-11-26)
 
 - Backend tests: 101 passed (ruff `E9,F,B` ignoring `B008`; includes geo/corridor matching/route-preview/OSRM+Photon fallback, moderation reports & blocking, 6-stage conversion funnel, recurring trips & late cancellation policy, native WebView CORS + body refresh fallback, `/users/me/export` & `DELETE /users/me`, batch `/trip-requests/statuses`, `/users/me/verify`, Telegram challenge flow, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 53 passed in 15 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `ReportModal`, `RealMap`, `routes`, `escapeHtml`, `date`, `swPolicy`).
+- Frontend tests: 54 passed in 15 files (`platform`, `Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `ReportModal`, `RealMap`, `routes`, `escapeHtml`, `date`, `swPolicy`).
 - Browser E2E: 9 passed on PostgreSQL 16.2 (`a11y.spec.js` `@axe-core/playwright` WCAG 2.1 AA light+dark + `ky` language switch, `login-code` + `390x844` fit checks + `sse-ticket`).
 - Production build: passed; Leaflet bundled (`vendor-maps`), `build` + `build:mobile` pass.
 - `main.py`: ~265 lines (extracted `routers/{admin,bot,reports,reviews,users_privacy}.py`, `trip_maintenance.py`, `analytics.py`, `geo.py`, `auth_challenges.py`).

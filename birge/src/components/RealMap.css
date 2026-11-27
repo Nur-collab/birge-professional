@@ -19,12 +19,84 @@
 }
 
 [data-theme="dark"] .birge-real-map-canvas .leaflet-tile-pane {
-  filter: invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(1.06) saturate(0.8);
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.82);
+}
+
+.birge-real-map-canvas .leaflet-control-zoom {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: var(--card-shadow) !important;
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.birge-real-map-canvas .leaflet-control-zoom a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  background: transparent !important;
+  color: var(--text-main) !important;
+  border-bottom-color: var(--border-subtle) !important;
+  font-weight: 700;
+}
+
+.birge-real-map-canvas .leaflet-control-zoom a:hover {
+  background: var(--bg-subtle) !important;
+}
+
+.birge-real-map-canvas .leaflet-control-attribution {
+  background: var(--surface-glass) !important;
+  color: var(--text-muted) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 6px 0 0 0;
+}
+
+.birge-real-map-canvas .leaflet-control-attribution a {
+  color: var(--text-muted) !important;
+}
+
+.route-preview-map .leaflet-top.leaflet-right {
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  right: 4px;
+}
+
+.route-preview-map .leaflet-bottom {
+  display: none;
 }
 
 .birge-map-pin {
   background: transparent;
   border: none;
+}
+
+.birge-map-recenter-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 400;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+}
+
+.birge-map-recenter-btn.in-preview {
+  top: calc(158px + env(safe-area-inset-top, 0px));
+  right: 14px;
 }
 
 .birge-map-eta-pill {

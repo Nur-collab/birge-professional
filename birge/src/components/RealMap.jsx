@@ -1,12 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api, tokenStorage } from '../utils/api';
 import { escapeHtml } from '../utils/escapeHtml';
 import './RealMap.css';
 
 const BISHKEK_CENTER = [42.8746, 74.5698];
+const PRIMARY_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const FALLBACK_TILE_URL = 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
+const DEFAULT_FIT_TOP_LEFT = [28, 36];
+const DEFAULT_FIT_BOTTOM_RIGHT = [28, 28];
 
 const BISHKEK_LOCATIONS = {
   'ала-арча': [42.8380, 74.5520],
@@ -96,13 +101,19 @@ export default function RealMap({
   borderRadius = '12px',
   framed = true,
   showLegend = true,
+  showEtaPill = true,
   showFallbackRoute = true,
+  zoomPosition = 'topright',
+  fitPaddingTopLeft = DEFAULT_FIT_TOP_LEFT,
+  fitPaddingBottomRight = DEFAULT_FIT_BOTTOM_RIGHT,
+  isOverlayPreview = false,
   onRouteInfo,
 }) {
   const { t } = useTranslation();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerGroupRef = useRef(null);
+  const boundsRef = useRef(null);
   const onRouteInfoRef = useRef(onRouteInfo);
   const [userLocation, setUserLocation] = useState(null);
   const [routeMeta, setRouteMeta] = useState(null);
@@ -120,6 +131,22 @@ export default function RealMap({
     );
   }, []);
 
+  const fitCurrentBounds = useCallback(() => {
+    const map = mapRef.current;
+    const bounds = boundsRef.current;
+    if (!map || !bounds || !bounds.isValid()) return;
+    try {
+      map.invalidateSize(false);
+    } catch {
+      // Ignore layout measurement issues inside detached containers.
+    }
+    map.fitBounds(bounds, {
+      paddingTopLeft: fitPaddingTopLeft,
+      paddingBottomRight: fitPaddingBottomRight,
+      maxZoom: 15,
+    });
+  }, [fitPaddingTopLeft, fitPaddingBottomRight]);
+
   // Initialize Leaflet instance once.
   useEffect(() => {
     const el = containerRef.current;
@@ -132,12 +159,22 @@ export default function RealMap({
       attributionControl: true,
     });
 
-    L.control.zoom({ position: 'topleft' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
+    L.control.zoom({ position: zoomPosition }).addTo(map);
+    const primaryLayer = L.tileLayer(PRIMARY_TILE_URL, {
+      attribution: '&copy; OpenStreetMap',
       maxZoom: 19,
-      subdomains: 'abcd',
     }).addTo(map);
+
+    // Switch automatically to OSM HOT tiles if the primary tile server fails.
+    primaryLayer.once('tileerror', () => {
+      if (!mapRef.current) return;
+      map.removeLayer(primaryLayer);
+      L.tileLayer(FALLBACK_TILE_URL, {
+        attribution: '&copy; OpenStreetMap HOT',
+        maxZoom: 19,
+        subdomains: 'abc',
+      }).addTo(map);
+    });
 
     const group = L.layerGroup().addTo(map);
     mapRef.current = map;
@@ -148,7 +185,7 @@ export default function RealMap({
       mapRef.current = null;
       layerGroupRef.current = null;
     };
-  }, []);
+  }, [zoomPosition]);
 
   // Resolve route preview + update Leaflet markers and polyline.
   useEffect(() => {
@@ -175,6 +212,7 @@ export default function RealMap({
 
       if (showUserOnly) {
         map.setView(userLocation || BISHKEK_CENTER, 13);
+        boundsRef.current = null;
         return;
       }
 
@@ -187,7 +225,7 @@ export default function RealMap({
         L.polyline(geometry, {
           color: '#0F6B57',
           weight: isEstimated ? 4 : 5,
-          opacity: isEstimated ? 0.6 : 0.92,
+          opacity: isEstimated ? 0.65 : 0.94,
           dashArray: isEstimated ? '7 6' : undefined,
         }).addTo(group);
       }
@@ -200,10 +238,8 @@ export default function RealMap({
         .bindPopup(`<b>${escapeHtml(t('search.to'))}:</b> ${escapeHtml(to || '—')}`)
         .addTo(group);
 
-      const bounds = L.latLngBounds(geometry);
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 15 });
-      }
+      boundsRef.current = L.latLngBounds(geometry);
+      fitCurrentBounds();
     };
 
     const initialFrom = fromCoords || geocodeOffline(from) || [42.8500, 74.5600];
@@ -248,7 +284,7 @@ export default function RealMap({
     return () => {
       cancelled = true;
     };
-  }, [from, to, fromCoords, toCoords, showUserOnly, showFallbackRoute, userLocation, t]);
+  }, [from, to, fromCoords, toCoords, showUserOnly, showFallbackRoute, userLocation, fitCurrentBounds, t]);
 
   return (
     <div
@@ -261,7 +297,7 @@ export default function RealMap({
     >
       <div className="birge-real-map-canvas" ref={containerRef} />
 
-      {!showUserOnly && routeMeta && (
+      {!showUserOnly && showEtaPill && routeMeta && (
         <div className="birge-map-eta-pill" aria-label={t('map.eta_aria')}>
           <span>
             {t('map.eta_badge', {
@@ -270,6 +306,19 @@ export default function RealMap({
             })}
           </span>
         </div>
+      )}
+
+      {!showUserOnly && (
+        <button
+          type="button"
+          className={`birge-map-recenter-btn ${isOverlayPreview ? 'in-preview' : ''}`}
+          onClick={fitCurrentBounds}
+          aria-label={t('map.recenter')}
+          title={t('map.recenter')}
+          style={!isOverlayPreview ? { top: 92 } : undefined}
+        >
+          <LocateFixed size={16} aria-hidden="true" />
+        </button>
       )}
 
       {!showUserOnly && showLegend && (

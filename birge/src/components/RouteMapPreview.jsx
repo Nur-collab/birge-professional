@@ -5,6 +5,8 @@ import RealMap from './RealMap';
 import './RouteMapPreview.css';
 
 const HISTORY_ENTRY_KEY = '__birgeRoutePreview';
+const PREVIEW_FIT_TOP_LEFT = [36, 86];
+const PREVIEW_FIT_BOTTOM_RIGHT = [36, 290];
 const seatsLabel = (seats) => `${seats} ${seats === 1 ? 'место' : seats < 5 ? 'места' : 'мест'}`;
 
 export default function RouteMapPreview({
@@ -128,7 +130,12 @@ export default function RouteMapPreview({
           borderRadius="0"
           framed={false}
           showLegend={false}
+          showEtaPill={false}
           showFallbackRoute={true}
+          zoomPosition="topright"
+          fitPaddingTopLeft={PREVIEW_FIT_TOP_LEFT}
+          fitPaddingBottomRight={PREVIEW_FIT_BOTTOM_RIGHT}
+          isOverlayPreview={true}
           onRouteInfo={setRouteInfo}
         />
       </div>
