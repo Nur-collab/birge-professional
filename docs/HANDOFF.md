@@ -54,7 +54,7 @@ C:\Users\User\.gemini\antigravity\scratch\birge-professional\
 | Key Value | `birge-redis`, free 25 MB, persistence off |
 | Alembic revision | `a7f1c3e8b9d2` (head) |
 | Health / readiness | `/health` — 200, `/ready` — 200 после прогрева |
-| Health check path в Render | фактически сейчас задан `/ready`; нужно переключить на `/health` (или пустой TCP), а `/ready` проверять после deploy и вручную |
+| Health check path в Render | `/health` (liveness; переключено с `/ready` 2026-11-27); `/ready` проверяется после deploy и вручную |
 | Sentry backend | `SENTRY_DSN` задан; в логах `sentry.initialized`, environment `production` |
 | Sentry frontend | `VITE_SENTRY_DSN` задан в Vercel Production/Preview; `SENTRY_AUTH_TOKEN` — Production |
 | CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
@@ -271,7 +271,7 @@ P0:
    `birge-postgres` in-place до paid `0.1c-256mb` ($6/мес); переезд на Neon
    отменён. Свежий encrypted dump и restore drill на PG18.6 уже есть;
    после upgrade проверить `/ready`, counts и PITR — RUNBOOK §11.
-2. Переключить `healthCheckPath` в Render с текущего `/ready` на `/health` (или пустой TCP), чтобы кратковременный сбой/перезапуск БД или Redis не триггерил рестарт `birge-api`; `/ready` проверять после deploy и вручную.
+2. Для Render `healthCheckPath` оставлять `/health` (переключено с `/ready` 2026-11-27); `/ready` проверять после deploy и вручную.
 3. Проверить в Sentry alert rule на `auth.proxy=unsigned` и на новые issues;
    подтвердить доставку тестового уведомления.
 

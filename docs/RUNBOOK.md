@@ -18,7 +18,7 @@ commit `1255702` (2026-11-27, credential rotation).
 | Key Value | `birge-redis`, free 25 MB, persistence off |
 | Alembic revision | `a7f1c3e8b9d2` (head) |
 | Health / readiness | `https://birge-api.onrender.com/health`, `https://birge-api.onrender.com/ready` |
-| Health check path в Render | фактически сейчас задан `/ready`; рекомендуется переключить на `/health` (или пустой TCP), особенно до upgrade БД (§11); `/ready` проверять после deploy и вручную |
+| Health check path в Render | `/health` (переключено с `/ready` 2026-11-27); `/ready` проверять после deploy и вручную |
 | CORS | `ALLOWED_ORIGINS=https://birge-professional.vercel.app` |
 | Telegram | `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET` заданы; webhook зарегистрирован |
 | Sentry | backend `SENTRY_DSN` задан, в логах `sentry.initialized`; frontend `VITE_SENTRY_DSN` и `SENTRY_AUTH_TOKEN` заданы |
@@ -465,7 +465,7 @@ Drill выполнен на целевой версии PostgreSQL. После u
 - [ ] Staging создан с отдельными БД/Redis/секретами.
 - [x] Внешний доступ к Postgres закрыт; временный IP для дампа удалён,
       `ipAllowList` пуст.
-- [ ] `/health` проходит; `/ready` проверен после deploy; переключить Render health check с текущего `/ready` на `/health` или пустой TCP.
+- [x] `/health` проходит; Render `healthCheckPath` переключён на `/health`; `/ready` проверяется после deploy и вручную.
 - [ ] Telegram `getWebhookInfo` без `last_error_message`; `/bot/webhook` без
       secret возвращает 403.
 - [ ] Привязанный номер получает код; `/auth/send-code` возвращает 200 с
