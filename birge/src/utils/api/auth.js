@@ -3,7 +3,7 @@ import { closeActiveChatSocket } from './chat';
 
 function persistSessionTokens(data) {
   if (data?.access_token) {
-    tokenStorage.setPair(data.access_token, data.csrf_token);
+    tokenStorage.setPair(data.access_token, data.csrf_token, data.refresh_token);
   }
   return data;
 }

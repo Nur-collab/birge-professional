@@ -71,8 +71,8 @@ PITR/автобэкапов, база удаляется 14.12.2026. Решен�
 | Пункт | Статус |
 | --- | --- |
 | CI backend lint/tests + frontend build | готово; `CI` и `Security` зелёные на `1255702` |
-| Backend tests | **95 passed**, `ruff` чист |
-| Frontend tests | **45 passed** (12 файлов) + **9 E2E passed** (`@axe-core/playwright` WCAG 2.1 AA, SSE, login), production build проходит |
+| Backend tests | **96 passed**, `ruff` чист |
+| Frontend tests | **50 passed** (13 файлов) + **9 E2E passed** (`@axe-core/playwright` WCAG 2.1 AA, SSE, login), `build` и `build:mobile` проходят |
 | Локализация & A11y | Полное `ru`/`ky` покрытие (`i18n.js` + `<html lang>` sync) и контраст/ARIA-метки без нарушений |
 | OpenAPI | 40 paths; `openapi.json` и `src/types/api.d.ts` без drift |
 | Dependency audit | `npm audit --omit=dev` — 0; `pip-audit` — без известных уязвимостей |
@@ -129,10 +129,11 @@ rate_limit.py             # Redis/in-process limiter
 ```text
 backend:
   ruff check .                 -> passed
-  pytest -q                    -> 95 passed
+  pytest -q                    -> 96 passed
 frontend:
-  npm test                     -> 45 passed (12 files)
+  npm test                     -> 50 passed (13 files)
   npm run build                -> passed
+  npm run build:mobile         -> passed (без SW, VITE_NATIVE_APP=true)
   npm run e2e                  -> 9 passed (включая a11y.spec.js на PG 16.2)
   npm run api:types            -> без diff
 database:

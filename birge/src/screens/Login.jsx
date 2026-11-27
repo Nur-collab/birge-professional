@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Send, ShieldCheck, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import { isNativeApp, openExternalUrl } from '../utils/platform';
 import CodeStep from './login/CodeStep';
 import PhoneStep from './login/PhoneStep';
 import TelegramChallengeStep from './login/TelegramChallengeStep';
@@ -25,12 +26,8 @@ export default function Login({ onLoggedIn }) {
     const stored = { ...challengeData, expiresAt };
     setChallenge(stored);
     setStep('telegram');
-    if (challengeData?.telegram_url && typeof window !== 'undefined' && typeof window.open === 'function') {
-      try {
-        window.open(challengeData.telegram_url, '_blank', 'noopener,noreferrer');
-      } catch {
-        // Popup blocker fallback: the user still sees the direct link inside TelegramChallengeStep.
-      }
+    if (challengeData?.telegram_url) {
+      void openExternalUrl(challengeData.telegram_url);
     }
   };
 
@@ -155,7 +152,34 @@ export default function Login({ onLoggedIn }) {
         </div>
 
         <p className="auth-footer-legal">
-          {t('auth.legal_prefix')} <a href="/terms.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_terms')}</a> {t('auth.legal_and')} <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_privacy')}</a>
+          {t('auth.legal_prefix')}{' '}
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (isNativeApp()) {
+                e.preventDefault();
+                void openExternalUrl('/terms.html', { staticWebPath: true });
+              }
+            }}
+          >
+            {t('auth.legal_terms')}
+          </a>{' '}
+          {t('auth.legal_and')}{' '}
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (isNativeApp()) {
+                e.preventDefault();
+                void openExternalUrl('/privacy.html', { staticWebPath: true });
+              }
+            }}
+          >
+            {t('auth.legal_privacy')}
+          </a>
         </p>
       </section>
     </main>

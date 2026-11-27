@@ -1,28 +1,35 @@
 // ==============================================================================
 // BIRGE WEB CLIENT — CORE HTTP CLIENT, TOKEN STORAGE & SESSION REFRESH
 // ==============================================================================
+import { getAuthBaseUrl, isNativeApp } from '../platform';
 
 const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
 export const API_URL = configuredApiUrl || 'https://birge-api.onrender.com';
 
-// Auth is always requested from the same-origin /api/auth proxy (Vite in
-// development, vercel.json in production), so the HttpOnly refresh cookie is
-// first-party. Other API calls stay on API_URL.
-export const AUTH_URL = '/api/auth';
+// In web/PWA, auth goes through the same-origin /api/auth proxy so the
+// HttpOnly refresh cookie is first-party. In packaged Capacitor WebView builds,
+// there is no Vercel proxy so auth targets `${API_URL}/auth` directly.
+export const AUTH_URL = getAuthBaseUrl(API_URL);
 
 const LEGACY_ACCESS_TOKEN_KEY = 'birge_token';
 const LEGACY_REFRESH_TOKEN_KEY = 'birge_refresh_token';
+const NATIVE_REFRESH_TOKEN_KEY = 'birge_native_refresh_token';
 const CSRF_TOKEN_KEY = 'birge_csrf_token';
 
-// Access and CSRF tokens live in memory; the refresh token never reaches JS.
-// The CSRF value is only a nonce paired with an HttpOnly cookie, not a bearer
-// credential. It is persisted so a page reload can refresh the session.
+// On web, access and CSRF live outside refresh storage (refresh is HttpOnly cookie).
+// Only packaged native WebView runtimes persist refresh_token for app restarts.
 let accessToken = null;
 let csrfToken = null;
+let nativeRefreshToken = null;
 try {
   localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
   localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
   csrfToken = localStorage.getItem(CSRF_TOKEN_KEY) || null;
+  if (isNativeApp()) {
+    nativeRefreshToken = localStorage.getItem(NATIVE_REFRESH_TOKEN_KEY) || null;
+  } else {
+    localStorage.removeItem(NATIVE_REFRESH_TOKEN_KEY);
+  }
 } catch (_) {
   // Storage can be unavailable in private browsing modes.
 }
@@ -31,6 +38,7 @@ export const tokenStorage = {
   get: () => accessToken,
   set: (token) => { accessToken = token || null; },
   getCsrf: () => csrfToken,
+  getNativeRefresh: () => (isNativeApp() ? nativeRefreshToken : null),
   setCsrf: (token) => {
     csrfToken = token || null;
     try {
@@ -38,19 +46,25 @@ export const tokenStorage = {
       else localStorage.removeItem(CSRF_TOKEN_KEY);
     } catch (_) {}
   },
-  setPair: (newAccessToken, newCsrfToken) => {
+  setPair: (newAccessToken, newCsrfToken, newRefreshToken) => {
     accessToken = newAccessToken || null;
     if (newCsrfToken) {
       csrfToken = newCsrfToken;
       try { localStorage.setItem(CSRF_TOKEN_KEY, newCsrfToken); } catch (_) {}
     }
+    if (isNativeApp() && newRefreshToken) {
+      nativeRefreshToken = newRefreshToken;
+      try { localStorage.setItem(NATIVE_REFRESH_TOKEN_KEY, newRefreshToken); } catch (_) {}
+    }
   },
   clear: () => {
     accessToken = null;
+    nativeRefreshToken = null;
     tokenStorage.setCsrf(null);
     try {
       localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
       localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+      localStorage.removeItem(NATIVE_REFRESH_TOKEN_KEY);
     } catch (_) {}
   },
 };
@@ -118,33 +132,42 @@ let refreshPromise = null;
 
 const requestUrl = (endpoint) => {
   if (endpoint.startsWith('/auth/')) {
-    return `${AUTH_URL}${endpoint.slice('/auth'.length)}`;
+    return `${getAuthBaseUrl(API_URL)}${endpoint.slice('/auth'.length)}`;
   }
   return `${API_URL}${endpoint}`;
 };
 
 async function refreshAccessToken() {
   const csrf = tokenStorage.getCsrf();
-  if (!csrf) return false;
+  const nativeRefresh = tokenStorage.getNativeRefresh();
+  if (!csrf && !nativeRefresh) return false;
   if (refreshPromise) return refreshPromise;
 
+  const authBaseUrl = getAuthBaseUrl(API_URL);
   refreshPromise = (async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`${AUTH_URL}/refresh`, {
+      const fetchOptions = {
         method: 'POST',
         credentials: 'include',
-        headers: { 'X-CSRF-Token': csrf },
+        headers: nativeRefresh
+          ? {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            }
+          : { 'X-CSRF-Token': csrf },
+        ...(nativeRefresh ? { body: JSON.stringify({ refresh_token: nativeRefresh }) } : {}),
         signal: controller.signal,
-      });
+      };
+      const response = await fetch(`${authBaseUrl}/refresh`, fetchOptions);
       if (response.status === 401 || response.status === 403) return false;
       if (!response.ok) {
         throw apiError(`Ошибка ${response.status}`, response.status);
       }
       const data = await response.json();
       if (!data?.access_token) return false;
-      tokenStorage.setPair(data.access_token, data.csrf_token);
+      tokenStorage.setPair(data.access_token, data.csrf_token, data.refresh_token);
       return true;
     } catch (error) {
       if (error.status) throw error;

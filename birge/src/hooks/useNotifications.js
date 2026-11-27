@@ -1,14 +1,12 @@
 import { useCallback, useState } from 'react';
+import { showSystemNotificationSafely } from '../utils/platform';
 
 export default function useNotifications() {
   const [notification, setNotification] = useState({ show: false, title: '', message: '' });
 
   const showNotification = useCallback((title, message) => {
     setNotification({ show: true, title, message });
-    // Нативное Push-уведомление если вкладка скрыта/свернута
-    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-      new Notification(title, { body: message });
-    }
+    showSystemNotificationSafely(title, { body: message });
   }, []);
 
   const closeNotification = useCallback(() => {

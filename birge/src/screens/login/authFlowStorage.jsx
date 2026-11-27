@@ -8,16 +8,31 @@ export const CHALLENGE_POLL_INTERVAL_MS = 2500;
 
 export const readStoredFlow = () => {
   try {
-    const raw = window.sessionStorage.getItem(LOGIN_FLOW_STORAGE_KEY);
+    const sessionRaw = window.sessionStorage.getItem(LOGIN_FLOW_STORAGE_KEY);
+    const raw = sessionRaw || window.localStorage.getItem(LOGIN_FLOW_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
+    if (!sessionRaw) {
+      // Only recover unexpired Telegram challenges if the OS evicted sessionStorage.
+      if (
+        parsed.step !== 'telegram'
+        || !parsed.challenge?.expiresAt
+        || Date.now() > parsed.challenge.expiresAt
+      ) {
+        window.localStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
+        return null;
+      }
+      return parsed;
+    }
     if (parsed.challenge?.expiresAt && Date.now() > parsed.challenge.expiresAt) {
-      return {
+      const cleaned = {
         ...parsed,
         step: parsed.step === 'telegram' ? 'phone' : parsed.step,
         challenge: null,
       };
+      writeStoredFlow(cleaned);
+      return cleaned;
     }
     return parsed;
   } catch {
@@ -29,9 +44,17 @@ export const writeStoredFlow = (state) => {
   try {
     if (!state || (state.step === 'phone' && !state.phone && !state.tgOpened && !state.challenge)) {
       window.sessionStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
+      window.localStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
       return;
     }
-    window.sessionStorage.setItem(LOGIN_FLOW_STORAGE_KEY, JSON.stringify(state));
+    const serialized = JSON.stringify(state);
+    window.sessionStorage.setItem(LOGIN_FLOW_STORAGE_KEY, serialized);
+    // Only persist time-bounded Telegram deep-link challenges across OS app switches.
+    if (state.step === 'telegram' && state.challenge?.expiresAt) {
+      window.localStorage.setItem(LOGIN_FLOW_STORAGE_KEY, serialized);
+    } else {
+      window.localStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
+    }
   } catch {
     // Private browsing or storage quota exceeded must not block login.
   }
@@ -40,6 +63,7 @@ export const writeStoredFlow = (state) => {
 export const clearStoredFlow = () => {
   try {
     window.sessionStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
+    window.localStorage.removeItem(LOGIN_FLOW_STORAGE_KEY);
   } catch {
     // Ignore storage errors on cleanup.
   }

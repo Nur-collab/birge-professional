@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import { showSystemNotificationSafely } from '../utils/platform';
 import './Chat.css';
 
 export default function Chat({ tripId, currentUser, partnerName, onNewMessage }) {
@@ -24,13 +25,10 @@ export default function Chat({ tripId, currentUser, partnerName, onNewMessage })
         const hasIncoming = newMsgs.some(m => m.senderId !== currentUser.id);
         if (hasIncoming && onNewMessage) {
           onNewMessage();
-          // Push-уведомление если вкладка скрыта
-          try {
-            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-              const last = newMsgs.find(m => m.senderId !== currentUser.id);
-              if (last) new Notification(`Новое сообщение от ${last.senderName}`, { body: last.text });
-            }
-          } catch (_) {}
+          const last = newMsgs.find(m => m.senderId !== currentUser.id);
+          if (last) {
+            showSystemNotificationSafely(`Новое сообщение от ${last.senderName}`, { body: last.text });
+          }
         }
       }
       prevLengthRef.current = msgs.length;

@@ -6,6 +6,7 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { initSentry } from './sentry'
 import { stripLegacyTokenFromUrl } from './utils/api'
+import { isNativeApp } from './utils/platform'
 import './index.css'
 
 // Remove the old credential-bearing URL before React or Sentry can read it.
@@ -14,7 +15,8 @@ initSentry()
 
 // Новый service worker забирает контроль сразу (skipWaiting + clientsClaim).
 // Один перезапуск переключает уже открытую вкладку на свежий бандл.
-if ('serviceWorker' in navigator) {
+// In packaged Capacitor WebView (capacitor:// / file:), Service Worker APIs are unsupported.
+if (!isNativeApp() && 'serviceWorker' in navigator) {
     const hadController = Boolean(navigator.serviceWorker.controller)
     let refreshing = false
     navigator.serviceWorker.addEventListener('controllerchange', () => {

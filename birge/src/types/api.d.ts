@@ -95,7 +95,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh Access Token
-         * @description Rotate the HttpOnly refresh cookie and return a new access token.
+         * @description Rotate the refresh session and return a new access token.
          */
         post: operations["refresh_access_token_auth_refresh_post"];
         delete?: never;
@@ -928,6 +928,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** RefreshTokenRequest */
+        RefreshTokenRequest: {
+            /** Refresh Token */
+            refresh_token?: string | null;
+        };
         /**
          * Review
          * @description Ответ API; без input-валидаторов для совместимости со старыми отзывами.
@@ -1436,7 +1441,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1445,6 +1454,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

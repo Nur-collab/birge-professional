@@ -29,12 +29,20 @@ _DEFAULT_ALLOWED_ORIGINS = [
     "https://birge-5c900.web.app",
     "https://birge-5c900.firebaseapp.com",
 ]
+# Native Capacitor/Ionic WebView origins running packaged mobile apps on device.
+NATIVE_WEBVIEW_ORIGINS = (
+    "capacitor://localhost",
+    "ionic://localhost",
+    "https://localhost",
+)
 _env_allowed_origins = [
     origin.strip().rstrip("/")
     for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
-ALLOWED_ORIGINS = list(dict.fromkeys(_env_allowed_origins or _DEFAULT_ALLOWED_ORIGINS))
+ALLOWED_ORIGINS = list(
+    dict.fromkeys([*(_env_allowed_origins or _DEFAULT_ALLOWED_ORIGINS), *NATIVE_WEBVIEW_ORIGINS])
+)
 ALLOWED_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX", "").strip() or None
 
 # The frontend always calls the same-origin /api/auth proxy: Vite forwards it

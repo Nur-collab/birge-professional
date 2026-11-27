@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../utils/api';
+import { isNativeApp, openExternalUrl } from '../../utils/platform';
 import {
   BOT_URL,
   CHALLENGE_POLL_INTERVAL_MS,
@@ -246,6 +247,12 @@ export default function TelegramChallengeStep({
               target="_blank"
               rel="noopener noreferrer"
               className="primary-btn submit-btn tg-open-link-btn"
+              onClick={(e) => {
+                if (isNativeApp()) {
+                  e.preventDefault();
+                  void openExternalUrl(challenge?.telegram_url || BOT_URL);
+                }
+              }}
             >
               <Send size={16} aria-hidden="true" />
               <span>{t('auth.open_bot_named', { bot: challenge?.bot_username || 'BirgeAuthBot' })}</span>

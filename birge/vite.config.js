@@ -6,6 +6,7 @@ import { sentryVitePlugin } from '@sentry/bundler-plugins/vite'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '')
+    const isMobileBuild = mode === 'mobile' || env.VITE_NATIVE_APP === 'true'
     const apiUrl = (env.VITE_API_URL || '').trim()
     const sentryAuthToken = (env.SENTRY_AUTH_TOKEN || process.env.SENTRY_AUTH_TOKEN || '').trim()
     const enableSentrySourcemaps = mode === 'production' && Boolean(sentryAuthToken)
@@ -20,21 +21,25 @@ export default defineConfig(({ mode }) => {
         },
     }
 
-    // .env.local is loaded in every Vite mode, including production.
+    // .env.local is loaded in every Vite mode, including production/mobile.
     // Fail loudly instead of shipping a build that calls a developer machine.
-    if (mode === 'production' && /(^|:\/\/)(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(apiUrl)) {
+    if ((mode === 'production' || mode === 'mobile') && /(^|:\/\/)(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(apiUrl)) {
         throw new Error(
-            `Refusing production build: VITE_API_URL points to a local address (${apiUrl}). ` +
+            `Refusing ${mode} build: VITE_API_URL points to a local address (${apiUrl}). ` +
             'Set the production URL in the hosting environment or .env.production.'
         )
     }
 
     return {
+    define: isMobileBuild
+        ? { 'import.meta.env.VITE_NATIVE_APP': JSON.stringify('true') }
+        : undefined,
     server: { proxy: authProxy },
     preview: { proxy: authProxy },
     plugins: [
         react(),
         VitePWA({
+            disable: isMobileBuild,
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'sw.js',

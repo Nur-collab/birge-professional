@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Smartphone, Download, Trash2, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import { exportJsonFile, isNativeApp, openExternalUrl } from '../utils/platform';
 import './Settings.css';
 
 export default function Settings({ currentUser, onBack, onUpdate, onAccountDeleted }) {
@@ -74,28 +75,14 @@ export default function Settings({ currentUser, onBack, onUpdate, onAccountDelet
     if (exporting) return;
     setExporting(true);
     setPrivacyNotice({ type: '', text: '' });
-    let objectUrl = null;
     try {
       const payload = await api.exportMyData();
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
-        objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const dateStamp = new Date().toISOString().slice(0, 10);
-        link.href = objectUrl;
-        link.download = `birge-data-export-${dateStamp}.json`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      await exportJsonFile(`birge-data-export-${dateStamp}.json`, payload);
       setPrivacyNotice({ type: 'success', text: t('settings.export_success') });
     } catch (err) {
       setPrivacyNotice({ type: 'error', text: err?.message || t('settings.export_error') });
     } finally {
-      if (objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
-        URL.revokeObjectURL(objectUrl);
-      }
       setExporting(false);
     }
   };
@@ -318,8 +305,32 @@ export default function Settings({ currentUser, onBack, onUpdate, onAccountDelet
           {t('settings.privacy_desc')}
         </p>
         <div className="privacy-links">
-          <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_privacy')}</a>
-          <a href="/terms.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_terms')}</a>
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (isNativeApp()) {
+                e.preventDefault();
+                void openExternalUrl('/privacy.html', { staticWebPath: true });
+              }
+            }}
+          >
+            {t('auth.legal_privacy')}
+          </a>
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (isNativeApp()) {
+                e.preventDefault();
+                void openExternalUrl('/terms.html', { staticWebPath: true });
+              }
+            }}
+          >
+            {t('auth.legal_terms')}
+          </a>
         </div>
 
         <div className="privacy-actions">

@@ -9,6 +9,7 @@ import RealMap from '../components/RealMap';
 import Chat from '../components/Chat';
 import { api } from '../utils/api';
 import { localDateStr } from '../utils/date';
+import { copyToClipboardSafely, openExternalUrl } from '../utils/platform';
 import TripAcceptedCard from '../components/TripAcceptedCard';
 import './Trip.css';
 
@@ -96,12 +97,12 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       return;
     }
     setPaymentError('');
-    navigator.clipboard?.writeText(targetPhone);
+    void copyToClipboardSafely(targetPhone);
     setCopied(true);
     clearTimeout(copiedTimerRef.current);
     copiedTimerRef.current = setTimeout(() => setCopied(false), 3500);
     // Открываем веб/приложение MBank
-    window.open('https://app.mbank.kg/', '_blank', 'noopener,noreferrer');
+    void openExternalUrl('https://app.mbank.kg/');
   };
 
   const handleCopyElkart = () => {
@@ -111,7 +112,7 @@ export default function Trip({ trip, currentUser, onPanic, onFinish, onCancelled
       return;
     }
     setPaymentError('');
-    navigator.clipboard?.writeText(targetCard);
+    void copyToClipboardSafely(targetCard);
     setCopiedElkart(true);
     clearTimeout(copiedElkartTimerRef.current);
     copiedElkartTimerRef.current = setTimeout(() => setCopiedElkart(false), 3000);

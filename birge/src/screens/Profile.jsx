@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Star, Car, Settings, LogOut, ChevronRight, Loader, Clock, ShieldAlert, ExternalLink, FileText, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
+import { isNativeApp, openExternalUrl } from '../utils/platform';
 import './Profile.css';
 
 export default function Profile({ currentUser: userProp, onLogout, onShowSettings, onShowHistory }) {
@@ -294,6 +295,12 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
                 href={verifyResult.bot_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (isNativeApp()) {
+                    e.preventDefault();
+                    void openExternalUrl(verifyResult.bot_url);
+                  }
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                   width: '100%', minHeight: 44, padding: '10px 12px', marginBottom: 8,
@@ -369,12 +376,36 @@ export default function Profile({ currentUser: userProp, onLogout, onShowSetting
           <span>{t('profile.settings')}</span>
           <ChevronRight size={20} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </button>
-        <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="menu-item" style={{ textDecoration: 'none' }}>
+        <a
+          href="/terms.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="menu-item"
+          style={{ textDecoration: 'none' }}
+          onClick={(e) => {
+            if (isNativeApp()) {
+              e.preventDefault();
+              void openExternalUrl('/terms.html', { staticWebPath: true });
+            }
+          }}
+        >
           <FileText size={20} color="var(--text-muted)" />
           <span>{t('legal.terms')}</span>
           <ExternalLink size={16} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />
         </a>
-        <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="menu-item" style={{ textDecoration: 'none' }}>
+        <a
+          href="/privacy.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="menu-item"
+          style={{ textDecoration: 'none' }}
+          onClick={(e) => {
+            if (isNativeApp()) {
+              e.preventDefault();
+              void openExternalUrl('/privacy.html', { staticWebPath: true });
+            }
+          }}
+        >
           <ShieldCheck size={20} color="var(--text-muted)" />
           <span>{t('legal.privacy')}</span>
           <ExternalLink size={16} color="var(--text-subtle)" style={{ marginLeft: 'auto' }} />

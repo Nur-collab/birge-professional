@@ -20,6 +20,7 @@ describe('Login accessibility and prerequisite flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   test('associates the phone label, exposes page heading, and surfaces Telegram prerequisite', () => {
@@ -105,6 +106,7 @@ describe('Telegram deep-link challenge flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   test('completes login automatically for verified returning user and asks name for new user', async () => {

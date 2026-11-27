@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { isNativeApp } from '../utils/platform';
 import './InstallPWA.css';
 
 export default function InstallPWA() {
     const { t } = useTranslation();
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [showInstallBtn, setShowInstallBtn] = useState(false);
-    const [isInstalled, setIsInstalled] = useState(false);
+    const [isInstalled, setIsInstalled] = useState(() => isNativeApp());
 
     useEffect(() => {
+        if (isNativeApp()) {
+            setIsInstalled(true);
+            return undefined;
+        }
         // Проверяем, установлено ли приложение
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
             setIsInstalled(true);
-            return;
+            return undefined;
         }
 
         const handleBeforeInstallPrompt = (e) => {

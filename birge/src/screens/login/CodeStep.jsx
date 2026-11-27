@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../utils/api';
+import { isNativeApp, openExternalUrl } from '../../utils/platform';
 import {
   BOT_URL,
   RESCUE_HINT_DELAY_SECONDS,
@@ -209,7 +210,13 @@ export default function CodeStep({ phone, tgOpenedInitially, onBack, onSwitchToT
               target="_blank"
               rel="noopener noreferrer"
               className="tg-prereq-link"
-              onClick={() => setTgOpened(true)}
+              onClick={(e) => {
+                setTgOpened(true);
+                if (isNativeApp()) {
+                  e.preventDefault();
+                  void openExternalUrl(BOT_URL);
+                }
+              }}
             >
               <Send size={13} aria-hidden="true" />
               <span>{tgOpened ? t('auth.open_bot_again') : t('auth.open_bot')}</span>

@@ -250,6 +250,25 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "minLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          }
+        },
+        "title": "RefreshTokenRequest",
+        "type": "object"
+      },
       "Review": {
         "description": "Ответ API; без input-валидаторов для совместимости со старыми отзывами.",
         "properties": {
@@ -1435,8 +1454,25 @@
     },
     "/auth/refresh": {
       "post": {
-        "description": "Rotate the HttpOnly refresh cookie and return a new access token.",
+        "description": "Rotate the refresh session and return a new access token.",
         "operationId": "refresh_access_token_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -1445,6 +1481,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Refresh Access Token",

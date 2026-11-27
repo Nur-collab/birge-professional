@@ -1590,3 +1590,63 @@ def test_batch_trip_request_statuses_returns_latest_and_validates_input(client, 
 
     bad = client.get("/trip-requests/statuses?trip_ids=abc", headers=_headers(passenger))
     assert bad.status_code == 400
+
+
+def test_native_webview_cors_and_body_refresh_flow(client, db):
+    for origin in ("capacitor://localhost", "https://localhost"):
+        preflight = client.options(
+            "/auth/refresh",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-csrf-token",
+            },
+        )
+        assert preflight.status_code == 200
+        assert preflight.headers.get("access-control-allow-origin") == origin
+
+    user = _user(db, "+996555000109", "Mobile User")
+    code = auth.issue_login_code(user, db)
+    db.commit()
+
+    # Native WebView origin receives refresh_token in payload as WKWebView fallback.
+    exchange = client.post(
+        "/auth/exchange-code",
+        headers={"Origin": "capacitor://localhost"},
+        json={"code": code},
+    )
+    assert exchange.status_code == 200
+    exchange_body = exchange.json()
+    assert exchange_body.get("refresh_token")
+
+    # Simulate WKWebView blocking third-party cookies: clear all cookies before /auth/refresh.
+    client.cookies.clear()
+
+    # A normal web origin must NOT be able to refresh using only a JSON body without cookie+CSRF.
+    web_attempt = client.post(
+        "/auth/refresh",
+        headers={"Origin": "https://birge-professional.vercel.app"},
+        json={"refresh_token": exchange_body["refresh_token"]},
+    )
+    assert web_attempt.status_code == 401
+
+    native_refresh = client.post(
+        "/auth/refresh",
+        headers={"Origin": "capacitor://localhost"},
+        json={"refresh_token": exchange_body["refresh_token"]},
+    )
+    assert native_refresh.status_code == 200
+    rotated_body = native_refresh.json()
+    assert rotated_body.get("access_token")
+    assert rotated_body.get("refresh_token")
+    assert rotated_body["refresh_token"] != exchange_body["refresh_token"]
+
+    # Consumed native refresh token must reject replay after grace window.
+    _age_consumed_sessions(db, user)
+    client.cookies.clear()
+    replay = client.post(
+        "/auth/refresh",
+        headers={"Origin": "capacitor://localhost"},
+        json={"refresh_token": exchange_body["refresh_token"]},
+    )
+    assert replay.status_code == 401

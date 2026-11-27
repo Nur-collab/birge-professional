@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, takeLoginCodeFromUrl, tokenStorage } from '../utils/api';
+import { requestNotificationPermissionSafely } from '../utils/platform';
 import { loadTrip, saveTrip } from '../utils/tripStorage';
 
 export default function useAuth({ clearActiveTrip }) {
@@ -63,9 +64,7 @@ export default function useAuth({ clearActiveTrip }) {
         if (profile) {
           setCurrentUser(profile);
           setIsLoggedIn(true);
-          if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-          }
+          requestNotificationPermissionSafely();
           if (!loadTrip()) {
             try {
               const activeRes = await api.getActiveTrip();

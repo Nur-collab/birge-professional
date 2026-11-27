@@ -14,6 +14,10 @@ class ExchangeCodeRequest(BaseModel):
     code: str = Field(..., min_length=20, max_length=128)
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: Optional[str] = Field(default=None, min_length=16, max_length=2048)
+
+
 class TelegramChallengeResponse(BaseModel):
     challenge_id: str
     verifier: str

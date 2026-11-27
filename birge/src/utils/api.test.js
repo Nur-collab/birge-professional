@@ -332,4 +332,42 @@ describe('WebSocket chat subscription', () => {
     expect(tokenStorage.get()).toBeNull();
     expect(tokenStorage.getCsrf()).toBeNull();
   });
+
+  it('uses direct API /auth and JSON refresh_token fallback when running inside Capacitor', async () => {
+    window.Capacitor = { isNativePlatform: () => true };
+    try {
+      tokenStorage.setPair('expired-access', 'csrf-tok', 'native-refresh-1');
+      global.fetch = vi.fn(async (url, opts) => {
+        if (url.endsWith('/users/me') && global.fetch.mock.calls.length === 1) {
+          return { ok: false, status: 401, json: async () => ({}) };
+        }
+        if (url.includes('/auth/refresh')) {
+          expect(url).toBe('https://birge-api.onrender.com/auth/refresh');
+          expect(JSON.parse(opts.body)).toEqual({ refresh_token: 'native-refresh-1' });
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              access_token: 'native-access-2',
+              csrf_token: 'csrf-tok',
+              refresh_token: 'native-refresh-2',
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 9, name: 'Mobile', phone: '+996555000009', reviews: [] }),
+        };
+      });
+
+      const user = await api.getCurrentUser();
+      expect(user.id).toBe(9);
+      expect(tokenStorage.get()).toBe('native-access-2');
+      expect(tokenStorage.getNativeRefresh()).toBe('native-refresh-2');
+    } finally {
+      delete window.Capacitor;
+      tokenStorage.clear();
+    }
+  });
 });

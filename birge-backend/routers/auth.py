@@ -6,14 +6,20 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import Field
 from sqlalchemy.orm import Session
 
 import auth as auth_service
 import models
 import schemas
-from config import ALLOWED_ORIGINS, AUTH_COOKIE_PATH, AUTH_PROXY_SECRET, IS_PRODUCTION
+from config import (
+    ALLOWED_ORIGINS,
+    AUTH_COOKIE_PATH,
+    AUTH_PROXY_SECRET,
+    IS_PRODUCTION,
+    NATIVE_WEBVIEW_ORIGINS,
+)
 from database import get_db
 from dependencies import get_current_user
 from rate_limit import get_rate_limiter
@@ -203,13 +209,28 @@ def _require_csrf(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Origin is not allowed")
 
 
-def _session_payload(user: models.User, db: Session, response: Response) -> dict:
+def _request_origin(request: Request) -> str:
+    return (request.headers.get("origin") or "").strip().rstrip("/")
+
+
+def _is_native_webview_origin(request: Request) -> bool:
+    """True only when a packaged Capacitor/Ionic WebView sends its own Origin."""
+    return _request_origin(request) in NATIVE_WEBVIEW_ORIGINS
+
+
+def _session_payload(
+    user: models.User,
+    db: Session,
+    response: Response,
+    *,
+    include_refresh_token: bool = False,
+) -> dict:
     """Issue access token and HttpOnly refresh/CSRF cookie pair."""
     token_data = _token_payload(user)
     refresh_token = auth_service.issue_refresh_token(user, db)
     csrf_token = secrets.token_urlsafe(32)
     _set_session_cookies(response, refresh_token, csrf_token)
-    return {
+    payload = {
         "access_token": auth_service.create_access_token(token_data),
         "csrf_token": csrf_token,
         "token_type": "bearer",
@@ -217,6 +238,9 @@ def _session_payload(user: models.User, db: Session, response: Response) -> dict
         "user_id": user.id,
         "user": schemas.User.model_validate(user).model_dump(),
     }
+    if include_refresh_token:
+        payload["refresh_token"] = refresh_token
+    return payload
 
 
 def _check_refresh_rate(user_id: int) -> None:
@@ -366,7 +390,12 @@ async def verify_code(
 
     # Создаём JWT токены (sub строго строковый). Профиль отдаём сразу,
     # чтобы клиент не делал второй запрос и не зависел от гонки сети.
-    payload = _session_payload(user, db, response)
+    payload = _session_payload(
+        user,
+        db,
+        response,
+        include_refresh_token=_is_native_webview_origin(request),
+    )
     db.commit()
     return payload
 
@@ -499,7 +528,12 @@ async def complete_telegram_challenge(
     elif not user.is_verified:
         user.is_verified = True
 
-    payload = _session_payload(user, db, response)
+    payload = _session_payload(
+        user,
+        db,
+        response,
+        include_refresh_token=_is_native_webview_origin(request),
+    )
     db.commit()
     return payload
 
@@ -541,7 +575,12 @@ async def exchange_login_code(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = _session_payload(user, db, response)
+    payload = _session_payload(
+        user,
+        db,
+        response,
+        include_refresh_token=_is_native_webview_origin(request),
+    )
     db.commit()
     return payload
 
@@ -550,17 +589,28 @@ async def exchange_login_code(
 def refresh_access_token(
     request: Request,
     response: Response,
+    req: Optional[schemas.RefreshTokenRequest] = Body(default=None),
     db: Session = Depends(get_db),
 ):
-    """Rotate the HttpOnly refresh cookie and return a new access token."""
-    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME, "")
-    if not refresh_token:
+    """Rotate the refresh session and return a new access token."""
+    native_origin = _is_native_webview_origin(request)
+    cookie_refresh = request.cookies.get(REFRESH_COOKIE_NAME, "")
+    if cookie_refresh:
+        refresh_token = cookie_refresh
+        _require_csrf(request)
+        csrf_token = request.cookies.get(CSRF_COOKIE_NAME, "")
+    elif native_origin and req and req.refresh_token:
+        refresh_token = req.refresh_token
+        csrf_token = (
+            request.headers.get(CSRF_HEADER_NAME, "").strip()
+            or secrets.token_urlsafe(32)
+        )
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh session is missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    _require_csrf(request)
 
     user_id = auth_service.verify_refresh_token(refresh_token)
     if not user_id:
@@ -571,7 +621,7 @@ def refresh_access_token(
         )
     _check_refresh_rate(user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
+    if not user or (user.phone or "").startswith("deleted_"):
         raise HTTPException(status_code=401, detail="User not found")
 
     token_version = auth_service.get_token_version(refresh_token, "refresh")
@@ -591,16 +641,18 @@ def refresh_access_token(
 
     # Keep the existing CSRF token for this session; rotating it would race
     # concurrent tabs that share the same cookie-bound value.
-    csrf_token = request.cookies.get(CSRF_COOKIE_NAME, "")
     _set_session_cookies(response, new_refresh_token, csrf_token)
 
     token_data = _token_payload(user)
-    return {
+    result = {
         "access_token": auth_service.create_access_token(token_data),
         "csrf_token": csrf_token,
         "token_type": "bearer",
         "expires_in": auth_service.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
+    if native_origin:
+        result["refresh_token"] = new_refresh_token
+    return result
 
 
 @router.post("/logout")

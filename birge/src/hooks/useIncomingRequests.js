@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, API_URL } from '../utils/api';
+import { showSystemNotificationSafely } from '../utils/platform';
 
 const FALLBACK_POLL_MS = 15000;
 
@@ -62,14 +63,10 @@ export default function useIncomingRequests({ currentUser, myTripId, activeTrip 
       seenRequestIds.current.add(req.id);
       setIncomingRequest(req);
       playNotificationSound();
-      try {
-        if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-          new Notification('Новый запрос на поездку', {
-            body: `${req.requester_name} хочет присоединиться`,
-            icon: '/pwa-192x192.png',
-          });
-        }
-      } catch (_) {}
+      showSystemNotificationSafely('Новый запрос на поездку', {
+        body: `${req.requester_name} хочет присоединиться`,
+        icon: '/pwa-192x192.png',
+      });
     };
 
     const syncRequests = async () => {
@@ -138,10 +135,31 @@ export default function useIncomingRequests({ currentUser, myTripId, activeTrip 
     connectSse();
     const fallbackPoll = setInterval(syncRequests, FALLBACK_POLL_MS);
 
+    const handleResume = () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      syncRequests();
+      if (!es || es.readyState === EventSource.CLOSED) {
+        reconnectDelay = 3000;
+        connectSse();
+      }
+    };
+    const handleOnline = () => {
+      if (cancelled) return;
+      syncRequests();
+      if (!es || es.readyState === EventSource.CLOSED) {
+        reconnectDelay = 3000;
+        connectSse();
+      }
+    };
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('online', handleOnline);
+
     return () => {
       cancelled = true;
       clearTimeout(reconnectTimer);
       clearInterval(fallbackPoll);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('online', handleOnline);
       es?.close();
     };
   }, [currentUser, myTripId, activeTrip, playNotificationSound]);
