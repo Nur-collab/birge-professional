@@ -6,6 +6,11 @@ from datetime import datetime, timezone
 from pii_crypto import decrypt_if_needed, encrypt_if_needed
 
 
+def _utc_now_naive() -> datetime:
+    """Return current UTC time as a naive datetime matching existing DateTime columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class EncryptedString(TypeDecorator):
     """Transparently encrypt payment PII while keeping the existing VARCHAR schema."""
 
@@ -78,7 +83,7 @@ class Trip(Base):
     seats_taken = Column(Integer, default=0)   # занято мест
     price_per_seat = Column(Integer, default=0) # стоимость одного места в сомах (0 = бесплатно)
     reminder_sent = Column(Boolean, default=False) # True = напоминание уже отправлено (не повторяем при рестарте)
-    created_at = Column(DateTime, default=lambda: datetime.utcnow())  # UTC, для очистки legacy-поисков
+    created_at = Column(DateTime, default=_utc_now_naive)  # UTC, для очистки legacy-поисков
 
     user = relationship("User", back_populates="trips")
 
@@ -162,7 +167,7 @@ class AuditLog(Base):
     entity_type = Column(String, nullable=False)
     entity_id = Column(Integer, nullable=True)
     details = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.utcnow(), nullable=False)
+    created_at = Column(DateTime, default=_utc_now_naive, nullable=False)
 
 
 class SmsCode(Base):

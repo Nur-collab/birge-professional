@@ -32,6 +32,7 @@ from routers.reviews import create_review, router as reviews_router
 from routers.trip_requests import router as trip_requests_router
 from routers.trips import router as trips_router
 from routers.users import router as users_router
+from routers.users_privacy import router as users_privacy_router
 from sentry_config import init_sentry
 from time_utils import get_bishkek_today_str
 from trip_maintenance import cleanup_stale_trips, reminder_loop, stale_cleanup_loop
@@ -205,6 +206,7 @@ async def security_headers_middleware(request, call_next):
 
 app.include_router(auth_router)
 app.include_router(trips_router)
+app.include_router(users_privacy_router)
 app.include_router(users_router)
 app.include_router(trip_requests_router)
 app.include_router(chat_router)

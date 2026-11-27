@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import HTTPException
@@ -358,7 +358,7 @@ def test_users_me_delete_scrubs_pii_releases_seats_and_revokes_sessions(client, 
     db.add(models.RefreshSession(
         user_id=victim.id,
         jti_hash="a" * 64,
-        expires_at=datetime.utcnow() + timedelta(days=7),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         family_id="fam1",
     ))
 

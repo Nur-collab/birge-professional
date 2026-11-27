@@ -1,62 +1,24 @@
 import React, { useState } from 'react';
-import { localDateStr } from '../utils/date';
-import { 
-  User, 
-  Car, 
-  Clock, 
-  Search, 
-  Navigation, 
-  ArrowRight, 
-  ArrowUpDown,
-  Calendar, 
-  MapPin, 
-  Layers, 
-  Building2, 
-  Compass, 
-  ShoppingBag, 
+import {
   AlertTriangle,
-  Users,
-  CreditCard,
-  Plus,
-  Minus,
-  ChevronDown,
-  Map as MapIcon
+  ArrowRight,
+  ArrowUpDown,
+  Calendar,
+  Car,
+  Clock,
+  Map as MapIcon,
+  MapPin,
+  Navigation,
+  Search,
+  User,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AddressInput from '../components/AddressInput';
 import RouteMapPreview from '../components/RouteMapPreview';
+import { localDateStr } from '../utils/date';
+import DriverParameters from './dashboard/DriverParameters';
+import HubsDisclosure from './dashboard/HubsDisclosure';
 import './Dashboard.css';
-
-// Популярные жилые комплексы, микрорайоны и ориентиры Бишкека и Чуйской области
-const BISHKEK_HUBS = [
-  { name: 'ЦУМ (Центр)', cat: 'center' },
-  { name: 'ТРК Asia Mall', cat: 'center' },
-  { name: 'Южная Магистраль', cat: 'center' },
-  { name: 'Политех / БГУ', cat: 'center' },
-  { name: 'мкр. Асанбай', cat: 'districts' },
-  { name: 'мкр. Джал', cat: 'districts' },
-  { name: 'мкр. Тунгуч', cat: 'districts' },
-  { name: 'мкр. Восток-5', cat: 'districts' },
-  { name: 'ЖК «Ала-Арча»', cat: 'districts' },
-  { name: 'ж/м Ак-Өргө', cat: 'districts' },
-  { name: 'Рынок Дордой', cat: 'markets' },
-  { name: 'Ошский базар', cat: 'markets' },
-  { name: 'Аламединский базар', cat: 'markets' },
-  { name: 'Кудайберген', cat: 'markets' },
-  { name: 'Аэропорт Манас', cat: 'chuy' },
-  { name: 'г. Кант', cat: 'chuy' },
-  { name: 'г. Токмок', cat: 'chuy' },
-  { name: 'с. Сокулук', cat: 'chuy' },
-  { name: 'г. Кара-Балта', cat: 'chuy' },
-];
-
-const HUB_CATEGORIES = [
-  { id: 'all', labelKey: 'dash.cat_all', icon: Layers },
-  { id: 'center', labelKey: 'dash.cat_center', icon: Building2 },
-  { id: 'districts', labelKey: 'dash.cat_districts', icon: Compass },
-  { id: 'markets', labelKey: 'dash.cat_markets', icon: ShoppingBag },
-  { id: 'chuy', labelKey: 'dash.cat_chuy', icon: Navigation },
-];
 
 export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const { t, i18n } = useTranslation();
@@ -64,12 +26,12 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
   const [role, setRole] = useState('passenger');
   const [from, setFrom] = useState('Жилмассив Ала-Арча');
   const [to, setTo] = useState('ЦУМ (Центр)');
-  const [tagTarget, setTagTarget] = useState('to'); // 'from' или 'to'
+  const [tagTarget, setTagTarget] = useState('to');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [time, setTime] = useState('08:15');
   const [date, setDate] = useState(localDateStr());
   const [seats, setSeats] = useState(3);
-  const [price, setPrice] = useState(100); // цена за место в сомах
+  const [price, setPrice] = useState(100);
   const [geoLoading, setGeoLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showHubs, setShowHubs] = useState(false);
@@ -129,10 +91,10 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
     if ('vibrate' in navigator) navigator.vibrate?.(10);
     if (tagTarget === 'from') {
       setFrom(placeName);
-      setErrors(prev => ({ ...prev, from: undefined }));
+      setErrors((prev) => ({ ...prev, from: undefined }));
     } else {
       setTo(placeName);
-      setErrors(prev => ({ ...prev, to: undefined }));
+      setErrors((prev) => ({ ...prev, to: undefined }));
     }
   };
 
@@ -156,24 +118,18 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
       return;
     }
     setErrors({});
-
     onSearch(buildSearchPayload());
   };
-
-  const seatWord = seats === 1
-    ? t('dash.seat_one')
-    : seats < 5
-      ? t('dash.seat_few')
-      : t('dash.seat_many');
 
   return (
     <div className="dashboard screen-content">
       <div className="dashboard-heading">
         <p className="dashboard-kicker">{t('dash.kicker')}</p>
-        <h2 className="dashboard-title">{firstName ? t('dash.greeting_title', { name: firstName }) : t('dash.where_to')}</h2>
+        <h2 className="dashboard-title">
+          {firstName ? t('dash.greeting_title', { name: firstName }) : t('dash.where_to')}
+        </h2>
       </div>
 
-      {/* Селектор роли (iOS / Linear Segmented Pill) */}
       <div className="role-switch-container">
         <div className="role-switch" role="group" aria-label={t('dash.role_group_aria')}>
           <button
@@ -203,7 +159,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
         </div>
       </div>
 
-      {/* Основная карточка маршрута */}
       <form className="route-form-card" onSubmit={handleSubmit}>
         <div className="form-header">
           <div className="form-header-title">
@@ -245,7 +200,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           </div>
         </div>
 
-        {/* Интегрированный трек маршрута */}
         <div className="connected-route-card">
           <div className="route-track-indicator">
             <div className="track-node origin-node" />
@@ -257,7 +211,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             <div className="route-input-cell">
               <AddressInput
                 value={from}
-                onChange={(v) => { setFrom(v); setErrors(prev => ({ ...prev, from: undefined })); }}
+                onChange={(v) => { setFrom(v); setErrors((prev) => ({ ...prev, from: undefined })); }}
                 placeholder={t('dash.from_placeholder')}
                 iconColor={errors.from ? 'var(--danger)' : 'var(--primary)'}
                 name="from"
@@ -280,7 +234,7 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
             <div className="route-input-cell">
               <AddressInput
                 value={to}
-                onChange={(v) => { setTo(v); setErrors(prev => ({ ...prev, to: undefined })); }}
+                onChange={(v) => { setTo(v); setErrors((prev) => ({ ...prev, to: undefined })); }}
                 placeholder={t('dash.to_placeholder')}
                 iconColor={errors.to ? 'var(--danger)' : 'var(--text-subtle)'}
                 name="to"
@@ -292,93 +246,18 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           </div>
         </div>
 
-        {/* Популярные точки — раскрываются по запросу */}
-        <button
-          type="button"
-          className="compact-disclosure"
-          onClick={() => setShowHubs((open) => !open)}
-          aria-expanded={showHubs}
-          aria-controls="popular-places-panel"
-        >
-          <span className="compact-disclosure-main">
-            <MapPin size={16} aria-hidden="true" />
-            <span>{t('dash.popular_places')}</span>
-            <span className="compact-disclosure-meta">{t('dash.quick_pick')}</span>
-          </span>
-          <ChevronDown
-            size={17}
-            className={`compact-disclosure-chevron ${showHubs ? 'open' : ''}`}
-            aria-hidden="true"
-          />
-        </button>
+        <HubsDisclosure
+          showHubs={showHubs}
+          onToggleHubs={() => setShowHubs((open) => !open)}
+          tagTarget={tagTarget}
+          onChangeTarget={setTagTarget}
+          selectedCategory={selectedCategory}
+          onChangeCategory={setSelectedCategory}
+          from={from}
+          to={to}
+          onSelectHub={handleTagClick}
+        />
 
-        {showHubs && (
-          <div className="hubs-section" id="popular-places-panel">
-          <div className="hubs-top">
-            <div className="section-label">{t('dash.popular_points')}</div>
-            <div className="target-toggle" role="group" aria-label={t('dash.target_group_aria')}>
-              <button
-                type="button"
-                className={`target-pill ${tagTarget === 'from' ? 'active' : ''}`}
-                onClick={() => setTagTarget('from')}
-                aria-pressed={tagTarget === 'from'}
-              >
-                {t('tags.target_from')}
-              </button>
-              <button
-                type="button"
-                className={`target-pill ${tagTarget === 'to' ? 'active' : ''}`}
-                onClick={() => setTagTarget('to')}
-                aria-pressed={tagTarget === 'to'}
-              >
-                {t('tags.target_to')}
-              </button>
-            </div>
-          </div>
-
-          {/* Категории */}
-          <div className="category-scroll" role="group" aria-label={t('dash.categories_aria')}>
-            {HUB_CATEGORIES.map((cat) => {
-              const IconComp = cat.icon;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`category-pill ${selectedCategory === cat.id ? 'active' : ''}`}
-                  onClick={() => {
-                    if ('vibrate' in navigator) navigator.vibrate?.(10);
-                    setSelectedCategory(cat.id);
-                  }}
-                  aria-pressed={selectedCategory === cat.id}
-                >
-                  <IconComp size={13} aria-hidden="true" />
-                  <span>{t(cat.labelKey)}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Список хабов */}
-          <div className="hubs-chips-scroll" role="group" aria-label={t('dash.popular_points')}>
-            {BISHKEK_HUBS.filter(h => selectedCategory === 'all' || h.cat === selectedCategory).map((hub) => {
-              const isSelected = tagTarget === 'from' ? from === hub.name : to === hub.name;
-              return (
-                <button
-                  key={hub.name}
-                  type="button"
-                  className={`hub-chip ${isSelected ? 'selected' : ''}`}
-                  onClick={() => handleTagClick(hub.name)}
-                  aria-pressed={isSelected}
-                >
-                  {hub.name}
-                </button>
-              );
-            })}
-          </div>
-          </div>
-        )}
-
-        {/* Дата и Время */}
         <div className="datetime-grid">
           <div className="datetime-cell">
             <div className="cell-label">
@@ -392,8 +271,8 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
                 aria-label={t('dash.date_aria')}
                 value={date}
                 min={today}
-                onChange={e => setDate(e.target.value)}
-                onClick={e => e.target.showPicker && e.target.showPicker()}
+                onChange={(e) => setDate(e.target.value)}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
                 className="hidden-native-input"
               />
             </div>
@@ -408,92 +287,22 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
               type="time"
               aria-label={t('dash.time_aria')}
               value={time}
-              onChange={e => setTime(e.target.value)}
+              onChange={(e) => setTime(e.target.value)}
               required
               className="time-native-input"
             />
           </div>
         </div>
 
-        {/* Настройки для водителя: Места и Цена */}
         {role === 'driver' && (
-          <>
-            <button
-              type="button"
-              className="compact-disclosure driver-summary"
-              onClick={() => setShowDriverDetails((open) => !open)}
-              aria-expanded={showDriverDetails}
-              aria-controls="driver-parameters-panel"
-            >
-              <span className="compact-disclosure-main">
-                <Users size={16} aria-hidden="true" />
-                <span>{t('dash.trip_details')}</span>
-              </span>
-              <span className="driver-summary-value">
-                {seats} {seatWord} · {price > 0 ? `${price} ${t('common.som')}` : t('dash.free_lower')}
-              </span>
-              <ChevronDown
-                size={17}
-                className={`compact-disclosure-chevron ${showDriverDetails ? 'open' : ''}`}
-                aria-hidden="true"
-              />
-            </button>
-
-            {showDriverDetails && (
-              <div className="driver-parameters-card" id="driver-parameters-panel">
-            {/* Места */}
-            <div className="parameter-row">
-              <div className="param-label-group">
-                <Users size={16} className="text-muted" />
-                <span className="param-title">{t('dash.seats_free')}</span>
-              </div>
-              <div className="stepper-box">
-                <button
-                  type="button"
-                  className="stepper-btn"
-                  onClick={() => setSeats(s => Math.max(1, s - 1))}
-                  disabled={seats <= 1}
-                  aria-label={t('dash.seats_dec_aria')}
-                >
-                  <Minus size={14} aria-hidden="true" />
-                </button>
-                <span className="stepper-value" role="status" aria-live="polite" aria-label={t('dash.seats_count_aria', { count: seats })}>{seats}</span>
-                <button
-                  type="button"
-                  className="stepper-btn"
-                  onClick={() => setSeats(s => Math.min(8, s + 1))}
-                  disabled={seats >= 8}
-                  aria-label={t('dash.seats_inc_aria')}
-                >
-                  <Plus size={14} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-
-            {/* Цена за место */}
-            <div className="parameter-row">
-              <div className="param-label-group">
-                <CreditCard size={16} className="text-muted" />
-                <span className="param-title">{t('dash.price_per_seat')}</span>
-              </div>
-              <div className="price-input-wrap">
-                <input
-                  type="number"
-                  aria-label={t('dash.price_per_seat_aria')}
-                  min="0"
-                  max="9999"
-                  step="50"
-                  value={price || ''}
-                  onChange={e => setPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                  placeholder="0"
-                  className="price-number-input"
-                />
-                <span className="currency-label">{t('common.som_upper')}</span>
-              </div>
-            </div>
-              </div>
-            )}
-          </>
+          <DriverParameters
+            showDetails={showDriverDetails}
+            onToggleDetails={() => setShowDriverDetails((open) => !open)}
+            seats={seats}
+            onChangeSeats={setSeats}
+            price={price}
+            onChangePrice={setPrice}
+          />
         )}
 
         <button type="submit" className="primary-btn submit-action-btn">
@@ -516,7 +325,6 @@ export default function Dashboard({ onSearch, currentUser, onShowSettings }) {
           onSearch={() => onSearch(buildSearchPayload())}
         />
       )}
-
     </div>
   );
 }
