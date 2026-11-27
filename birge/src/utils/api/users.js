@@ -1,4 +1,5 @@
-import { authFetch } from './client';
+import { authFetch, tokenStorage } from './client';
+import { closeActiveChatSocket } from './chat';
 
 export const usersApi = {
   getCurrentUser: async () => {
@@ -58,4 +59,15 @@ export const usersApi = {
   },
 
   verifyUser: async () => usersApi.verifyAccount(),
+
+  exportMyData: async () => {
+    return authFetch('/users/me/export');
+  },
+
+  deleteAccount: async () => {
+    const res = await authFetch('/users/me', { method: 'DELETE' });
+    tokenStorage.clear();
+    closeActiveChatSocket();
+    return res;
+  },
 };

@@ -1,6 +1,32 @@
 {
   "components": {
     "schemas": {
+      "AccountDeleteResponse": {
+        "properties": {
+          "cancelled_trips": {
+            "default": 0,
+            "title": "Cancelled Trips",
+            "type": "integer"
+          },
+          "deleted": {
+            "default": true,
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "released_bookings": {
+            "default": 0,
+            "title": "Released Bookings",
+            "type": "integer"
+          }
+        },
+        "title": "AccountDeleteResponse",
+        "type": "object"
+      },
       "Body_upload_profile_photo_users_me_photo_post": {
         "properties": {
           "file": {
@@ -90,6 +116,125 @@
           "code"
         ],
         "title": "ExchangeCodeRequest",
+        "type": "object"
+      },
+      "ExportedChatMessage": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "ExportedChatMessage",
+        "type": "object"
+      },
+      "ExportedTripRequest": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "requester_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester Id"
+          },
+          "requester_trip_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester Trip Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ExportedTripRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -774,6 +919,68 @@
           "id"
         ],
         "title": "User",
+        "type": "object"
+      },
+      "UserDataExport": {
+        "properties": {
+          "chat_messages": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ExportedChatMessage"
+            },
+            "title": "Chat Messages",
+            "type": "array"
+          },
+          "exported_at": {
+            "title": "Exported At",
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/User"
+          },
+          "reviews_received": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "title": "Reviews Received",
+            "type": "array"
+          },
+          "reviews_written": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "title": "Reviews Written",
+            "type": "array"
+          },
+          "telegram_linked": {
+            "title": "Telegram Linked",
+            "type": "boolean"
+          },
+          "trip_requests": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ExportedTripRequest"
+            },
+            "title": "Trip Requests",
+            "type": "array"
+          },
+          "trips": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Trip"
+            },
+            "title": "Trips",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exported_at",
+          "profile",
+          "telegram_linked"
+        ],
+        "title": "UserDataExport",
         "type": "object"
       },
       "UserPublic": {
@@ -2815,6 +3022,54 @@
       }
     },
     "/users/me": {
+      "delete": {
+        "description": "Cancel open trips/bookings, scrub PII, revoke sessions, and delete account.",
+        "operationId": "delete_current_user_account_users_me_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Current User Account",
+        "tags": [
+          "users"
+        ]
+      },
       "get": {
         "description": "Возвращает профиль текущего пользователя по JWT токену.\nEager-load отзывов: без этого Profile.jsx покажет 0 отзывов.",
         "operationId": "read_current_user_users_me_get",
@@ -2964,6 +3219,56 @@
           }
         },
         "summary": "Get My Active Trip",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/export": {
+      "get": {
+        "description": "Export personal profile, trips, requests, reviews, and messages as JSON.",
+        "operationId": "export_current_user_data_users_me_export_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDataExport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Current User Data",
         "tags": [
           "users"
         ]

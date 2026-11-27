@@ -40,7 +40,7 @@ def get_current_user(
         )
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
+    if not user or (user.phone or "").startswith("deleted_"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",

@@ -71,10 +71,10 @@ PITR/автобэкапов, база удаляется 14.12.2026. Решен�
 | Пункт | Статус |
 | --- | --- |
 | CI backend lint/tests + frontend build | готово; `CI` и `Security` зелёные на `1255702` |
-| Backend tests | **92 passed**, `ruff` чист |
-| Frontend tests | **42 passed** (11 файлов) + **9 E2E passed** (`@axe-core/playwright` WCAG 2.1 AA, SSE, login), production build проходит |
+| Backend tests | **95 passed**, `ruff` чист |
+| Frontend tests | **45 passed** (12 файлов) + **9 E2E passed** (`@axe-core/playwright` WCAG 2.1 AA, SSE, login), production build проходит |
 | Локализация & A11y | Полное `ru`/`ky` покрытие (`i18n.js` + `<html lang>` sync) и контраст/ARIA-метки без нарушений |
-| OpenAPI | 38 paths; `openapi.json` и `src/types/api.d.ts` без drift |
+| OpenAPI | 40 paths; `openapi.json` и `src/types/api.d.ts` без drift |
 | Dependency audit | `npm audit --omit=dev` — 0; `pip-audit` — без известных уязвимостей |
 | Secret scan | в git только `.env.example`/`.env.production.example` |
 | Access/refresh JWT | готово; refresh — HttpOnly cookie, CSRF, rotation/replay detection |
@@ -129,15 +129,15 @@ rate_limit.py             # Redis/in-process limiter
 ```text
 backend:
   ruff check .                 -> passed
-  pytest -q                    -> 92 passed
+  pytest -q                    -> 95 passed
 frontend:
-  npm test                     -> 42 passed (11 files)
+  npm test                     -> 45 passed (12 files)
   npm run build                -> passed
   npm run e2e                  -> 9 passed (включая a11y.spec.js на PG 16.2)
   npm run api:types            -> без diff
 database:
   alembic current              -> a7f1c3e8b9d2 (head)
-  OpenAPI export               -> без diff (38 paths)
+  OpenAPI export               -> без diff (40 paths)
 live:
   GET https://birge-professional.vercel.app -> 200 (Ready)
   GET https://birge-api.onrender.com/health -> 200
@@ -152,7 +152,7 @@ sentry:
 
 ## 5. API и OpenAPI
 
-`birge/openapi.json` — закоммиченный контракт (38 paths). После изменения
+`birge/openapi.json` — закоммиченный контракт (40 paths). После изменения
 backend-схем:
 
 ```bash
@@ -167,8 +167,8 @@ npm run api:types
 ```text
 /auth/*        send-code, verify-code, telegram-challenge, status, complete,
                login-code, exchange-code, refresh, logout
-/users/*       me, me/photo, me/verify, me/trips, me/active-trip,
-               me/scheduled-trips, {user_id}
+/users/*       me (GET/PATCH/DELETE), me/export, me/photo, me/verify, me/trips,
+               me/active-trip, me/scheduled-trips, {user_id}
 /trips/*       create, matches, detail, delete, status, passengers, payment,
                messages, panic, ws-ticket
 /trip-requests/* create, incoming, update, status, SSE, sse-ticket
@@ -286,12 +286,11 @@ P1:
 - разбить крупные модули: **выполнено 2026-11-27** (`Login.jsx` 1723→163 строки в `screens/login/*`; `api.js` 790→30 строк фасад над `utils/api/{client,auth,users,trips,chat}.js`; все 19 JSX `<style>`-блоков вынесены в `.css`);
 - Build Filters на Render настроены (`paths: birge-backend/**`, `ignoredPaths`: `tests/**`, `scripts/**`, `requirements-dev.txt`, `requirements-e2e.txt`, `**/*.md`) в дополнение к `rootDir: birge-backend`.
 
-P2 (остаток из `docs/ROADMAP.md`; базовый WCAG audit и полное `ru`/`ky` i18n закрыты в `1255702`):
+P2 (остаток из `docs/ROADMAP.md`; базовый WCAG audit, полное `ru`/`ky` i18n и экспорт/удаление аккаунта закрыты):
 
 - воронка поиск → заявка → принятие → поездка → отзыв;
 - ETA/коридоры, повторяющиеся поездки, политика отмен;
-- модерация/жалобы/support;
-- export/delete данных и consent.
+- модерация/жалобы/support.
 
 ## 9. Полезные команды
 

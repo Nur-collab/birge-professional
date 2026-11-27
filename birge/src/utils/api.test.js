@@ -303,4 +303,33 @@ describe('WebSocket chat subscription', () => {
     await expect(api.checkRequestsStatuses([])).resolves.toEqual([]);
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it('exports user data and clears local session after account deletion', async () => {
+    tokenStorage.setPair('access-token', 'csrf-token');
+    global.fetch = vi.fn(async (url, opts) => {
+      if (url.endsWith('/users/me/export')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ exported_at: '2026-11-27T00:00:00Z', profile: { id: 7 } }),
+        };
+      }
+      if (url.endsWith('/users/me') && opts?.method === 'DELETE') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, deleted: true, cancelled_trips: 0, released_bookings: 0 }),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const exported = await api.exportMyData();
+    expect(exported.profile.id).toBe(7);
+
+    const deleted = await api.deleteAccount();
+    expect(deleted.deleted).toBe(true);
+    expect(tokenStorage.get()).toBeNull();
+    expect(tokenStorage.getCsrf()).toBeNull();
+  });
 });

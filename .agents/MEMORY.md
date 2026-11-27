@@ -23,8 +23,8 @@
 
 ## 2. Current Metrics (2026-11-26)
 
-- Backend tests: 92 passed (ruff `E9,F,B` ignoring `B008`; includes batch `/trip-requests/statuses`, `/users/me/verify` `@BirgeAuthBot` URL, `/trips/matches` rate limit, Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
-- Frontend tests: 42 passed in 11 files (`i18n` dictionary parity & `<html lang>`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `routes`, `escapeHtml`, `date`, `swPolicy`).
+- Backend tests: 95 passed (ruff `E9,F,B` ignoring `B008`; includes `/users/me/export` & `DELETE /users/me`, batch `/trip-requests/statuses`, `/users/me/verify` `@BirgeAuthBot` URL, `/trips/matches` rate limit, Telegram challenge flow, auth proxy IP/CGNAT, Sentry fallback alert, panic cooldown, Redis TTL guard, PII/OTP, refresh rotation, SSE/WS).
+- Frontend tests: 45 passed in 12 files (`Settings`, `i18n`, `useTripSearch`, `Login`, `api`, `useIncomingRequests`, `AddressInput`, `ReviewModal`, `routes`, `escapeHtml`, `date`, `swPolicy`).
 - Browser E2E: 9 passed on PostgreSQL 16.2 (`a11y.spec.js` `@axe-core/playwright` WCAG 2.1 AA light+dark + `ky` language switch, `login-code` + `390x844` fit checks + `sse-ticket`).
 - Production build: passed; 18 precache entries; Vite + PWA `injectManifest` + `@sentry/bundler-plugins`.
 - `main.py`: ~205 lines (extracted `routers/{admin,bot,reviews}.py`, `trip_maintenance.py`).
@@ -33,8 +33,8 @@
 
 ## 3. Active Work State
 
-- Current goal: Keep `birge-postgres` ready for in-place paid upgrade (`0.1c-256mb`, $6/mo; Neon migration cancelled) before 2026-12-14, then pick P2 product features (funnel analytics, corridor/ETA, moderation, export/deletion).
-- Working tree: Stage 4 refactor complete (`api.js` -> `utils/api/*`, `Login.jsx` -> `screens/login/*`, zero `<style>` in JSX; `42` unit + `9` E2E + Vite build `551.91 KiB` pass). Render `birge-api` `healthCheckPath=/health` & `buildFilter` configured 2026-11-27.
+- Current goal: Keep `birge-postgres` ready for in-place paid upgrade (`0.1c-256mb`, $6/mo; Neon migration cancelled) before 2026-12-14, then pick remaining P2 product features (funnel analytics, corridor/ETA, moderation/reports).
+- Working tree: Implemented P2 GDPR/store data export (`GET /users/me/export`) & account deletion (`DELETE /users/me`) + Settings UI (`95` backend, `45` unit, `9` E2E pass).
 - P1 done: shared Redis rate limiting for auth and write endpoints; Redis Pub/Sub for SSE and WS chat; CHECK constraints and partial unique index; audit log; `/ready`; `X-Request-ID`; JSON logs with request id; optional Sentry backend/frontend; manual Render setup + backup/restore runbook; Dependabot/pip-audit/gitleaks/Redis compose.
 - P1 hardening 2026-11-15: `User.token_version` + `/auth/logout` revoke all sessions; token version checked in HTTP, SSE and WS; SSE uses a short-lived stream-bound ticket; escaped map balloon HTML; security headers on Vercel/API; current production CORS fallback; safe API URL; local startup no longer registers a production Telegram webhook without `RENDER_EXTERNAL_URL`.
 - Migration/E2E 2026-11-15: CI runs Alembic on `postgres:16`; Playwright browser E2E starts ephemeral PostgreSQL 16.2 via `pgserver`, applies Alembic, seeds a user and runs real backend/frontend ticket + EventSource checks. Cleanup is covered by `globalTeardown` and stale-instance cleanup. Local PostgreSQL migration check passed; GitHub PostgreSQL/E2E job passed on 2748929.
@@ -98,8 +98,8 @@
 
 ## 6. Rolling Changelog (max 5)
 
+- 2026-11-27: P2 privacy & App Store compliance: added `GET /users/me/export` (rate-limited JSON export + `AuditLog`), `DELETE /users/me` (blocks `in_progress`, cancels open trips/releases seats + SSE notify, deletes Telegram/session bindings, anonymizes PII, bumps `token_version`), OpenAPI (40 paths) + Settings UI/RU+KY i18n (`95` backend, `45` unit, `9` E2E pass).
 - 2026-11-27: Stage 4 frontend refactor: split `utils/api.js` (790->30) into `utils/api/{client,auth,users,trips,chat}.js`, `Login.jsx` (1723->163) into `screens/login/{authFlowStorage,PhoneStep,TelegramChallengeStep,CodeStep,login.css}`, and extracted all remaining JSX `<style>` blocks into deduplicated `.css` files (`42` unit, `551.91 KiB` build, `9` E2E pass).
 - 2026-11-27: Synced docs + switched Render `birge-api` `healthCheckPath` from `/ready` to `/health` and added `buildFilter` (`paths: birge-backend/**`, ignored tests/scripts/dev-e2e-reqs/md); zero spurious backend builds on docs commits (`b02a993`).
 - 2026-11-26: Step 3 axe-core WCAG 2.1 AA audit & full RU/KY i18n: added `@axe-core/playwright` E2E sweep (`e2e/a11y.spec.js`), fixed `.header-brand`/`.car-warning-chip` Label-in-Name & subtle contrast tokens, localized shell/screens/modals/hooks with `<html lang>` sync + `i18n.test.js`; 42 unit + 9 E2E pass.
 - 2026-11-26: Render `PYTHON_VERSION` upgraded to `3.12` (`3.12.16` live); applied PR `#12` (`python-multipart==0.0.34`) & `#7` (`SQLAlchemy==2.1.9`), moved local `venv` to Python 3.12; 92 backend, alembic check, 40 frontend unit, 6 E2E pass.
-- 2026-11-26: Upgraded Vite to `8.3.8` (`#4`, 551 KiB PWA precache, 40 unit + 6 E2E pass) with cross-platform lockfile (`157fcc8`, Vercel Prod Ready); closed `#6` (`@vitejs/plugin-react@6.3.0` `@babel/core@8` vs `workbox-build` conflict).

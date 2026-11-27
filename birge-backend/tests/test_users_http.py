@@ -301,3 +301,110 @@ def test_users_photo_validates_file_before_external_upload(client, db, monkeypat
         files={"file": ("avatar.png", b"not-an-image", "image/png")},
     )
     assert invalid.status_code == 400
+
+
+def test_users_me_export_and_audit_log(client, db):
+    driver = _user(db, phone="+996555000031", name="Экспорт Водитель")
+    passenger = _user(db, phone="+996555000032", name="Экспорт Пассажир")
+    digits = "".join(ch for ch in driver.phone if ch.isdigit())
+    db.add(models.TelegramBinding(phone=driver.phone, phone_normalized=digits, chat_id=987654321))
+    trip = _trip(db, driver, date=_future_date(), status="scheduled", seats=3, seats_taken=1)
+    _accepted_request(db, trip, passenger)
+    db.add(models.Review(user_id=driver.id, author_id=passenger.id, author_name=passenger.name, trip_id=trip.id, text="Отлично", rating=5))
+    db.add(models.ChatMessage(trip_id=trip.id, sender_id=driver.id, text="Выезжаю", timestamp="08:00"))
+    db.commit()
+
+    resp = client.get("/users/me/export", headers=_headers(driver))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["telegram_linked"] is True
+    assert body["profile"]["phone"] == "+996555000031"
+    assert body["profile"]["elkart_number"] == "123456"
+    assert len(body["trips"]) == 1
+    assert len(body["trip_requests"]) == 1
+    assert len(body["reviews_received"]) == 1
+    assert len(body["chat_messages"]) == 1
+    assert body["chat_messages"][0]["text"] == "Выезжаю"
+
+    audit = (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.actor_id == driver.id, models.AuditLog.action == "user.data_exported")
+        .first()
+    )
+    assert audit is not None
+
+
+def test_users_me_delete_blocks_in_progress_trip(client, db):
+    driver = _user(db, phone="+996555000033", name="Активный Водитель")
+    passenger = _user(db, phone="+996555000034", name="Активный Пассажир")
+    trip = _trip(db, driver, status="in_progress", seats=3, seats_taken=1)
+    _accepted_request(db, trip, passenger)
+
+    driver_res = client.delete("/users/me", headers=_headers(driver))
+    assert driver_res.status_code == 409
+
+    passenger_res = client.delete("/users/me", headers=_headers(passenger))
+    assert passenger_res.status_code == 409
+
+
+def test_users_me_delete_scrubs_pii_releases_seats_and_revokes_sessions(client, db):
+    driver = _user(db, phone="+996555000035", name="Водитель")
+    victim = _user(db, phone="+996555000036", name="Удаляемый")
+    victim.car_model = "Honda Fit"
+    victim.car_plate = "01KG999XYZ"
+    future = _future_date()
+    digits = "".join(ch for ch in victim.phone if ch.isdigit())
+    db.add(models.TelegramBinding(phone=victim.phone, phone_normalized=digits, chat_id=555666777))
+    db.add(models.RefreshSession(
+        user_id=victim.id,
+        jti_hash="a" * 64,
+        expires_at=datetime.utcnow() + timedelta(days=7),
+        family_id="fam1",
+    ))
+
+    # Driver trip that was full because victim accepted a seat.
+    driver_trip = _trip(db, driver, date=future, status="matched", seats=1, seats_taken=1)
+    victim_passenger_trip = _trip(db, victim, role="passenger", date=future, status="matched")
+    _accepted_request(db, driver_trip, victim, requester_trip_id=victim_passenger_trip.id)
+
+    # Also victim's own future driver trip.
+    victim_driver_trip = _trip(db, victim, role="driver", date=future, status="scheduled")
+    db.commit()
+
+    victim_headers = _headers(victim)
+    res = client.delete("/users/me", headers=victim_headers)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["deleted"] is True
+    assert payload["cancelled_trips"] == 2
+    assert payload["released_bookings"] == 1
+
+    # Old JWT must immediately stop working.
+    assert client.get("/users/me", headers=victim_headers).status_code == 401
+
+    db.expire_all()
+    refreshed_victim = db.query(models.User).filter(models.User.id == victim.id).first()
+    assert refreshed_victim.phone.startswith(f"deleted_{victim.id}_")
+    assert "+996555000036" != refreshed_victim.phone
+    assert refreshed_victim.car_model is None
+    assert refreshed_victim.mbank_phone is None
+    assert refreshed_victim.elkart_number is None
+    assert refreshed_victim.is_verified is False
+
+    refreshed_driver_trip = db.query(models.Trip).filter(models.Trip.id == driver_trip.id).first()
+    assert refreshed_driver_trip.seats_taken == 0
+    assert refreshed_driver_trip.status == "scheduled"
+
+    refreshed_own = db.query(models.Trip).filter(models.Trip.id == victim_driver_trip.id).first()
+    assert refreshed_own.status == "cancelled"
+
+    assert db.query(models.TelegramBinding).filter(models.TelegramBinding.phone_normalized == digits).first() is None
+    assert db.query(models.RefreshSession).filter(models.RefreshSession.user_id == victim.id).first() is None
+
+    audit = (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.actor_id == victim.id, models.AuditLog.action == "user.account_deleted")
+        .first()
+    )
+    assert audit is not None
+    assert "+996555000036" not in (audit.details or "")

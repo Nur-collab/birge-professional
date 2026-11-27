@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Smartphone } from 'lucide-react';
+import { ArrowLeft, Save, Car, User, Camera, ShieldAlert, Globe, CreditCard, Smartphone, Download, Trash2, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import './Settings.css';
 
-export default function Settings({ currentUser, onBack, onUpdate }) {
+export default function Settings({ currentUser, onBack, onUpdate, onAccountDeleted }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({
     name: currentUser?.name || '',
@@ -18,11 +18,30 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [privacyNotice, setPrivacyNotice] = useState({ type: '', text: '' });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const savedTimerRef = useRef(null);
+  const deleteCancelRef = useRef(null);
 
   useEffect(() => () => {
     clearTimeout(savedTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!showDeleteModal) return undefined;
+    deleteCancelRef.current?.focus();
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !deleting) {
+        setShowDeleteModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDeleteModal, deleting]);
 
   const handleLanguageChange = (e) => {
     i18n.changeLanguage(e.target.value);
@@ -48,6 +67,54 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
       setError(t('settings.save_error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setPrivacyNotice({ type: '', text: '' });
+    let objectUrl = null;
+    try {
+      const payload = await api.exportMyData();
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        link.href = objectUrl;
+        link.download = `birge-data-export-${dateStamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      setPrivacyNotice({ type: 'success', text: t('settings.export_success') });
+    } catch (err) {
+      setPrivacyNotice({ type: 'error', text: err?.message || t('settings.export_error') });
+    } finally {
+      if (objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(objectUrl);
+      }
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirmed || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.deleteAccount();
+      setShowDeleteModal(false);
+      if (onAccountDeleted) onAccountDeleted();
+    } catch (err) {
+      const msg = err?.status === 409
+        ? t('settings.delete_active_trip_error')
+        : (err?.message || t('settings.delete_error'));
+      setDeleteError(msg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -240,6 +307,117 @@ export default function Settings({ currentUser, onBack, onUpdate }) {
         </button>
 
       </form>
+
+      {/* Блок Данные и конфиденциальность */}
+      <section className="settings-section glass-panel" style={{ marginTop: '1.2rem' }} aria-labelledby="settings-privacy-heading">
+        <div className="section-title" id="settings-privacy-heading">
+          <FileText size={18} color="var(--primary)" aria-hidden="true" />
+          <span>{t('settings.privacy_section')}</span>
+        </div>
+        <p className="section-desc" style={{ marginTop: 0 }}>
+          {t('settings.privacy_desc')}
+        </p>
+        <div className="privacy-links">
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_privacy')}</a>
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer">{t('auth.legal_terms')}</a>
+        </div>
+
+        <div className="privacy-actions">
+          <button
+            type="button"
+            className="export-data-btn"
+            onClick={handleExportData}
+            disabled={exporting}
+            aria-busy={exporting}
+          >
+            <Download size={17} aria-hidden="true" />
+            <span>{exporting ? t('settings.exporting') : t('settings.export_data')}</span>
+          </button>
+
+          <button
+            type="button"
+            className="delete-account-trigger-btn"
+            onClick={() => {
+              setDeleteConfirmed(false);
+              setDeleteError('');
+              setShowDeleteModal(true);
+            }}
+          >
+            <Trash2 size={17} aria-hidden="true" />
+            <span>{t('settings.delete_account')}</span>
+          </button>
+        </div>
+
+        {privacyNotice.text && (
+          <div
+            className={`privacy-feedback ${privacyNotice.type === 'success' ? 'is-success' : 'is-error'}`}
+            role={privacyNotice.type === 'error' ? 'alert' : 'status'}
+          >
+            {privacyNotice.text}
+          </div>
+        )}
+      </section>
+
+      {showDeleteModal && (
+        <div
+          className="delete-modal-overlay"
+          onClick={() => !deleting && setShowDeleteModal(false)}
+        >
+          <div
+            className="delete-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+            aria-describedby="delete-account-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="delete-account-title" className="delete-modal-title">
+              {t('settings.delete_modal_title')}
+            </h3>
+            <p id="delete-account-desc" className="delete-modal-desc">
+              {t('settings.delete_modal_desc')}
+            </p>
+
+            <label className="delete-confirm-checkbox" htmlFor="confirm-delete-account">
+              <input
+                id="confirm-delete-account"
+                type="checkbox"
+                checked={deleteConfirmed}
+                onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                disabled={deleting}
+              />
+              <span>{t('settings.delete_confirm_checkbox')}</span>
+            </label>
+
+            {deleteError && (
+              <div className="privacy-feedback is-error" role="alert">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="delete-modal-actions">
+              <button
+                ref={deleteCancelRef}
+                type="button"
+                className="delete-cancel-btn"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                className="delete-confirm-btn"
+                onClick={handleDeleteAccount}
+                disabled={!deleteConfirmed || deleting}
+                aria-busy={deleting}
+              >
+                {deleting ? t('settings.deleting') : t('settings.delete_confirm_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

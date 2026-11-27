@@ -55,7 +55,7 @@ Status legend: `[x]` done, `[~]` in progress, `[ ]` planned.
 - [ ] Funnel analytics: search → request → accept → trip → review
 - [ ] Route-corridor matching, ETA, recurring trips and cancellation policy
 - [ ] Support/moderation tools and abuse reporting
-- [ ] Data export/deletion and consent flows
+- [x] Data export/deletion and consent flows (`GET /users/me/export`, `DELETE /users/me`, Settings privacy & account deletion dialog)
 
 ## Deliberate non-goals
 

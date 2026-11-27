@@ -79,6 +79,7 @@ function App() {
     setOrphanedTrip,
     handleLoggedIn,
     handleLogout: logout,
+    handleAccountDeleted,
     retryAuth,
   } = useAuth({ clearActiveTrip });
 
@@ -342,6 +343,7 @@ function App() {
             currentUser={currentUser}
             onBack={() => setActiveTab('profile')}
             onUpdate={(updatedUser) => setCurrentUser(updatedUser)}
+            onAccountDeleted={handleAccountDeleted}
           />
         );
       case 'history':

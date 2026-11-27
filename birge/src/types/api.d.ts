@@ -686,7 +686,11 @@ export interface paths {
         get: operations["read_current_user_users_me_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Current User Account
+         * @description Cancel open trips/bookings, scrub PII, revoke sessions, and delete account.
+         */
+        delete: operations["delete_current_user_account_users_me_delete"];
         options?: never;
         head?: never;
         /**
@@ -705,6 +709,26 @@ export interface paths {
         };
         /** Get My Active Trip */
         get: operations["get_my_active_trip_users_me_active_trip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Current User Data
+         * @description Export personal profile, trips, requests, reviews, and messages as JSON.
+         */
+        get: operations["export_current_user_data_users_me_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -819,6 +843,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountDeleteResponse */
+        AccountDeleteResponse: {
+            /**
+             * Cancelled Trips
+             * @default 0
+             */
+            cancelled_trips: number;
+            /**
+             * Deleted
+             * @default true
+             */
+            deleted: boolean;
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /**
+             * Released Bookings
+             * @default 0
+             */
+            released_bookings: number;
+        };
         /** Body_upload_profile_photo_users_me_photo_post */
         Body_upload_profile_photo_users_me_photo_post: {
             /** File */
@@ -847,6 +894,34 @@ export interface components {
         ExchangeCodeRequest: {
             /** Code */
             code: string;
+        };
+        /** ExportedChatMessage */
+        ExportedChatMessage: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /** Timestamp */
+            timestamp?: string | null;
+            /** Trip Id */
+            trip_id?: number | null;
+        };
+        /** ExportedTripRequest */
+        ExportedTripRequest: {
+            /** Created At */
+            created_at?: string | null;
+            /** Driver Id */
+            driver_id?: number | null;
+            /** Id */
+            id: number;
+            /** Requester Id */
+            requester_id?: number | null;
+            /** Requester Trip Id */
+            requester_trip_id?: number | null;
+            /** Status */
+            status?: string | null;
+            /** Trip Id */
+            trip_id?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1107,6 +1182,39 @@ export interface components {
              * @default 5
              */
             trust_rating: number;
+        };
+        /** UserDataExport */
+        UserDataExport: {
+            /**
+             * Chat Messages
+             * @default []
+             */
+            chat_messages: components["schemas"]["ExportedChatMessage"][];
+            /** Exported At */
+            exported_at: string;
+            profile: components["schemas"]["User"];
+            /**
+             * Reviews Received
+             * @default []
+             */
+            reviews_received: components["schemas"]["Review"][];
+            /**
+             * Reviews Written
+             * @default []
+             */
+            reviews_written: components["schemas"]["Review"][];
+            /** Telegram Linked */
+            telegram_linked: boolean;
+            /**
+             * Trip Requests
+             * @default []
+             */
+            trip_requests: components["schemas"]["ExportedTripRequest"][];
+            /**
+             * Trips
+             * @default []
+             */
+            trips: components["schemas"]["Trip"][];
         };
         /**
          * UserPublic
@@ -2314,6 +2422,37 @@ export interface operations {
             };
         };
     };
+    delete_current_user_account_users_me_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_current_user_users_me_patch: {
         parameters: {
             query?: never;
@@ -2367,6 +2506,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_current_user_data_users_me_export_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDataExport"];
                 };
             };
             /** @description Validation Error */

@@ -198,3 +198,42 @@ class ChatMessage(ChatMessageBase):
     sender: Optional[UserPublic] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ExportedTripRequest(BaseModel):
+    id: int
+    trip_id: Optional[int] = None
+    requester_trip_id: Optional[int] = None
+    requester_id: Optional[int] = None
+    driver_id: Optional[int] = None
+    status: Optional[str] = None
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExportedChatMessage(BaseModel):
+    id: int
+    trip_id: Optional[int] = None
+    text: str
+    timestamp: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserDataExport(BaseModel):
+    exported_at: str
+    profile: User
+    telegram_linked: bool
+    trips: List[Trip] = []
+    trip_requests: List[ExportedTripRequest] = []
+    reviews_received: List[Review] = []
+    reviews_written: List[Review] = []
+    chat_messages: List[ExportedChatMessage] = []
+
+
+class AccountDeleteResponse(BaseModel):
+    ok: bool = True
+    deleted: bool = True
+    cancelled_trips: int = 0
+    released_bookings: int = 0

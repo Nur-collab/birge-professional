@@ -120,15 +120,23 @@ export default function useAuth({ clearActiveTrip }) {
     }
   };
 
-  const handleLogout = async () => {
-    // Do not make the UI wait for the network: local logout is immediate.
+  const resetLocalAuthState = useCallback(() => {
     saveTrip(null);
     setCurrentUser(null);
     clearActiveTrip();
     setOrphanedTrip(null);
     setIsLoggedIn(false);
+  }, [clearActiveTrip]);
+
+  const handleLogout = async () => {
+    // Do not make the UI wait for the network: local logout is immediate.
+    resetLocalAuthState();
     await api.logout();
   };
+
+  const handleAccountDeleted = useCallback(() => {
+    resetLocalAuthState();
+  }, [resetLocalAuthState]);
 
   const retryAuth = useCallback(() => {
     setAuthLoading(true);
@@ -145,6 +153,7 @@ export default function useAuth({ clearActiveTrip }) {
     setOrphanedTrip,
     handleLoggedIn,
     handleLogout,
+    handleAccountDeleted,
     retryAuth,
   };
 }
