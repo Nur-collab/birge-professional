@@ -9,7 +9,7 @@ python-multipart==0.0.34
 aiofiles==25.1.0
 psycopg2-binary==2.9.13
 httpx==0.28.1
-python-dotenv==1.2.2
+python-dotenv==1.2.4
 alembic==1.20.1
 redis==8.1.0
 sentry-sdk[fastapi]==2.75.0
